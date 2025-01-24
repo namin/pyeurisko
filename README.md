@@ -1,81 +1,173 @@
 # PyEurisko
 
-PyEurisko is a Python implementation inspired by Douglas Lenat's Eurisko system, designed for heuristic discovery and automated reasoning. The system provides a flexible framework for defining units, slots, and tasks that can be used to model and solve complex problems.
+PyEurisko is a Python implementation inspired by Douglas Lenat's Eurisko system, designed for heuristic discovery and automated reasoning. The system implements core concepts from the original Eurisko while leveraging modern Python features and design patterns.
 
 ## Installation
 
-To install PyEurisko with development dependencies:
+For development with testing tools:
 
 ```bash
 pip install -e ".[dev]"
 ```
 
-For regular installation without development tools:
+For regular installation:
 
 ```bash
 pip install -e .
 ```
 
-## Features
+## Core Concepts
 
-- **Unit System**: Flexible object system with dynamic properties
-- **Slot Management**: Customizable property definitions with inheritance
-- **Task Framework**: Priority-based task scheduling and execution
-- **Heuristic Discovery**: Framework for automated learning and optimization
+PyEurisko implements several key concepts from the original Eurisko system:
 
-## Usage
+### Units
+Units are the fundamental objects in the system, representing concepts, rules, and data. Each unit has:
+- Properties stored in a flexible property list
+- Worth/importance value
+- Category memberships through ISA relationships
+- Specialization and generalization relationships
 
-### Basic Example
+### Slots
+Slots define the types and behaviors of properties that units can have:
+- Data type validation
+- Inheritance relationships
+- Criterial vs non-criterial distinctions
+- Copy behavior during unit creation
 
-Here's how to run the basic demonstration:
+### Heuristics
+Heuristics are specialized units that implement reasoning rules:
+- Relevance checking mechanisms
+- Multi-phase execution
+- Performance tracking
+- Subsumption relationships
 
-```bash
-python examples/basic_demo.py
-```
-
-This example demonstrates:
-- System initialization
-- Task creation and execution
-- Basic unit and slot management
-
-The demo processes a simple Fibonacci-related task and displays the final system state, including registered units, slots, and completed tasks.
-
-### Core System
-
-To run the core system:
-
-```bash
-python -m eurisko.main
-```
-
-The core system initializes with basic components and can be extended for specific use cases.
+### Tasks
+Tasks manage the system's work queue:
+- Priority-based scheduling
+- Task dependencies
+- Result tracking
+- Resource management
 
 ## Project Structure
 
 ```
 pyeurisko/
-├── eurisko/
-│   ├── main.py      # Core system implementation
-│   ├── slots.py     # Slot management
-│   ├── tasks.py     # Task scheduling and execution
-│   └── unit.py      # Unit system implementation
-├── examples/
-│   └── basic_demo.py # Basic usage demonstration
-└── tests/           # Comprehensive test suite
+├── eurisko/                     # Core package
+│   ├── __init__.py             # Package initialization
+│   ├── interfaces.py           # Base classes and interfaces
+│   ├── main.py                 # System initialization and control
+│   ├── slots.py               # Slot management system
+│   ├── unit.py                # Unit implementation
+│   ├── tasks.py               # Task scheduling system
+│   └── heuristics.py          # Heuristic rule system
+│
+├── tests/                      # Test suite
+│   ├── test_main.py           # System tests
+│   ├── test_slots.py          # Slot tests
+│   ├── test_tasks.py          # Task system tests
+│   ├── test_unit.py           # Unit tests
+│   └── test_heuristics.py     # Heuristic tests
+│
+├── examples/                   # Usage examples
+│   └── basic_demo.py          # Basic demonstration
+│
+├── setup.py                   # Package configuration
+└── README.md                  # Documentation
+```
+
+## Key Components
+
+### Unit System (unit.py)
+- EuriskoObject base class
+- Property management
+- Relationship tracking
+- Unit registry
+
+### Slot System (slots.py)
+- Slot definition and validation
+- Property type system
+- Inheritance management
+- Slot registry
+
+### Task System (tasks.py)
+- Priority queue implementation
+- Task execution framework
+- Resource management
+- Result tracking
+
+### Heuristic System (heuristics.py)
+- Rule implementation
+- Performance monitoring
+- Relevance checking
+- Core heuristics (H1-H5)
+
+## Usage Examples
+
+### Creating and Using Units
+
+```python
+from eurisko.unit import Unit
+from eurisko.slots import SlotRegistry
+
+# Create a unit
+unit = Unit("example_unit", worth=500)
+unit.set_prop("isa", ["category"])
+
+# Add properties
+unit.set_prop("examples", ["example1", "example2"])
+unit.add_prop("generalizations", "parent_concept")
+```
+
+### Defining Heuristics
+
+```python
+from eurisko.heuristics import Heuristic
+
+# Create a heuristic
+heuristic = Heuristic("example_heuristic", 
+                     "Example heuristic description")
+
+# Define relevance checks
+heuristic.set_prop("if_potentially_relevant", 
+                  lambda ctx: ctx.get('value', 0) > 0)
+
+# Define actions
+heuristic.set_prop("then_compute", 
+                  lambda ctx: ctx['value'] * 2)
+```
+
+### Task Processing
+
+```python
+from eurisko.tasks import Task, TaskManager
+
+# Create a task
+task = Task(priority=500,
+           unit_name="example_unit",
+           slot_name="examples",
+           reasons=["Finding new examples"])
+
+# Add to task manager
+manager = TaskManager()
+manager.add_task(task)
+
+# Process tasks
+manager.process_agenda()
 ```
 
 ## Testing
 
-To run the test suite:
+Run the test suite:
 
 ```bash
 pytest tests/
 ```
 
-The test suite includes:
-- Unit tests for core functionality
-- Integration tests for system components
-- Coverage reporting
+Test coverage report:
+
+```bash
+pytest tests/ --cov=eurisko
+```
 
 ## Development
 
@@ -87,8 +179,6 @@ The test suite includes:
 
 ### Development Installation
 
-Install with development dependencies:
-
 ```bash
 pip install -e ".[dev]"
 ```
@@ -99,11 +189,13 @@ MIT License
 
 ## Contributing
 
-Pull requests welcome.
+Contributions are welcome. Please ensure:
+- Tests pass and coverage maintained
+- Documentation updated
+- Code follows project style
 
 ## Acknowledgments
 
-Inspired by Douglas Lenat's original Eurisko system.
-
-Developed by Claude.ai Desktop based on [namin/eurisclo](https://github.com/namin),
-using [the filesystem MCP server augmented with re-entrant docker command executions](https://github.com/namin/servers/tree/exec-reentrant/src/filesystem).
+Based on Douglas Lenat's original Eurisko system.
+Developed by Claude.ai Desktop based on [namin/eurisclo](https://github.com/namin/eurisclo),
+using [the filesystem MCP server](https://github.com/namin/servers/tree/exec-reentrant/src/filesystem).
