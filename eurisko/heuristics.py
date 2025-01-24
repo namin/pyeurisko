@@ -15,8 +15,6 @@ class Heuristic(Unit):
         super().__init__(name, worth)
         self.set_prop('isa', ['heuristic'])
         self.set_prop('english', description)
-        
-        # Initialize tracking records
         self.initialize_records()
 
     def initialize_records(self) -> None:
@@ -30,33 +28,33 @@ class Heuristic(Unit):
         ]
         
         for record in record_types:
-            # Each record tracks [total_time, num_calls]
             self.set_prop(record, [0.0, 0])
-            # Failed records track unsuccessful attempts
             self.set_prop(f"{record}_failed", [0.0, 0])
 
     def is_potentially_relevant(self, context: Dict[str, Any]) -> bool:
         """Perform initial relevance check for this heuristic."""
         check_fn = self.get_prop('if_potentially_relevant')
         if not check_fn or not callable(check_fn):
-            return False
+            return True
             
         try:
-            return bool(check_fn(context))
+            result = check_fn(context)
+            return bool(result)
         except Exception as e:
-            logger.error(f"Error in potential relevance check: {e}")
+            logger.error(f"Error in potential relevance check for {self.name}: {e}")
             return False
 
     def is_truly_relevant(self, context: Dict[str, Any]) -> bool:
         """Perform deeper relevance check."""
         check_fn = self.get_prop('if_truly_relevant')
         if not check_fn or not callable(check_fn):
-            return True  # No deep check defined means implicitly relevant
+            return True
             
         try:
-            return bool(check_fn(context))
+            result = check_fn(context)
+            return bool(result)
         except Exception as e:
-            logger.error(f"Error in true relevance check: {e}")
+            logger.error(f"Error in true relevance check for {self.name}: {e}")
             return False
 
     def is_subsumed_by(self, other_heuristic: 'Heuristic') -> bool:
@@ -66,10 +64,7 @@ class Heuristic(Unit):
 
     def update_record(self, record_name: str, elapsed_time: float) -> None:
         """Update execution statistics for a record."""
-        record = self.get_prop(record_name)
-        if not record:
-            record = [0.0, 0]
-            
+        record = list(self.get_prop(record_name) or [0.0, 0])
         record[0] += elapsed_time  # Total time
         record[1] += 1  # Number of executions
         self.set_prop(record_name, record)
@@ -77,46 +72,56 @@ class Heuristic(Unit):
     def apply(self, context: Dict[str, Any]) -> bool:
         """Apply this heuristic to the given context."""
         if not self.is_potentially_relevant(context):
+            logger.debug(f"Heuristic {self.name} not potentially relevant")
             return False
 
         if not self.is_truly_relevant(context):
+            logger.debug(f"Heuristic {self.name} not truly relevant")
             return False
 
         start_time = time.time()
-        success = True
+        try:
+            success = self._execute_phases(context)
+        except Exception as e:
+            logger.error(f"Error executing heuristic {self.name}: {e}")
+            success = False
 
-        # Execute phases in sequence
-        phases = [
-            ('check_phase', 'if_parts'),
-            ('print_phase', 'then_print_to_user'),
-            ('compute_phase', 'then_compute'),
-            ('conjecture_phase', 'then_conjecture'),
-            ('define_phase', 'then_define_new_concepts')
-        ]
-
-        for phase_name, prop_name in phases:
-            phase_fn = self.get_prop(prop_name)
-            if callable(phase_fn):
-                try:
-                    phase_start = time.time()
-                    if not phase_fn(context):
-                        success = False
-                        self.update_record(f"{prop_name}_failed", time.time() - phase_start)
-                        break
-                    self.update_record(prop_name, time.time() - phase_start)
-                except Exception as e:
-                    logger.error(f"Error in {phase_name}: {e}")
-                    success = False
-                    break
-
-        # Record overall execution time
+        # Record execution time
         elapsed = time.time() - start_time
-        if success:
-            self.update_record('overall_record', elapsed)
-        else:
-            self.update_record('overall_record_failed', elapsed)
+        self.update_record('overall_record' if success else 'overall_record_failed', elapsed)
 
         return success
+
+    def _execute_phases(self, context: Dict[str, Any]) -> bool:
+        """Execute all phases of the heuristic."""
+        phases = [
+            ('if_parts', 'Checking conditions'),
+            ('then_print_to_user', 'Printing output'),
+            ('then_compute', 'Computing results'),
+            ('then_conjecture', 'Making conjectures'),
+            ('then_define_new_concepts', 'Defining concepts')
+        ]
+
+        for phase_name, description in phases:
+            phase_fn = self.get_prop(phase_name)
+            if not phase_fn or not callable(phase_fn):
+                continue
+
+            phase_start = time.time()
+            try:
+                result = phase_fn(context)
+                if not result:
+                    logger.debug(f"Phase {phase_name} failed for {self.name}")
+                    self.update_record(f"{phase_name}_failed", time.time() - phase_start)
+                    return False
+                self.update_record(phase_name, time.time() - phase_start)
+            except Exception as e:
+                logger.error(f"Error in {description} phase of {self.name}: {e}")
+                self.update_record(f"{phase_name}_failed", time.time() - phase_start)
+                return False
+
+        return True
+
 
 class HeuristicRegistry:
     """Global registry for managing heuristic rules."""
@@ -183,7 +188,10 @@ class HeuristicRegistry:
         def check_applics(context: Dict[str, Any]) -> bool:
             """Check that unit has some recorded applications."""
             unit = context.get('unit')
-            return bool(unit and unit.get_prop('applics'))
+            if not unit:
+                return False
+            applics = unit.get_prop('applics')
+            return bool(applics)
             
         def check_relevance(context: Dict[str, Any]) -> bool:
             """Check if unit has good and bad applications."""
@@ -195,25 +203,40 @@ class HeuristicRegistry:
             if not applics:
                 return False
                 
-            # Check if any applications have high worth 
-            has_high_worth = any(app.get('worth', 0) > 800 
-                               for app in applics)
-            if not has_high_worth:
+            # Analyze application worth distribution
+            good_count = 0
+            total_count = 0
+            for app in applics:
+                if isinstance(app, dict):
+                    worth = app.get('worth', 0)
+                    if worth > 800:
+                        good_count += 1
+                    total_count += 1
+                    
+            if total_count == 0:
                 return False
                 
-            # Calculate fraction of good applications
-            good_count = sum(1 for app in applics 
-                           if app.get('worth', 0) > 800)
-            total_count = len(applics)
-            return good_count / total_count < 0.2
+            # Need at least one good application but mostly bad ones
+            ratio = good_count / total_count
+            return good_count > 0 and ratio < 0.2
+
+        def compute_action(context: Dict[str, Any]) -> bool:
+            """Execute H1's action."""
+            unit = context.get('unit')
+            if not unit:
+                return False
+                
+            unit.set_prop('needs_specialization', True)
+            return True
 
         h1.set_prop('if_potentially_relevant', check_applics)
         h1.set_prop('if_truly_relevant', check_relevance)
+        h1.set_prop('then_compute', compute_action)
 
     def _setup_h2(self, h2: Heuristic) -> None:
         """Configure H2: Kill concepts that produce garbage."""
         def check_task(context: Dict[str, Any]) -> bool:
-            """Check for new units created by garbage producer."""
+            """Check for new units from garbage producers."""
             task_results = context.get('task_results', {})
             if not task_results:
                 return False
@@ -222,30 +245,46 @@ class HeuristicRegistry:
             if not new_units:
                 return False
                 
-            creditors = set()
             for unit in new_units:
-                creditors.update(unit.get_prop('creditors') or [])
-            
-            # Check for creditors that produce mostly useless units
-            for creditor in creditors:
-                creditor_unit = self.unit_registry.get_unit(creditor)
-                if not creditor_unit:
+                if not isinstance(unit, Unit):
                     continue
                     
-                applics = creditor_unit.get_prop('applics') or []
-                if len(applics) < 10:
-                    continue
-                    
-                # Check if all applications produced units with no applics
-                if all(app.get('result') and 
-                      all(not unit.get_prop('applics')
-                          for unit in app['result'])
-                      for app in applics):
-                    return True
-                    
+                creditors = unit.get_prop('creditors') or []
+                for creditor in creditors:
+                    creditor_unit = self.unit_registry.get_unit(creditor)
+                    if not creditor_unit:
+                        continue
+                        
+                    applics = creditor_unit.get_prop('applics') or []
+                    if len(applics) >= 10:
+                        # Check if all results lack applications
+                        if all(isinstance(app, dict) and
+                              all(not hasattr(u, 'get_prop') or not u.get_prop('applics')
+                                  for u in app.get('result', []))
+                              for app in applics):
+                            return True
+                            
             return False
             
+        def reduce_worth(context: Dict[str, Any]) -> bool:
+            """Reduce worth of garbage-producing units."""
+            task_results = context.get('task_results', {})
+            new_units = task_results.get('new_units', [])
+            
+            reduced = False
+            for unit in new_units:
+                if isinstance(unit, Unit):
+                    for creditor in unit.get_prop('creditors') or []:
+                        creditor_unit = self.unit_registry.get_unit(creditor)
+                        if creditor_unit:
+                            current_worth = creditor_unit.worth_value()
+                            creditor_unit.set_prop('worth', current_worth // 2)
+                            reduced = True
+                            
+            return reduced
+
         h2.set_prop('if_finished_working_on_task', check_task)
+        h2.set_prop('then_compute', reduce_worth)
 
     def _setup_h3(self, h3: Heuristic) -> None:
         """Configure H3: Choose slot to specialize."""
@@ -266,9 +305,24 @@ class HeuristicRegistry:
         def check_task(context: Dict[str, Any]) -> bool:
             """Check for new units created."""
             task_results = context.get('task_results', {})
-            return bool(task_results.get('new_units'))
+            new_units = task_results.get('new_units', [])
+            return bool(new_units and isinstance(new_units, list))
+
+        def schedule_analysis(context: Dict[str, Any]) -> bool:
+            """Schedule analysis tasks for new units."""
+            task_results = context.get('task_results', {})
+            new_units = task_results.get('new_units', [])
+            
+            if not new_units:
+                return False
+                
+            for unit in new_units:
+                if isinstance(unit, Unit):
+                    unit.set_prop('needs_analysis', True)
+            return True
 
         h4.set_prop('if_finished_working_on_task', check_task)
+        h4.set_prop('then_compute', schedule_analysis)
 
     def _setup_h5(self, h5: Heuristic) -> None:
         """Configure H5: Choose multiple slots to specialize."""
