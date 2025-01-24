@@ -8,6 +8,10 @@ from .h2 import setup_h2
 from .h3 import setup_h3
 from .h4 import setup_h4
 from .h5 import setup_h5
+from .h6 import setup_h6
+from .h7 import setup_h7
+from .h8 import setup_h8
+from .h9 import setup_h9
 
 class HeuristicRegistry:
     """Global registry for managing heuristic rules."""
@@ -48,7 +52,26 @@ class HeuristicRegistry:
             # H5: Choose multiple slots to specialize
             ('h5', "IF the current task is to specialize a unit and no specific slot "
                   "has been chosen, THEN randomly select which slots to specialize",
-             151)
+             151),
+             
+            # H6: Specialize a chosen slot
+            ('h6', "IF the current task is to specialize a unit and a slot has been "
+                  "chosen, THEN randomly select a part of it and specialize that part",
+             700),
+             
+            # H7: Find instances for concepts
+            ('h7', "IF a concept has no known instances, THEN try to find some",
+             700),
+             
+            # H8: Find applications from generalizations
+            ('h8', "IF looking for applications of a unit with an algorithm, "
+                  "THEN examine its generalizations' applications",
+             700),
+             
+            # H9: Find examples from generalizations
+            ('h9', "IF looking for examples of a unit with a definition, "
+                  "THEN examine its generalizations' examples",
+             700)
         ]
         
         for name, desc, worth in core_rules:
@@ -63,7 +86,11 @@ class HeuristicRegistry:
             'h2': setup_h2,
             'h3': setup_h3,
             'h4': setup_h4,
-            'h5': setup_h5
+            'h5': setup_h5,
+            'h6': setup_h6,
+            'h7': setup_h7,
+            'h8': setup_h8,
+            'h9': setup_h9
         }
         
         if heuristic.name in setup_funcs:
