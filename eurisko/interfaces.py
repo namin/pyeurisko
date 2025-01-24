@@ -21,15 +21,30 @@ class EuriskoObject(BaseEurisko):
     """Base class for all named objects in the system."""
     def __post_init__(self):
         """Initialize properties."""
+        if not self.properties:
+            self.properties = {}
+            
         if 'worth' not in self.properties:
             self.properties['worth'] = self.worth
             
         # Store additional attributes as properties
-        for attr in ['description', 'is_criterial', 'data_type', 'dont_copy', 
-                    'double_check', 'super_slots', 'sub_slots', 'inverse']:
-            value = getattr(self, attr, None)
+        attrs = {
+            'description': self.description,
+            'is_criterial': self.is_criterial,
+            'data_type': self.data_type,
+            'dont_copy': self.dont_copy,
+            'double_check': self.double_check,
+            'super_slots': self.super_slots,
+            'sub_slots': self.sub_slots,
+            'inverse': self.inverse
+        }
+        
+        for name, value in attrs.items():
             if value is not None:
-                self.properties[attr] = value
+                self.properties[name] = value
+            elif name not in self.properties:
+                # Set defaults for missing properties
+                self.properties[name] = attrs[name]
 
     def worth_value(self) -> int:
         """Get the worth/importance value."""
@@ -41,7 +56,8 @@ class EuriskoObject(BaseEurisko):
 
     def set_prop(self, prop_name: str, value: Any) -> None:
         """Set a property value."""
-        self.properties[prop_name] = value
+        if self.validate_value(value):
+            self.properties[prop_name] = value
 
     def has_prop(self, prop_name: str) -> bool:
         """Check if a property exists."""
@@ -73,12 +89,12 @@ class EuriskoObject(BaseEurisko):
                 current.remove(value)
 
     def validate_value(self, value: Any) -> bool:
-        """Validate a value against the data type."""
-        data_type = self.get_prop('data_type') or 'any'
-        
-        if data_type == 'any':
+        """Validate a value against the object's data type."""
+        data_type = self.get_prop('data_type')
+        if not data_type or data_type == 'any':
             return True
-        elif data_type == 'number':
+            
+        if data_type == 'number':
             return isinstance(value, (int, float))
         elif data_type == 'text':
             return isinstance(value, str)

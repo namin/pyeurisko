@@ -1,39 +1,51 @@
 """Core slots implementation for PyEurisko."""
 from typing import Any, List, Dict, Set, Optional, Callable
-from dataclasses import dataclass, field
 from .interfaces import EuriskoObject
 
 class Slot(EuriskoObject):
     """Base class for all slots/properties in Eurisko."""
-    name: str
-    is_criterial: bool = False  # Whether this is a criterial slot
-    data_type: str = 'any'  # The type of data this slot holds
-    dont_copy: bool = False  # Whether this slot should be copied during unit creation
-    double_check: bool = False  # Whether values should be validated
-    super_slots: List[str] = None  # Parent slots
-    sub_slots: List[str] = None  # Child slots
-    inverse: str = None  # Inverse relationship slot
-    description: str = ''  # Documentation
-
     def __post_init__(self):
-        """Initialize list fields."""
-        self.super_slots = self.super_slots or []
-        self.sub_slots = self.sub_slots or [] 
+        """Initialize slot properties."""
+        super().__post_init__()
+        self.set_prop('isa', ['slot'])
+
+        # Store data type info
+        self.set_prop('data_type', self.data_type)
+        self.set_prop('is_criterial', self.is_criterial)
+        self.set_prop('dont_copy', self.dont_copy)
 
     def validate_value(self, value: Any) -> bool:
         """Validate a value for this slot."""
-        # Basic type checking - could be extended
-        if self.data_type == 'unit':
-            return isinstance(value, (str, Unit))
-        elif self.data_type == 'number':
+        data_type = self.data_type  # Use constructor param
+        
+        if not data_type or data_type == 'any':
+            return True
+            
+        if data_type == 'number':
             return isinstance(value, (int, float))
-        elif self.data_type == 'text':
+        elif data_type == 'text':
             return isinstance(value, str)
-        elif self.data_type == 'bit':
+        elif data_type == 'bit':
             return value in (True, False, 0, 1)
-        elif self.data_type == 'lisp_fn':
+        elif data_type == 'unit':
+            # Import here to avoid circular imports
+            from .unit import Unit
+            return isinstance(value, (str, Unit))
+        elif data_type == 'lisp_fn':
             return callable(value)
-        return True  # 'any' type
+            
+        return False  # Unknown types should fail validation
+
+    @property
+    def inverse(self) -> Optional[str]:
+        """Get the inverse slot name."""
+        return self.get_prop('inverse')
+    
+    @inverse.setter 
+    def inverse(self, value: Optional[str]) -> None:
+        """Set the inverse slot name."""
+        self.set_prop('inverse', value)
+
 
 class SlotRegistry:
     """Global registry of all slots in the system."""
@@ -41,131 +53,81 @@ class SlotRegistry:
     _slots: Dict[str, Slot] = {}
 
     def __new__(cls):
+        """Singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance._slots = {}  # Reset slots on new instance
             cls._instance._init_core_slots()
         return cls._instance
 
     def _init_core_slots(self):
         """Initialize the core system slots from Eurisko."""
         # Identity slots
-        self.register(Slot('worth', data_type='number', 
-                          description='Base value/importance of the unit'))
-        self.register(Slot('isa', data_type='unit',
-                          description='Categories this unit belongs to'))
-        self.register(Slot('abbrev', data_type='text',
-                          description='Short description of the unit'))
+        core_slots = [
+            # Basic properties
+            ('worth', 'number', False, False, 'Base value/importance of the unit'),
+            ('isa', 'unit', False, False, 'Categories this unit belongs to'),
+            ('abbrev', 'text', False, False, 'Short description of the unit'),
+            ('english', 'text', False, False, 'Longer description of the unit'),
+            
+            # Core relations
+            ('examples', 'unit', False, True, 'Known instances/examples of this unit'),
+            ('non_examples', 'unit', False, True, 'Known non-instances of this unit'),
+            ('generalizations', 'unit', False, False, 'More general forms of this unit'),
+            ('specializations', 'unit', False, False, 'More specific forms of this unit'),
+            ('domain', 'unit', True, False, 'Input types this unit accepts'),
+            ('range', 'unit', True, False, 'Output types this unit produces'),
+            
+            # Algorithm implementations
+            ('alg', 'lisp_fn', True, False, 'Main algorithm implementation'),
+            ('fast_alg', 'lisp_fn', True, False, 'Optimized algorithm implementation'),
+            ('recursive_alg', 'lisp_fn', True, False, 'Recursive algorithm implementation'), 
+            ('iterative_alg', 'lisp_fn', True, False, 'Iterative algorithm implementation'),
+            ('unitized_alg', 'lisp_fn', True, False, 'Unit-based algorithm implementation'),
+            
+            # Definition implementations
+            ('defn', 'lisp_fn', True, False, 'Main definition implementation'),
+            ('fast_defn', 'lisp_fn', True, False, 'Optimized definition implementation'),
+            ('recursive_defn', 'lisp_fn', True, False, 'Recursive definition implementation'),
+            ('iterative_defn', 'lisp_fn', True, False, 'Iterative definition implementation'),
+            ('unitized_defn', 'lisp_fn', True, False, 'Unit-based definition implementation'),
+            
+            # Task execution
+            ('if_parts', 'lisp_fn', True, False, 'Conditions for task execution'),
+            ('then_parts', 'lisp_fn', True, False, 'Actions for task execution'),
+            ('if_working_on_task', 'lisp_fn', True, False, 'Active task conditions'),
+            ('if_about_to_work_on_task', 'lisp_fn', True, False, 'Pre-task conditions'),
+            ('if_finished_working_on_task', 'lisp_fn', True, False, 'Post-task conditions'),
+            
+            # Record keeping
+            ('record', 'any', False, True, 'Execution history'),
+            ('failed_record', 'any', False, True, 'Failed execution history'),
+            ('overall_record', 'any', False, True, 'Aggregate execution statistics'),
+        ]
         
-        # Structural relation slots
-        self.register(Slot('examples', data_type='unit', dont_copy=True,
-                          description='Known instances/examples of this unit'))
-        self.register(Slot('non_examples', data_type='unit', dont_copy=True,
-                          description='Known non-instances of this unit'))
-        self.register(Slot('generalizations', data_type='unit',
-                          description='More general forms of this unit'))
-        self.register(Slot('specializations', data_type='unit',
-                          description='More specific forms of this unit'))
-        self.register(Slot('domain', is_criterial=True, data_type='unit',
-                          description='Input types this unit accepts'))
-        self.register(Slot('range', is_criterial=True, data_type='unit',
-                          description='Output types this unit produces'))
-        self.register(Slot('inverse', data_type='unit',
-                          description='Inverse relationship to this unit'))
+        # Register each core slot
+        for name, dtype, criterial, no_copy, desc in core_slots:
+            self.register(Slot(name, 
+                             data_type=dtype,
+                             is_criterial=criterial,
+                             dont_copy=no_copy,
+                             description=desc))
 
-        # Algorithm slots
-        alg_slots = [
-            ('alg', True, ['fast_alg', 'recursive_alg', 'iterative_alg', 'unitized_alg']),
-            ('fast_alg', True, []),
-            ('recursive_alg', True, []),
-            ('iterative_alg', True, []),
-            ('unitized_alg', True, [])
-        ]
-        for name, is_criterial, sub_slots in alg_slots:
-            self.register(Slot(name, is_criterial=is_criterial, data_type='lisp_fn',
-                             sub_slots=sub_slots,
-                             description=f'{name} implementation'))
-
-        # Definition slots  
-        defn_slots = [
-            ('defn', True, ['fast_defn', 'recursive_defn', 'unitized_defn', 'iterative_defn']),
-            ('fast_defn', True, []),
-            ('recursive_defn', True, []),
-            ('unitized_defn', True, []),
-            ('iterative_defn', True, [])
-        ]
-        for name, is_criterial, sub_slots in defn_slots:
-            self.register(Slot(name, is_criterial=is_criterial, data_type='lisp_fn',
-                             sub_slots=sub_slots,
-                             description=f'{name} implementation'))
-
-        # Task execution slots
-        task_slots = [
-            'if_parts', 'then_parts', 
-            'if_working_on_task', 'if_about_to_work_on_task', 
-            'if_finished_working_on_task'
-        ]
-        for name in task_slots:
-            self.register(Slot(name, is_criterial=True, data_type='lisp_fn',
-                             description=f'{name} handler for task execution'))
-
-        # Record keeping slots
-        record_slots = [
-            'record', 'failed_record', 'overall_record',
-            'then_compute_record', 'then_print_to_user_record',
-            'then_conjecture_record', 'then_define_new_concepts_record',
-            'failed_record_for', 'record_for'
-        ]
-        for name in record_slots:
-            self.register(Slot(name, dont_copy=True,
-                             description=f'{name} history'))
-
-        # Application slots
-        self.register(Slot('applics', data_type='any', dont_copy=True,
-                          description='Known applications of this unit'))
-        self.register(Slot('direct_applics', data_type='any',
-                          description='Direct applications of this unit'))
-        self.register(Slot('indirect_applics', data_type='any',
-                          description='Indirect applications of this unit'))
-        self.register(Slot('applic_generator', data_type='any',
-                          description='Generator for finding applications'))
-
-        # Property validation slots
-        self.register(Slot('double_check', data_type='bit',
-                          description='Whether to validate values'))
-        self.register(Slot('dont_copy', data_type='bit',  
-                          description='Whether to copy during inheritance'))
-        self.register(Slot('data_type', data_type='text',
-                          description='Expected type for values'))
-
-        # Structural slots
-        self.register(Slot('sib_slots', data_type='unit',
-                          description='Related peer slots'))
-        self.register(Slot('sub_slots', data_type='unit',
-                          description='Child slots'))
-        self.register(Slot('super_slots', data_type='unit',
-                          description='Parent slots'))
-
-        # Interestingness/importance slots
-        self.register(Slot('interestingness', data_type='lisp_fn',
-                          description='Function determining interest level'))
-        self.register(Slot('int_examples', data_type='unit',
-                          description='Particularly interesting examples'))
-        self.register(Slot('less_interesting', data_type='unit',
-                          description='Less interesting similar units'))
-        self.register(Slot('more_interesting', data_type='unit',
-                          description='More interesting similar units'))
-        self.register(Slot('why_int', data_type='any',
-                          description='Explanation of interestingness'))
-
-        # Heuristic-specific slots
-        self.register(Slot('creditors', data_type='unit', dont_copy=True,
-                          description='Units that helped create this'))
-        self.register(Slot('english', data_type='text',
-                          description='English description of the unit'))
-        self.register(Slot('if_potentially_relevant', data_type='lisp_fn',
-                          description='Initial relevance check'))
-        self.register(Slot('if_truly_relevant', data_type='lisp_fn',
-                          description='Deeper relevance check'))
+        # Set up relationships between algorithm slots
+        alg_slot = self.get_slot('alg')
+        if alg_slot:
+            alg_slot.set_prop('sub_slots', ['fast_alg', 'recursive_alg', 'iterative_alg', 'unitized_alg'])
+            
+        # Set up relationships between definition slots  
+        defn_slot = self.get_slot('defn')
+        if defn_slot:
+            defn_slot.set_prop('sub_slots', ['fast_defn', 'recursive_defn', 'iterative_defn', 'unitized_defn'])
+            
+        # Set up inverse relationships
+        self.get_slot('generalizations').set_prop('inverse', 'specializations')
+        self.get_slot('specializations').set_prop('inverse', 'generalizations')
+        self.get_slot('domain').set_prop('inverse', 'range')
+        self.get_slot('range').set_prop('inverse', 'domain')
 
     def register(self, slot: Slot) -> None:
         """Register a new slot type."""
@@ -185,8 +147,10 @@ class SlotRegistry:
 
     def criterial_slots(self) -> List[str]:
         """Get all criterial slots."""
-        return [name for name, slot in self._slots.items() if slot.is_criterial]
+        return [name for name, slot in self._slots.items() 
+                if slot.is_criterial]  # Use the constructor param
 
     def non_criterial_slots(self) -> List[str]:
         """Get all non-criterial slots."""
-        return [name for name, slot in self._slots.items() if not slot.is_criterial]
+        return [name for name, slot in self._slots.items()
+                if not slot.is_criterial]  # Use the constructor param
