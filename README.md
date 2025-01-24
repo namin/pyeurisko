@@ -95,12 +95,15 @@ pip install -e ".[dev]"
 
 ## License
 
-[License information to be added]
+MIT License
 
 ## Contributing
 
-[Contribution guidelines to be added]
+Pull requests welcome.
 
 ## Acknowledgments
 
 Inspired by Douglas Lenat's original Eurisko system.
+
+Developed by Claude.ai Desktop based on [namin/eurisclo](https://github.com/namin),
+using [the filesystem MCP server augmented with re-entrant docker command executions](https://github.com/namin/servers/tree/exec-reentrant/src/filesystem).
