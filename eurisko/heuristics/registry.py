@@ -12,6 +12,8 @@ from .h6 import setup_h6
 from .h7 import setup_h7
 from .h8 import setup_h8
 from .h9 import setup_h9
+from .h10 import setup_h10
+from .h11 import setup_h11
 
 class HeuristicRegistry:
     """Global registry for managing heuristic rules."""
@@ -71,6 +73,16 @@ class HeuristicRegistry:
             # H9: Find examples from generalizations
             ('h9', "IF looking for examples of a unit with a definition, "
                   "THEN examine its generalizations' examples",
+             700),
+             
+            # H10: Find examples from operation ranges
+            ('h10', "IF a unit is in the range of an operation, "
+                   "THEN examine that operation's applications",
+             700),
+             
+            # H11: Find applications using algorithm
+            ('h11', "IF looking for applications of a unit with algorithm and domain, "
+                   "THEN run algorithm on domain examples",
              700)
         ]
         
@@ -90,7 +102,9 @@ class HeuristicRegistry:
             'h6': setup_h6,
             'h7': setup_h7,
             'h8': setup_h8,
-            'h9': setup_h9
+            'h9': setup_h9,
+            'h10': setup_h10,
+            'h11': setup_h11
         }
         
         if heuristic.name in setup_funcs:
