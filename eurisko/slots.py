@@ -1,10 +1,9 @@
 """Core slots implementation for PyEurisko."""
 from typing import Any, List, Dict, Set, Optional, Callable
 from dataclasses import dataclass, field
-from .unit import Unit, UnitRegistry
+from .interfaces import EuriskoObject
 
-@dataclass
-class Slot:
+class Slot(EuriskoObject):
     """Base class for all slots/properties in Eurisko."""
     name: str
     is_criterial: bool = False  # Whether this is a criterial slot
