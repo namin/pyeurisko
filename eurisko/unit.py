@@ -130,6 +130,15 @@ class Unit(EuriskoObject):
                     return True
         return False
 
+    def add_application(self, args: List[Any], result: Any, worth: int = 500) -> None:
+        """Record a new application of this unit."""
+        app = {'args': args, 'result': result, 'worth': worth}
+        applications = self.get_prop('applications', [])
+        if not isinstance(applications, list):
+            applications = []
+        applications.append(app)
+        self.set_prop('applications', applications)
+
     def add_to_prop(self, prop_name: str, value: Any) -> None:
         """Add a value to a property, creating a list if needed."""
         current = self.get_prop(prop_name)

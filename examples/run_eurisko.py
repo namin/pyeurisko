@@ -89,9 +89,14 @@ class EnhancedEurisko(Eurisko):
                 
             # Check if heuristic is potentially relevant
             if_relevant = heuristic.get_prop('if_potentially_relevant')
-            if if_relevant and not if_relevant(context):
-                logger.info(f"        the IF-POTENTIALLY-RELEVANT slot of {h_name} didn't hold for {task.unit_name}")
-                continue
+            if if_relevant:
+                print(f"\nAttempting to check relevance for {h_name} on {task.unit_name}", flush=True)
+                print(f"Applications: {unit.properties.get('applications')}", flush=True)
+                is_relevant = if_relevant(context)
+                print(f"Got relevance result: {is_relevant}", flush=True)
+                if not is_relevant:
+                    logger.info(f"        the IF-POTENTIALLY-RELEVANT slot of {h_name} didn't hold for {task.unit_name}")
+                    continue
                 
             if_truly = heuristic.get_prop('if_truly_relevant')
             if if_truly and not if_truly(context):
@@ -104,13 +109,15 @@ class EnhancedEurisko(Eurisko):
             if then_compute:
                 success = then_compute(context)
                 if success:
-                    logger.info(f"        the THEN-COMPUTE slot of {h_name} has been applied successfully to {task.unit_name}")
-            
+                    logger.info(f"HEURISTIC {h_name} SUCCEEDED")
+                else:
+                    logger.info(f"        heuristic {h_name} failed")
+
             then_add = heuristic.get_prop('then_add_to_agenda')
             if then_add:
                 success = then_add(context) or success
                 if success:
-                    logger.info(f"        the THEN-ADD-TO-AGENDA slot of {h_name} has been applied successfully to {task.unit_name}")
+                    logger.info(f"        heuristic {h_name} agenda success")
                     
             # Track results
             self.track_heuristic_result(h_name, success)
@@ -164,6 +171,20 @@ class EnhancedEurisko(Eurisko):
         
         super()._generate_new_tasks()
 
+def init_test_applications(registry):
+    """Initialize some test applications for units."""
+    add = registry.get_unit('ADD')
+    if add:
+        add.add_application([1, 2], 3, worth=800)
+        add.add_application([2, 3], 5, worth=600)
+        add.add_application([3, 4], 7, worth=400)
+
+    multiply = registry.get_unit('MULTIPLY') 
+    if multiply:
+        multiply.add_application([2, 3], 6, worth=900)
+        multiply.add_application([3, 4], 12, worth=500)
+        multiply.add_application([4, 5], 20, worth=300)
+
 def main():
     parser = argparse.ArgumentParser(description='Run Enhanced PyEurisko')
     parser.add_argument('-v', '--verbosity', type=int, default=1,
@@ -184,6 +205,15 @@ def main():
     # Initialize enhanced system
     eurisko = EnhancedEurisko(verbosity=args.verbosity)
     eurisko.initialize()
+    init_test_applications(eurisko.unit_registry)
+    
+    # Debug: Check applications
+    add = eurisko.unit_registry.get_unit('ADD')
+    multiply = eurisko.unit_registry.get_unit('MULTIPLY')
+    if add:
+        print(f"ADD applications: {add.get_prop('applications')}")
+    if multiply:
+        print(f"MULTIPLY applications: {multiply.get_prop('applications')}")
     
     try:
         logger.info("Eurisko system initialized")

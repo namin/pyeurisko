@@ -50,9 +50,9 @@ class EuriskoObject(BaseEurisko):
         """Get the worth/importance value."""
         return self.get_prop('worth') or self.worth
 
-    def get_prop(self, prop_name: str) -> Any:
+    def get_prop(self, prop_name: str, default: Any = None) -> Any:
         """Get a property value."""
-        return self.properties.get(prop_name)
+        return self.properties.get(prop_name, default)
 
     def set_prop(self, prop_name: str, value: Any) -> None:
         """Set a property value."""
