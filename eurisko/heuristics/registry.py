@@ -14,6 +14,8 @@ from .h8 import setup_h8
 from .h9 import setup_h9
 from .h10 import setup_h10
 from .h11 import setup_h11
+from .h12 import setup_h12
+from .h13 import setup_h13
 
 class HeuristicRegistry:
     """Global registry for managing heuristic rules."""
@@ -83,6 +85,16 @@ class HeuristicRegistry:
             # H11: Find applications using algorithm
             ('h11', "IF looking for applications of a unit with algorithm and domain, "
                    "THEN run algorithm on domain examples",
+             700),
+             
+            # H12: Learn from mistakes
+            ('h12', "IF a unit is about to be deleted, "
+                   "THEN create a rule to prevent similar mistakes",
+             700),
+             
+            # H13: Learn from modification patterns
+            ('h13', "IF a unit is about to be deleted, "
+                   "THEN create a rule to prevent similar modifications",
              700)
         ]
         
@@ -104,7 +116,9 @@ class HeuristicRegistry:
             'h8': setup_h8,
             'h9': setup_h9,
             'h10': setup_h10,
-            'h11': setup_h11
+            'h11': setup_h11,
+            'h12': setup_h12,
+            'h13': setup_h13
         }
         
         if heuristic.name in setup_funcs:
