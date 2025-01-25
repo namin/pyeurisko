@@ -56,23 +56,32 @@ pyeurisko/
 │   ├── __init__.py             # Package initialization
 │   ├── interfaces.py           # Base classes and interfaces
 │   ├── main.py                 # System initialization and control
-│   ├── slots.py               # Slot management system
-│   ├── unit.py                # Unit implementation
-│   ├── tasks.py               # Task scheduling system
-│   └── heuristics.py          # Heuristic rule system
+│   ├── slots.py                # Slot management system
+│   ├── unit.py                 # Unit implementation
+│   ├── tasks.py                # Task scheduling system
+│   ├── heuristics.py           # Heuristic rule system
+│   └── heuristics/             # Individual heuristic implementations
+│       ├── __init__.py         # Heuristics package initialization
+│       ├── base.py             # Base heuristic classes
+│       ├── registry.py         # Heuristic registry system
+│       └── h1.py - h15.py      # Individual heuristic implementations
 │
 ├── tests/                      # Test suite
-│   ├── test_main.py           # System tests
-│   ├── test_slots.py          # Slot tests
-│   ├── test_tasks.py          # Task system tests
-│   ├── test_unit.py           # Unit tests
-│   └── test_heuristics.py     # Heuristic tests
+│   ├── test_main.py            # System tests
+│   ├── test_slots.py           # Slot tests
+│   ├── test_tasks.py           # Task system tests
+│   ├── test_unit.py            # Unit tests
+│   ├── test_heuristics.py      # Basic heuristic tests
+│   ├── test_heuristics_advanced.py    # Advanced heuristic tests
+│   └── test_heuristics_prevention.py  # Prevention heuristic tests
 │
 ├── examples/                   # Usage examples
-│   └── basic_demo.py          # Basic demonstration
+│   └── basic_demo.py           # Basic demonstration
 │
-├── setup.py                   # Package configuration
-└── README.md                  # Documentation
+├── requirements.txt            # Project dependencies
+├── setup.py                    # Package configuration
+├── RUN.md                      # Setup and run instructions
+└── README.md                   # Documentation
 ```
 
 ## Key Components
@@ -95,11 +104,14 @@ pyeurisko/
 - Resource management
 - Result tracking
 
-### Heuristic System (heuristics.py)
-- Rule implementation
-- Performance monitoring
-- Relevance checking
-- Core heuristics (H1-H5)
+### Heuristic System (heuristics/)
+- Base heuristic classes and interfaces
+- Comprehensive registry system
+- Performance monitoring and tracking
+- Relevance checking mechanisms
+- Core heuristics implementation (H1-H15)
+- Advanced reasoning capabilities
+- Prevention and optimization strategies
 
 ## Usage Examples
 
