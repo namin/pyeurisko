@@ -87,7 +87,7 @@ class HeuristicRegistry:
         ]
         
         for name, desc, worth in core_rules:
-            heuristic = Heuristic(name, desc, worth)
+            heuristic = Heuristic(name, desc, worth, self.unit_registry)
             self.unit_registry.register(heuristic)
             self._setup_heuristic(heuristic)
 

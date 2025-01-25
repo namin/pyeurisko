@@ -9,9 +9,10 @@ logger = logging.getLogger(__name__)
 
 class Heuristic(Unit):
     """Base class for heuristic rules in Eurisko."""
-    def __init__(self, name: str, description: str = "", worth: int = 700):
+    def __init__(self, name: str, description: str = "", worth: int = 700, registry=None):
         """Initialize a heuristic with standard properties."""
         super().__init__(name, worth)
+        self.unit_registry = registry
         self.set_prop('isa', ['heuristic'])
         self.set_prop('english', description)
         self.initialize_records()
@@ -77,6 +78,10 @@ class Heuristic(Unit):
         if not self.is_truly_relevant(context):
             logger.debug(f"Heuristic {self.name} not truly relevant")
             return False
+            
+        # Initialize task results if not present
+        if 'task_results' not in context:
+            context['task_results'] = {}
 
         start_time = time.time()
         try:

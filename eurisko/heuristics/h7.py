@@ -38,12 +38,17 @@ def setup_h7(heuristic) -> None:
             return False
             
         # Create task to find instances
-        task = context.get('task', {})
-        task['task_type'] = 'find_instances'
-        task['target_unit'] = unit.name
-        task['target_slot'] = instances_slot
-        task['priority'] = unit.worth_value() * 0.8  # Scale priority based on unit worth
-        task['reason'] = f"Find instances for {unit.name} which currently has none"
+        # Initialize task results if needed
+        if 'task_results' not in context:
+            context['task_results'] = {}
+
+        context['task'] = {
+            'task_type': 'find_instances',
+            'target_unit': unit.name,
+            'target_slot': instances_slot,
+            'priority': int(unit.worth_value() * 0.8),  # Scale priority based on unit worth
+            'reason': f"Find instances for {unit.name} which currently has none"
+        }
         
         return True
 

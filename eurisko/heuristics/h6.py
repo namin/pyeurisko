@@ -57,6 +57,9 @@ def setup_h6(heuristic) -> None:
         new_unit.copy_slots_from(unit)
         new_unit.set_prop(slot_to_change, new_value)
         
+        # Register the new unit
+        heuristic.unit_registry.register(new_unit)
+        
         # Update relationships
         unit.add_to_prop('specializations', new_unit.name)
         new_unit.add_to_prop('generalizations', unit.name)

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 def setup_h11(heuristic) -> None:
     """Configure H11: Find applications using algorithm and domain."""
     def check_task(context: Dict[str, Any]) -> bool:
-        """Check if we're looking for applications with algorithm and domain."""
+        """Check if we can find applications."""
         unit = context.get('unit')
         task = context.get('task')
         if not unit or not task:
@@ -19,48 +19,63 @@ def setup_h11(heuristic) -> None:
         if task.get('task_type') != 'find_applications':
             return False
             
-        # Need both algorithm and domain specification
+        # Verify algorithm exists
         algorithm = unit.get_prop('algorithm')
-        domain = unit.get_prop('domain')
-        
-        if not algorithm or not domain:
+        if not callable(algorithm):
             return False
             
-        context['algorithm'] = algorithm
-        context['domain'] = domain
+        # Verify domain exists
+        domain = unit.get_prop('domain')
+        if not domain:
+            return False
+            
         return True
 
     def compute_action(context: Dict[str, Any]) -> bool:
         """Find applications by running algorithm on domain examples."""
         unit = context.get('unit')
-        algorithm = context.get('algorithm')
-        domain_units = context.get('domain')
-        
-        if not all([unit, algorithm, domain_units]):
+        if not unit:
             return False
             
-        # Get domain tests from domain units
-        domain_tests = []
-        for domain_unit in domain_units:
-            domain_def = heuristic.unit_registry.get_unit(domain_unit)
-            if domain_def and domain_def.get_prop('definition'):
-                domain_tests.append(domain_def.get_prop('definition'))
+        # Get algorithm
+        algorithm = unit.get_prop('algorithm')
+        if not callable(algorithm):
+            return False
             
-        if len(domain_tests) != len(domain_units):
-            logger.warning(f"Missing domain definitions for {unit.name}")
+        # Get domain units and their definitions
+        domain_units = []
+        domain_tests = []
+        domain_names = unit.get_prop('domain') or []
+        
+        for domain_name in domain_names:
+            domain_unit = heuristic.unit_registry.get_unit(domain_name)
+            if not domain_unit:
+                logger.warning(f"Domain unit {domain_name} not found")
+                continue
+                
+            definition = domain_unit.get_prop('definition')
+            if not callable(definition):
+                logger.warning(f"No callable definition for domain {domain_name}")
+                continue
+                
+            domain_units.append(domain_unit)
+            domain_tests.append(definition)
+            
+        if len(domain_tests) != len(domain_names):
+            logger.warning("Not all domain units have valid definitions")
             return False
             
         # Track new applications found
         new_applications = []
         start_time = time.time()
         max_time = 30  # Maximum seconds to spend
-        attempts = 0
         max_attempts = 100
+        attempts = 0
         
         def check_timeout():
             return time.time() - start_time > max_time
             
-        # Handle different domain arities
+        # Handle different arities
         if len(domain_tests) == 0:
             # Nullary operation
             if not unit.has_application([]):
@@ -71,24 +86,23 @@ def setup_h11(heuristic) -> None:
                         'result': result
                     })
                 except Exception as e:
-                    logger.warning(f"Failed to apply algorithm with no args: {e}")
+                    logger.debug(f"Failed nullary application: {e}")
                     
         elif len(domain_tests) == 1:
             # Unary operation
-            domain_unit = heuristic.unit_registry.get_unit(domain_units[0])
-            if not domain_unit:
-                return False
-                
+            domain_unit = domain_units[0]
+            test = domain_tests[0]
+            
             # Try generator if available
             generator = domain_unit.get_prop('generator')
-            if generator and callable(generator):
+            if callable(generator):
                 for _ in range(200):
                     if check_timeout():
                         break
                         
                     try:
                         arg = generator()
-                        if not domain_tests[0](arg):
+                        if not test(arg):
                             continue
                             
                         if unit.has_application([arg]):
@@ -100,30 +114,29 @@ def setup_h11(heuristic) -> None:
                             'result': result
                         })
                     except Exception as e:
-                        logger.debug(f"Failed generator application: {e}")
+                        logger.debug(f"Failed generated application: {e}")
                         
             # Otherwise use examples
-            else:
-                examples = domain_unit.get_prop('examples') or []
-                for example in examples:
-                    if check_timeout():
-                        break
-                        
-                    if not domain_tests[0](example):
+            examples = domain_unit.get_prop('examples') or []
+            for example in examples:
+                if check_timeout():
+                    break
+                    
+                try:
+                    if not test(example):
                         continue
                         
                     if unit.has_application([example]):
                         continue
                         
-                    try:
-                        result = algorithm(example)
-                        new_applications.append({
-                            'args': [example],
-                            'result': result
-                        })
-                    except Exception as e:
-                        logger.debug(f"Failed example application: {e}")
-                        
+                    result = algorithm(example)
+                    new_applications.append({
+                        'args': [example],
+                        'result': result
+                    })
+                except Exception as e:
+                    logger.debug(f"Failed example application: {e}")
+                    
         else:
             # Multi-argument operation
             while attempts < max_attempts and not check_timeout():
@@ -131,18 +144,12 @@ def setup_h11(heuristic) -> None:
                 args = []
                 valid = True
                 
-                # Get random examples from each domain
-                for domain_unit_name in domain_units:
-                    domain_unit = heuristic.unit_registry.get_unit(domain_unit_name)
-                    if not domain_unit:
-                        valid = False
-                        break
-                        
-                    examples = domain_unit.get_prop('examples')
+                # Get example from each domain
+                for domain_unit in domain_units:
+                    examples = domain_unit.get_prop('examples') or []
                     if not examples:
                         valid = False
                         break
-                        
                     args.append(random.choice(examples))
                     
                 if not valid:
@@ -152,7 +159,7 @@ def setup_h11(heuristic) -> None:
                 if not all(test(arg) for test, arg in zip(domain_tests, args)):
                     continue
                     
-                # Skip if we already know this application
+                # Skip if already known
                 if unit.has_application(args):
                     continue
                     
@@ -174,6 +181,8 @@ def setup_h11(heuristic) -> None:
             # Update task results
             task_results = context.get('task_results', {})
             task_results['new_values'] = new_applications
+            task_results['num_found'] = len(new_applications)
+            task_results['attempts'] = attempts
             return True
             
         return False

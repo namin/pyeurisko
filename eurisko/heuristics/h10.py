@@ -1,7 +1,5 @@
 """H10 heuristic implementation: Find examples from operation ranges."""
 from typing import Any, Dict, List
-from ..unit import Unit
-import random
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,9 +21,6 @@ def setup_h10(heuristic) -> None:
         if not operations:
             return False
             
-        # Select one operation randomly to examine
-        selected_op = random.choice(operations)
-        context['selected_operation'] = selected_op
         return True
 
     def compute_action(context: Dict[str, Any]) -> bool:
@@ -34,68 +29,54 @@ def setup_h10(heuristic) -> None:
         if not unit:
             return False
             
-        operation_name = context.get('selected_operation')
-        if not operation_name:
-            return False
-            
-        operation = heuristic.unit_registry.get_unit(operation_name)
-        if not operation:
-            return False
-            
-        # Get current examples and non-examples
+        operation_names = unit.get_prop('is_range_of') or []
         current_examples = unit.get_prop('examples') or []
-        current_non_examples = unit.get_prop('non_examples') or []
         
-        # Examine applications of the operation
-        applications = operation.get_prop('applications') or []
         new_examples = []
+        sources = []
         
-        for application in applications:
-            # Extract output from application
-            output = None
-            if isinstance(application, dict):
-                output = application.get('result')
-            elif isinstance(application, (list, tuple)) and len(application) >= 2:
-                output = application[1]
-                
-            if output is None:
+        # Examine each operation's outputs
+        for op_name in operation_names:
+            operation = heuristic.unit_registry.get_unit(op_name)
+            if not operation:
                 continue
                 
-            # Check if output is already known
-            if output in current_examples or output in current_non_examples:
-                continue
-                
-            new_examples.append(output)
+            # Get operation's applications
+            applications = operation.get_prop('applications') or []
+            found_example = False
             
+            for app in applications:
+                result = None
+                
+                # Extract result from application
+                if isinstance(app, dict):
+                    result = app.get('result')
+                elif isinstance(app, (list, tuple)) and len(app) >= 2:
+                    result = app[1]
+                
+                # Skip invalid or duplicate results
+                if result is None or result in current_examples or result in new_examples:
+                    continue
+                    
+                new_examples.append(result)
+                found_example = True
+                
+            if found_example:
+                sources.append(op_name)
+                
+        # Update unit and task results if we found anything
         if new_examples:
-            # Update examples
+            # Add new examples to unit
             unit.set_prop('examples', current_examples + new_examples)
             
             # Update task results
             task_results = context.get('task_results', {})
             task_results['new_values'] = new_examples
-            task_results['source_operation'] = operation_name
+            task_results['source_operations'] = sources
+            task_results['num_found'] = len(new_examples)
             return True
             
-        # If no examples found, create task to find applications for operation
-        else:
-            task = context.get('task', {})
-            new_task = {
-                'task_type': 'find_applications',
-                'target_unit': operation_name,
-                'priority': task.get('priority', 500) - 100,
-                'reason': f"Need applications of {operation_name} to find examples of {unit.name}"
-            }
-            task_results = context.get('task_results', {})
-            new_tasks = task_results.get('new_tasks', [])
-            new_tasks.append(new_task)
-            task_results['new_tasks'] = new_tasks
-            
-            # Also reschedule current task with lower priority
-            task['priority'] = task.get('priority', 500) // 2
-            new_tasks.append(task)
-            
-            return False
+        return False
 
     # Set up heuristic properties
     heuristic.set_prop('if_working_on_task', check_task)

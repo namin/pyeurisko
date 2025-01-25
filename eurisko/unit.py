@@ -118,6 +118,36 @@ class Unit(EuriskoObject):
         """Hash based on unit name."""
         return hash(self.name)
 
+    def has_application(self, args: List[Any]) -> bool:
+        """Check if this unit has a recorded application with given args."""
+        applications = self.get_prop('applications') or []
+        for app in applications:
+            if isinstance(app, dict):
+                if app.get('args') == args:
+                    return True
+            elif isinstance(app, (list, tuple)) and len(app) >= 1:
+                if app[0] == args:
+                    return True
+        return False
+
+    def add_to_prop(self, prop_name: str, value: Any) -> None:
+        """Add a value to a property, creating a list if needed."""
+        current = self.get_prop(prop_name)
+        if current is None:
+            self.set_prop(prop_name, [value])
+        elif isinstance(current, list):
+            if value not in current:  # Avoid duplicates
+                current.append(value)
+                self.set_prop(prop_name, current)
+        else:  # Convert to list
+            self.set_prop(prop_name, [current, value])
+
+    def copy_slots_from(self, other_unit: 'Unit') -> None:
+        """Copy all slots from another unit except name/system properties."""
+        for slot_name, value in other_unit.properties.items():
+            if slot_name not in ['name', 'worth', 'isa']:
+                self.set_prop(slot_name, deepcopy(value))
+
 
 class UnitRegistry:
     """Global registry of all units in the system."""
