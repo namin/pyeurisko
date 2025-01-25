@@ -17,6 +17,7 @@ from .h11 import setup_h11
 from .h12 import setup_h12
 from .h13 import setup_h13
 from .h14 import setup_h14
+from .h15 import setup_h15
 
 class HeuristicRegistry:
     """Global registry for managing heuristic rules."""
@@ -101,6 +102,11 @@ class HeuristicRegistry:
             # H14: Learn from type transitions
             ('h14', "IF a unit is about to be deleted, "
                    "THEN create a rule to prevent problematic type changes",
+             700),
+             
+            # H15: Find examples through operation chains
+            ('h15', "IF a unit is in range of multiple operations, "
+                   "THEN examine their applications and chains",
              700)
         ]
         
@@ -125,7 +131,8 @@ class HeuristicRegistry:
             'h11': setup_h11,
             'h12': setup_h12,
             'h13': setup_h13,
-            'h14': setup_h14
+            'h14': setup_h14,
+            'h15': setup_h15
         }
         
         if heuristic.name in setup_funcs:
