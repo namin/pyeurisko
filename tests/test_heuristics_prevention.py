@@ -120,14 +120,21 @@ def test_h15_multiple_operations(registry):
     
     context = {
         'unit': test_unit,
-        'task': {'task_type': 'find_examples'}
+        'task': {'task_type': 'find_examples'},
+        'task_results': {}
     }
     
     # Should find examples from both operations
-    assert h15.apply(context)
+    success = h15.apply(context)
+    print("Apply result:", success)
+    print("Context after apply:", context)
     
     task_results = context.get('task_results', {})
+    print("Task results:", task_results)
+    
     new_examples = task_results.get('new_values', [])
+    print("New examples:", new_examples)
+    
     assert len(new_examples) == 4
     assert 'value1' in new_examples
     assert 'value4' in new_examples
@@ -153,7 +160,8 @@ def test_h15_multiple_operations(registry):
     
     chain_context = {
         'unit': chain_unit,
-        'task': {'task_type': 'find_examples'}
+        'task': {'task_type': 'find_examples'},
+        'task_results': {}
     }
     
     # Should find examples through operation chain
