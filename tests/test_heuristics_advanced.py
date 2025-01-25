@@ -1,4 +1,4 @@
-"""Test suite for advanced heuristics h6-h11."""
+"""Test suite for advanced heuristics h6-h13."""
 import pytest
 from eurisko.heuristics import HeuristicRegistry
 from eurisko.unit import Unit
@@ -179,3 +179,88 @@ def test_h11_domain_applications(registry):
     # Check that results are doubles of inputs
     for app in new_values:
         assert app['result'] == app['args'][0] * 2
+
+def test_h12_prevention_rule(registry):
+    """Test H12's creation of prevention rules from mistakes."""
+    h12 = registry.unit_registry.get_unit('h12')
+    
+    # Create a unit that will be deleted
+    failed_unit = Unit('failed_op')
+    failed_unit.set_prop('creditors', ['h5'])  # Created by h5
+    
+    # Create the creditor heuristic with application record
+    h5 = Unit('h5')
+    h5.set_prop('applications', [{
+        'task_info': {
+            'slot_to_change': 'if_working_on_task'
+        },
+        'result': ['failed_op']
+    }])
+    registry.unit_registry.register(h5)
+    registry.unit_registry.register(failed_unit)
+    
+    context = {
+        'unit': failed_unit,
+        'deleted_units': ['failed_op']
+    }
+    
+    # Should create prevention rule
+    assert h12.apply(context)
+    
+    task_results = context.get('task_results', {})
+    new_units = task_results.get('new_units', [])
+    assert len(new_units) == 1
+    
+    # Check prevention rule properties
+    rule = new_units[0]
+    assert 'prevention-rule' in rule.get_prop('isa')
+    assert rule.get_prop('slot_to_avoid') == 'if_working_on_task'
+    assert rule.get_prop('learned_from') == 'failed_op'
+
+def test_h13_modification_prevention(registry):
+    """Test H13's creation of modification prevention rules."""
+    h13 = registry.unit_registry.get_unit('h13')
+    
+    # Create a unit that will be deleted
+    failed_unit = Unit('failed_op')
+    failed_unit.set_prop('creditors', ['h6'])  # Created by h6
+    
+    # Create the creditor heuristic with application record
+    h6 = Unit('h6')
+    h6.set_prop('applications', [{
+        'task_info': {
+            'slot_to_change': 'algorithm',
+            'old_value': 'lambda x: x + 1',
+            'new_value': 'lambda x: x * 2'
+        },
+        'result': ['failed_op']
+    }])
+    registry.unit_registry.register(h6)
+    registry.unit_registry.register(failed_unit)
+    
+    context = {
+        'unit': failed_unit,
+        'deleted_units': ['failed_op']
+    }
+    
+    # Should create prevention rule
+    assert h13.apply(context)
+    
+    task_results = context.get('task_results', {})
+    new_units = task_results.get('new_units', [])
+    assert len(new_units) == 1
+    
+    # Check prevention rule properties
+    rule = new_units[0]
+    assert 'prevention-rule' in rule.get_prop('isa')
+    assert rule.get_prop('slot_to_avoid') == 'algorithm'
+    assert rule.get_prop('pattern_from') == 'lambda x: x + 1'
+    assert rule.get_prop('pattern_to') == 'lambda x: x * 2'
+    assert rule.get_prop('learned_from') == 'failed_op'
+    assert rule.get_prop('source_creditor') == 'h6'
+    
+    # Verify pattern detection in task results
+    pattern = task_results.get('pattern_detected', {})
+    assert pattern.get('slot') == 'algorithm'
+    assert pattern.get('from') == 'lambda x: x + 1'
+    assert pattern.get('to') == 'lambda x: x * 2'
