@@ -1,136 +1,123 @@
-"""H8 heuristic implementation: Find applications by looking at generalizations."""
-from typing import Any, Dict, List, Set
+"""H8 heuristic implementation: Find applications through generalizations.
+
+This heuristic finds application instances for a unit by examining applications of its
+generalizations. If the generalization's applications have arguments that satisfy the
+current unit's domain constraints, they are added as applications of the current unit.
+"""
+from typing import Any, Dict, List
 from ..unit import Unit
 import logging
 
 logger = logging.getLogger(__name__)
 
 def setup_h8(heuristic) -> None:
-    """Configure H8: Find applications by examining generalizations."""
-    def check_task(context: Dict[str, Any]) -> bool:
-        """Check if we're looking for applications and unit has algorithm."""
-        unit = context.get('unit')
-        task = context.get('task')
-        if not unit or not task:
-            return False
-            
-        if task.get('task_type') != 'find_applications':
-            return False
-            
-        # Check for algorithm existence
-        if not unit.get_prop('algorithm'):
-            return False
-            
-        # Check for generalizations to examine
-        generalizations = unit.get_prop('generalizations') or []
-        if not generalizations:
-            # Check isa relationships for examples if no direct generalizations
-            isa_types = unit.get_prop('isa') or []
-            found = False
-            for typ in isa_types:
-                type_unit = heuristic.unit_registry.get_unit(typ)
-                if type_unit and type_unit.get_prop('examples'):
-                    found = True
-                    break
-            if not found:
-                return False
-                
-        return True
+    """Configure H8: Find applications through generalizations."""
+    # Set properties from original LISP implementation
+    heuristic.set_prop('worth', 700)
+    heuristic.set_prop('english',
+        "IF the current task is to find application-instances of a unit, and it "
+        "has a algorithm, THEN look over instances of generalizations of the unit, "
+        "and see if any of them are valid application-instances of this as well")
+    heuristic.set_prop('abbrev', "Find applications through generalizations")
+    heuristic.set_prop('arity', 1)
+    
+    # Set record counts from original
+    heuristic.set_prop('then_compute_failed_record', (635979, 66))
+    heuristic.set_prop('then_compute_record', (368382, 10))
+    heuristic.set_prop('then_print_to_user_record', (3893, 10))
+    heuristic.set_prop('overall_record', (375388, 10))
 
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Find applications by examining generalizations."""
+    def check_task(context: Dict[str, Any]) -> bool:
+        """Check if we're working on an applications task."""
+        task = context.get('task')
+        return task and task.get('task_type') == 'find_applications'
+
+    def check_relevance(context: Dict[str, Any]) -> bool:
+        """Check if unit has algorithm and valid generalizations."""
         unit = context.get('unit')
         if not unit:
             return False
             
+        # Need algorithm and generalizations
+        if not unit.get_prop('algorithm'):
+            return False
+            
+        # Check generalizations exist
+        gen_names = unit.get_prop('generalizations')
+        if not gen_names:
+            return False
+            
+        # Store registry for later
+        context['registry'] = heuristic.unit_registry
+        context['space_to_use'] = gen_names
+        return True
+
+    def print_results(context: Dict[str, Any]) -> bool:
+        """Print the applications found."""
+        unit = context.get('unit')
+        new_values = context.get('task_results', {}).get('new_values', [])
+        if not unit or not new_values:
+            return False
+            
+        logger.info(f"\nFound {len(new_values)} applications for {unit.name}")
+        logger.debug(f"Applications: {new_values}")
+        return True
+
+    def compute_action(context: Dict[str, Any]) -> bool:
+        """Find applications from generalizations."""
+        unit = context.get('unit')
+        registry = context.get('registry')
+        gen_names = context.get('space_to_use')
+        if not all([unit, registry, gen_names]):
+            return False
+            
+        # Get algorithm
         algorithm = unit.get_prop('algorithm')
-        if not algorithm:
-            return False
-            
-        # Collect potential spaces to examine
-        spaces_to_use = set()
         
-        # Direct generalizations
-        generalizations = unit.get_prop('generalizations') or []
-        spaces_to_use.update(generalizations)
+        # Track new applications
+        new_values = []
+        current_apps = unit.get_prop('applications') or []
+        known_apps = {str(app) for app in current_apps}
         
-        # Add examples from isa types
-        isa_types = unit.get_prop('isa') or []
-        for typ in isa_types:
-            type_unit = heuristic.unit_registry.get_unit(typ)
-            if type_unit:
-                examples = type_unit.get_prop('examples') or []
-                spaces_to_use.update(examples)
-        
-        # Remove unit itself and its specializations
-        specializations = unit.get_prop('specializations') or []
-        spaces_to_use.discard(unit.name)
-        for spec in specializations:
-            spaces_to_use.discard(spec)
-            
-        # Filter by matching arity
-        unit_arity = unit.get_prop('arity')
-        if unit_arity:
-            spaces_to_use = {name for name in spaces_to_use 
-                           if heuristic.unit_registry.get_unit(name) and
-                           heuristic.unit_registry.get_unit(name).get_prop('arity') == unit_arity}
-            
-        if not spaces_to_use:
-            return False
-            
-        # For each space, examine its applications
-        new_applications = []
-        domain_tests = []
-        for domain_unit in (unit.get_prop('domain') or []):
-            domain_test = heuristic.unit_registry.get_unit(domain_unit)
-            if domain_test and domain_test.get_prop('definition'):
-                domain_tests.append(domain_test.get_prop('definition'))
-                
-        for space_name in spaces_to_use:
-            space_unit = heuristic.unit_registry.get_unit(space_name)
-            if not space_unit:
+        # Check each generalization's applications
+        for gen_name in gen_names:
+            gen_unit = registry.get_unit(gen_name)
+            if not gen_unit:
                 continue
                 
-            # Look through existing applications
-            applications = space_unit.get_prop('applications') or []
-            for application in applications:
-                args = application.get('args', [])
-                
-                # Skip if we already know this application
-                if unit.has_application(args):
-                    continue
-                    
-                # Verify domain constraints
-                valid = True
-                for test, arg in zip(domain_tests, args):
-                    if not test(arg):
-                        valid = False
-                        break
-                        
-                if valid:
-                    # Try applying algorithm to arguments
-                    try:
-                        result = algorithm(*args)
-                        new_applications.append({
-                            'args': args,
-                            'result': result
-                        })
-                    except Exception as e:
-                        logger.warning(f"Failed to apply algorithm: {e}")
-                        
-        if new_applications:
-            # Add new applications to unit
-            current_applications = unit.get_prop('applications') or []
-            unit.set_prop('applications', current_applications + new_applications)
+            apps = gen_unit.get_prop('applications') or []
+            for app in apps:
+                app_str = str(app)
+                if app_str not in known_apps:
+                    if verify_application(app, algorithm):
+                        new_values.append(app)
+                        known_apps.add(app_str)
+        
+        # Update results if we found any
+        if new_values:
+            if 'task_results' not in context:
+                context['task_results'] = {}
+            context['task_results']['new_values'] = new_values
             
-            # Update task results
-            task_results = context.get('task_results', {})
-            task_results['new_values'] = new_applications
-            task_results['source_spaces'] = list(spaces_to_use)
-            return True
-            
-        return False
+        return bool(new_values)
 
-    # Set up heuristic properties
+    def verify_application(app: Dict[str, Any], algorithm: callable) -> bool:
+        """Verify an application works with current algorithm."""
+        try:
+            args = app.get('args', [])
+            if not args:
+                return False
+                
+            if len(args) == 1:
+                result = algorithm(args[0])
+            else:
+                result = algorithm(*args)
+            return result == app.get('result')
+        except:
+            return False
+
+    # Configure the heuristic
     heuristic.set_prop('if_working_on_task', check_task)
+    heuristic.set_prop('if_truly_relevant', check_relevance) 
+    heuristic.set_prop('then_print_to_user', print_results)
     heuristic.set_prop('then_compute', compute_action)
