@@ -210,4 +210,5 @@ Contributions are welcome. Please ensure:
 
 Based on Douglas Lenat's original Eurisko system, [EUR](https://github.com/white-flame/eurisko/wiki).
 Developed by Claude.ai Desktop based on [namin/eurisclo](https://github.com/namin/eurisclo),
-using [the filesystem MCP server](https://github.com/namin/servers/tree/exec-reentrant/src/filesystem).
+using [the filesystem MCP server](https://github.com/namin/servers/tree/exec-reentrant/src/filesystem),
+augmented with re-entrant execution in docker.
