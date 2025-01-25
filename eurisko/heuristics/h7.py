@@ -1,4 +1,8 @@
-"""H7 heuristic implementation: Find instances for concepts with none."""
+"""H7 heuristic implementation: Find instances for concepts with none.
+
+This heuristic triggers when a concept has no known instances, prompting the system
+to search for some. It works for both categories and operators.
+"""
 from typing import Any, Dict
 from ..unit import Unit
 import logging
@@ -6,53 +10,73 @@ import logging
 logger = logging.getLogger(__name__)
 
 def setup_h7(heuristic) -> None:
-    """Configure H7: Find instances for concepts that have none."""
-    def check_relevant(context: Dict[str, Any]) -> bool:
-        """Check if unit has no instances but should have some."""
+    """Configure H7: Find instances for concepts with no known instances."""
+    # Set properties from original LISP implementation
+    heuristic.set_prop('worth', 700)
+    heuristic.set_prop('english',
+        "IF a concept has no known instances, THEN try to find some")
+    heuristic.set_prop('abbrev', "Instantiate a concept having no known instances")
+    heuristic.set_prop('arity', 1)
+    
+    # Set record counts from original
+    heuristic.set_prop('then_add_to_agenda_record', (11017, 172))
+    heuristic.set_prop('then_print_to_user_record', (21543, 172))
+    heuristic.set_prop('overall_record', (71147, 172))
+
+    def check_applics(context: Dict[str, Any]) -> bool:
+        """Check if the concept has no instances."""
         unit = context.get('unit')
         if not unit:
             return False
             
-        # Check if unit has instances slot defined
-        instances_slot = unit.get_prop('instances_slot')
-        if not instances_slot:
+        return not bool(unit.get_prop('examples'))
+
+    def check_relevance(context: Dict[str, Any]) -> bool:
+        """Check if the concept is a category or operator."""
+        unit = context.get('unit')
+        if not unit:
             return False
             
-        # Check if instances exist
-        instances = unit.get_prop(instances_slot)
-        if instances:
+        isa = unit.get_prop('isa')
+        if not isa:
             return False
             
-        # Check if unit is a category that should have instances
-        isa = unit.get_prop('isa') or []
         return 'category' in isa or 'op' in isa
 
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Add task to find instances for unit."""
+    def print_results(context: Dict[str, Any]) -> bool:
+        """Print explanation of the instance-finding task."""
         unit = context.get('unit')
         if not unit:
             return False
             
-        instances_slot = unit.get_prop('instances_slot')
-        if not instances_slot:
+        logger.info(f"\nSince {unit.name} has no known examples, "
+                   f"it is probably worth looking for some.")
+        return True
+
+    def compute_action(context: Dict[str, Any]) -> bool:
+        """Create task to find instances."""
+        unit = context.get('unit')
+        if not unit:
             return False
             
-        # Create task to find instances
-        # Initialize task results if needed
-        if 'task_results' not in context:
-            context['task_results'] = {}
-
-        context['task'] = {
-            'task_type': 'find_instances',
-            'target_unit': unit.name,
-            'target_slot': instances_slot,
-            'priority': int(unit.worth_value() * 0.8),  # Scale priority based on unit worth
-            'reason': f"Find instances for {unit.name} which currently has none"
+        # Initialize context if needed
+        if not isinstance(context.get('task'), dict):
+            context['task'] = {}
+            
+        # Add task fields
+        task = context['task']
+        task['task_type'] = 'find_instances'
+        task['target_unit'] = unit.name
+        
+        # Update task results
+        context['task_results'] = {
+            'new_tasks': "1 unit must be instantiated"
         }
         
         return True
 
-    # Setup functions on heuristic
-    heuristic.set_prop('if_potentially_relevant', lambda ctx: True)  # Always potentially relevant
-    heuristic.set_prop('if_truly_relevant', check_relevant)
+    # Configure the heuristic
+    heuristic.set_prop('if_potentially_relevant', check_applics)
+    heuristic.set_prop('if_truly_relevant', check_relevance)
+    heuristic.set_prop('then_print_to_user', print_results)
     heuristic.set_prop('then_compute', compute_action)
