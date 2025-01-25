@@ -174,14 +174,19 @@ def main():
                        help='Status print interval in seconds')
     args = parser.parse_args()
 
+    # Configure logging with a simpler format
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbosity > 1 else logging.INFO,
+        format='%(message)s'  # Simplified format without timestamp and level
+    )
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG if args.verbosity > 1 else logging.INFO)
     
     # Initialize enhanced system
     eurisko = EnhancedEurisko(verbosity=args.verbosity)
     eurisko.initialize()
     
     try:
+        logger.info("Eurisko system initialized")
         logger.info(f"Running for {args.cycles} cycles...")
         last_status_time = time.time()
         cycle_count = 0
