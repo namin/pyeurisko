@@ -140,6 +140,7 @@ class TaskManager:
 
     def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Check if a heuristic's if-parts are satisfied."""
+        logger.debug(f"Checking relevance of {heuristic.name}")
         def check_factory_func(factory):
             """Handle function that returns another function."""
             if not factory:
@@ -148,7 +149,9 @@ class TaskManager:
             if not isinstance(factory, Callable):
                 return True
                 
-            return factory(heuristic, context)
+            result = factory(heuristic, context)
+            logger.debug(f"Factory result for {heuristic.name}: {result}")
+            return result
 
         # Check if_potentially_relevant first
         if_factory = heuristic.get_prop('if_potentially_relevant')

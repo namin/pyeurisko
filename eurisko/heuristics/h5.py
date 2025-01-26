@@ -22,7 +22,7 @@ def setup_h5(heuristic) -> None:
     @rule_factory
     def if_working_on_task(rule, context):
         """Check if we need to choose slots to specialize."""
-        logger.debug(f"H5 if_working_on_task called")
+        logger.debug(f"H5 if_working_on_task called with task type {context.get('task_type')}")
         unit = context.get('unit')
         task = context.get('current_task')
         if not unit or not task:
