@@ -19,7 +19,7 @@ class Eurisko:
 
         log_level = logging.DEBUG if verbosity > 1 else logging.INFO
         logging.basicConfig(
-            format='%(asctime)s | %(levelname)s | %(message)s',
+            format='%(message)s',
             datefmt='%Y-%m-%d %H:%M:%S',
             level=log_level,
         )
@@ -27,9 +27,9 @@ class Eurisko:
 
     def initialize(self) -> None:
         """Initialize the core concepts and slots."""
-        initialize_all_heuristics(self.unit_registry)
-        initialize_all_units(self.unit_registry)
         initialize_all_slots(self.slot_registry)
+        initialize_all_units(self.unit_registry)
+        initialize_all_heuristics(self.unit_registry)
         self.initialize_test_applications(self.unit_registry)
         self._generate_initial_tasks()
 

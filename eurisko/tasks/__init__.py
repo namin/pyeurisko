@@ -1,5 +1,6 @@
 """Task classes for managing unit operations."""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple, Callable
 from ..units import Unit, UnitRegistry
@@ -124,15 +125,58 @@ class TaskManager:
                     success = False
         return success
 
-    def work_on_task(self, task: Task, interpreter: Optional[Callable] = None) -> Dict[str, Any]:
-        """Execute a task using the provided interpreter."""
+    def _get_heuristics(self) -> List[Unit]:
+        """Get all heuristic units."""
+        return [self.unit_registry.get_unit(name) 
+                for name in self.unit_registry.get_units_by_category('heuristic')]
+                
+    def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
+        """Check if a heuristic's if-parts are satisfied."""
+        # Check if_potentially_relevant first
+        check = heuristic.get_prop('if_potentially_relevant')
+        if not check(context):
+            return False
+                
+        # Then check if_truly_relevant 
+        check = heuristic.get_prop('if_truly_relevant')
+        if not check(context):
+            return False
+                
+        return True
+        
+    def _apply_heuristic(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
+        """Apply a heuristic's then-parts."""
+        then_parts = []
+        
+        # Get all the then_ slots
+        for prop_name in heuristic.properties:
+            if prop_name.startswith('then_'):
+                actions = heuristic.get_prop(prop_name)
+                if actions:
+                    then_parts.extend(actions)
+                    
+        # Execute them
+        success = True
+        for action in then_parts:
+            try:
+                if not action(context):
+                    success = False
+            except Exception as e:
+                if self.verbosity > 1:
+                    print(f"Error applying heuristic {heuristic.name}: {e}")
+                success = False
+                
+        return success
+        
+    def work_on_task(self, task: Task) -> Dict[str, Any]:
+        """Execute a task using available heuristics."""
         self.task_num += 1
         self.current_task = task
         unit = self.unit_registry.get_unit(task.unit_name)
         
         if not unit:
             return {'status': 'failed', 'reason': 'unit not found'}
-
+            
         # Reset task state
         self.abort_current_task = False
         task.results = {}
@@ -146,22 +190,27 @@ class TaskManager:
             'task_num': self.task_num,
             'task_type': task.task_type,
             'supplemental': task.supplemental,
+            'task_manager': self,
         }
-
-        # Execute pre-task heuristics
-        if not self._execute_task_phase(unit, 'if_about_to_work_on_task', context):
-            return {'status': 'aborted', 'phase': 'pre-task'}
-
-        # Execute main task work
-        if interpreter:
-            success = interpreter(unit, context)
-            if not success:
-                return {'status': 'failed', 'phase': 'main'}
-
-        # Execute post-task heuristics
-        if not self._execute_task_phase(unit, 'if_finished_working_on_task', context):
-            return {'status': 'aborted', 'phase': 'post-task'}
-
+        
+        # Get and filter heuristics
+        heuristics = self._get_heuristics()
+        relevant_heuristics = []
+        
+        for heuristic in heuristics:
+            if self._is_heuristic_relevant(heuristic, context):
+                relevant_heuristics.append(heuristic)
+                
+        # Apply each relevant heuristic
+        for heuristic in relevant_heuristics:
+            if self.abort_current_task:
+                task.results['status'] = 'aborted'
+                return task.results
+                
+            success = self._apply_heuristic(heuristic, context)
+            if not success and self.verbosity > 0:
+                print(f"Heuristic {heuristic.name} failed")
+                
         task.results['status'] = 'completed'
         return task.results
 

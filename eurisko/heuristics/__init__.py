@@ -47,7 +47,9 @@ def initialize_all_heuristics(unit_registry) -> None:
     heuristics = discover_heuristics()
     for h in heuristics:
         unit = unit_registry.create_unit(h['name'])
+        unit.set_prop('isa', ['heuristic', 'anything'])
         if not unit.get_prop('english'):
             unit.set_prop('english', h['description'])
         setup_func = h['setup_func']
         setup_func(unit)
+        unit_registry.register(unit)

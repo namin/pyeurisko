@@ -17,7 +17,7 @@ def initialize_math_operations(registry: UnitRegistry) -> None:
     }
     
     for op_name, props in math_ops.items():
-        unit = registry.create_unit(op_name, worth=500, isa=['MATH-OP'])
+        unit = registry.create_unit(op_name, worth=500, isa=['math-op'])
         for prop_name, value in props.items():
             unit.set_prop(prop_name, value)
 
