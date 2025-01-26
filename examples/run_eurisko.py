@@ -6,7 +6,7 @@ Enhanced PyEurisko implementation with closer alignment to original Eurisko beha
 import argparse
 import logging
 import time
-from typing import Dict, List
+from typing import Dict, List, Any
 from collections import defaultdict
 from eurisko.main import Eurisko
 from eurisko.unit import Unit
@@ -95,6 +95,9 @@ class EnhancedEurisko(Eurisko):
         if not unit:
             logger.warning(f"Unit {task.unit_name} not found")
             return False
+        
+        # Reset task results
+        self.task_results = {}
             
         # Create comprehensive context for heuristics
         context = {
@@ -102,7 +105,8 @@ class EnhancedEurisko(Eurisko):
             'task': task,
             'system': self,
             'registry': self.unit_registry,
-            'task_results': {},
+            'task_manager': self.task_manager,
+            'task_results': self.task_results,
             'applics': unit.get_prop('applics') or [],
             'applications': unit.get_prop('applications') or [],
             'worth': unit.get_prop('worth', 500)
