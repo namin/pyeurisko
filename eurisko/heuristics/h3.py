@@ -18,16 +18,16 @@ def setup_h3(heuristic) -> None:
     heuristic.set_prop('arity', 1)
 
     @rule_factory
-    def if_working_on_task_factory(rule, context):
+    def if_working_on_task(rule, context):
         """Check if we need to choose a slot to specialize."""
         unit = context.get('unit')
-        task = context.get('current_task')  # Changed from task to current_task
+        task = context.get('current_task')
         if not unit or not task:
             return False
 
         # Check if this is a specialization task without a chosen slot
-        is_specialization = task.task_type == 'specialization'  # Changed to use Task attribute
-        no_slot_chosen = 'slot_to_change' not in task.supplemental  # Check supplemental dict
+        is_specialization = task.task_type == 'specialization'
+        no_slot_chosen = 'slot_to_change' not in task.supplemental
 
         # Get task manager from rule since it's closed over
         task_manager = rule.task_manager
@@ -65,15 +65,17 @@ def setup_h3(heuristic) -> None:
         # Get slots from rule's registry
         unit_slots = unit.get_prop('slots') or []
         slot_types = rule.unit_registry.get_units_by_category('slot')
+        if not slot_types:
+            return False
+            
         valid_slots = set(unit_slots) & set(slot_types)
         slots = list(valid_slots) if valid_slots else unit_slots
-
         if not slots:
             return False
 
         # Choose slot and update context
         chosen_slot = random.choice(slots)
-        task.supplemental['slot_to_change'] = chosen_slot  # Update in supplemental
+        task.supplemental['slot_to_change'] = chosen_slot
         context['chosen_slot'] = chosen_slot
 
         # Store credit information
@@ -98,18 +100,18 @@ def setup_h3(heuristic) -> None:
         if not all([unit, task, chosen_slot, reason]):
             return False
 
-        task_manager = rule.task_manager  # Get from rule
+        task_manager = rule.task_manager
         if not task_manager:
             return False
 
         # Calculate priority based on worths
         base_priority = task.priority 
-        h3_worth = rule.worth_value()  # Use rule not heuristic
+        h3_worth = rule.worth_value()
         unit_worth = unit.worth_value()
         new_priority = (base_priority + h3_worth + unit_worth) // 3
 
         # Create new task using Task class
-        from ..tasks import Task  # Import here to avoid circular
+        from ..tasks import Task
         new_task = Task(
             priority=new_priority,
             unit_name=unit.name,

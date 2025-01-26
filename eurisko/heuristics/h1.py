@@ -91,10 +91,12 @@ def setup_h1(heuristic) -> None:
         
         if not unit or not system:
             return False
-            
+        
         # Create new conjecture
         conjec_name = system.new_name('conjec')
         conjec = system.create_unit(conjec_name, 'proto-conjec')
+        if not conjec:
+            return False
         
         english = (f"Specializations of {unit.name} may be more useful than it is, "
                   f"since it has some good instances but many more poor ones. "
@@ -109,10 +111,11 @@ def setup_h1(heuristic) -> None:
         conjec.set_prop('worth', worth)
         
         # Add to conjectures list
-        system.add_conjecture(conjec)
+        if not system.add_conjecture(conjec):
+            return False
+            
         context['conjecture'] = conjec
         return True
-
 
     @rule_factory
     def then_add_to_agenda(rule, context):
@@ -123,7 +126,7 @@ def setup_h1(heuristic) -> None:
         
         if not all([unit, system, conjec]):
             return False
-            
+        
         # Create specialization task
         task = {
             'priority': unit.get_prop('worth', 500),
@@ -136,6 +139,8 @@ def setup_h1(heuristic) -> None:
             }
         }
         
-        system.task_manager.add_task(task)
+        if not system.task_manager.add_task(task):
+            return False
+            
         system.add_task_result('new_tasks', "1 unit must be specialized")
         return True

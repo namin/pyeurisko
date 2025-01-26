@@ -19,6 +19,9 @@ def setup_h2(heuristic) -> None:
             return False
             
         new_units = task_results['new_units']
+        if not new_units:
+            return False
+            
         # Find units that are producing garbage
         doomed_units = []
         for unit in new_units:
@@ -48,6 +51,8 @@ def setup_h2(heuristic) -> None:
     def then_print_to_user(rule, context):
         """Print message about killed units."""
         units = context.get('killed_units', [])
-        if units:
-            logger.info(f"Killed {len(units)} garbage units")
+        if not units:
+            return False
+            
+        logger.info(f"Killed {len(units)} garbage units")
         return True
