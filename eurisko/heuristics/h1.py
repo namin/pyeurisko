@@ -22,13 +22,13 @@ def setup_h1(heuristic) -> None:
     heuristic.set_prop('overall_record', (7078, 5))
     heuristic.set_prop('arity', 1)
 
-    def check_applics(context: Dict[str, Any]) -> bool:
+    def check_applications(context: Dict[str, Any]) -> bool:
         """Check that unit has some recorded applications."""
         unit = context.get('unit')
         if not unit:
             return False
-        applics = unit.get_prop('applics')
-        return bool(applics)
+        applications = unit.get_prop('applications')
+        return bool(applications)
         
     def check_relevance(context: Dict[str, Any]) -> bool:
         """Check if unit has good and bad applications."""
@@ -37,14 +37,14 @@ def setup_h1(heuristic) -> None:
             return False
             
         # Get applications
-        applics = unit.get_prop('applics')
-        if not applics:
+        applications = unit.get_prop('applications')
+        if not applications:
             return False
             
         # Count good vs total applications
         # In test case, each application is a dict with 'worth' directly
-        total_count = len(applics)
-        good_count = sum(1 for app in applics if app.get('worth', 0) >= 800)
+        total_count = len(applications)
+        good_count = sum(1 for app in applications if app.get('worth', 0) >= 800)
         
         if total_count == 0:
             return False
@@ -134,7 +134,7 @@ def setup_h1(heuristic) -> None:
         return True
 
     # Set up all the slots
-    heuristic.set_prop('if_potentially_relevant', check_applics)
+    heuristic.set_prop('if_potentially_relevant', check_applications)
     heuristic.set_prop('if_truly_relevant', check_relevance)
     heuristic.set_prop('then_print_to_user', print_to_user)
     heuristic.set_prop('then_conjecture', make_conjecture)

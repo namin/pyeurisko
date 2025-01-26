@@ -27,15 +27,15 @@ def setup_h16(heuristic) -> None:
     heuristic.set_prop('overall_record', (1756, 4))
     heuristic.set_prop('arity', 1)
 
-    def check_applics(context: Dict[str, Any]) -> bool:
+    def check_applications(context: Dict[str, Any]) -> bool:
         """Verify unit has recorded applications."""
         unit = context.get('unit')
         if not unit:
             return False
         alg = unit.get_prop('alg')  # Check if unit has algorithm
-        return bool(alg and unit.get_prop('applics'))
+        return bool(alg and unit.get_prop('applications'))
 
-    def analyze_worth_distribution(applics) -> Dict[str, float]:
+    def analyze_worth_distribution(applications) -> Dict[str, float]:
         """Analyze the distribution of worth values in applications.
         
         Returns:
@@ -44,17 +44,17 @@ def setup_h16(heuristic) -> None:
             - avg_worth: Average worth across all applications 
             - worth_variance: Variance in worth values
         """
-        if not applics:
+        if not applications:
             return {'success_ratio': 0, 'avg_worth': 0, 'worth_variance': 0}
             
-        worth_values = [app.get('worth', 0) for app in applics]
+        worth_values = [app.get('worth', 0) for app in applications]
         high_worth = sum(1 for w in worth_values if w >= 800)
         
         avg = sum(worth_values) / len(worth_values)
         variance = sum((w - avg) ** 2 for w in worth_values) / len(worth_values)
         
         return {
-            'success_ratio': high_worth / len(applics),
+            'success_ratio': high_worth / len(applications),
             'avg_worth': avg,
             'worth_variance': variance
         }
@@ -66,12 +66,12 @@ def setup_h16(heuristic) -> None:
             return False
             
         # Get and validate applications
-        applics = unit.get_prop('applics')
-        if not applics:
+        applications = unit.get_prop('applications')
+        if not applications:
             return False
             
         # Full worth analysis
-        worth_stats = analyze_worth_distribution(applics)
+        worth_stats = analyze_worth_distribution(applications)
         context['worth_stats'] = worth_stats
             
         # Need >10% success rate but not too high to avoid overgeneralization
@@ -171,7 +171,7 @@ def setup_h16(heuristic) -> None:
         return True
 
     # Configure heuristic slots
-    heuristic.set_prop('if_potentially_relevant', check_applics)
+    heuristic.set_prop('if_potentially_relevant', check_applications)
     heuristic.set_prop('if_truly_relevant', check_relevance)
     heuristic.set_prop('then_print_to_user', print_to_user)
     heuristic.set_prop('then_conjecture', make_conjecture)

@@ -56,7 +56,7 @@ def setup_h20(heuristic) -> None:
                 continue
                 
             # Check has applications
-            if len(sib.get_prop('applics', [])) > 3:
+            if len(sib.get_prop('applications', [])) > 3:
                 comparable.append(sib)
                 
         return comparable
@@ -113,7 +113,7 @@ def setup_h20(heuristic) -> None:
             
         added_ops = []
         for other_op in comparable_ops:
-            for application in other_op.get_prop('applics', []):
+            for application in other_op.get_prop('applications', []):
                 args = application.get('args', [])
                 
                 # Skip if we already know this application

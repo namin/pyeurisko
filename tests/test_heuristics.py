@@ -79,7 +79,7 @@ def test_h1_behavior():
     
     # H1 checks for units with some good but mostly bad applications
     test_unit = Unit('test_unit')
-    test_unit.set_prop('applics', [
+    test_unit.set_prop('applications', [
         {'worth': 900},  # One good application
         {'worth': 100},  # Many bad applications
         {'worth': 200},
@@ -98,7 +98,7 @@ def test_h2_behavior():
     
     # Create a test context with new units from a "garbage" producer
     garbage_producer = Unit('garbage_producer')
-    garbage_producer.set_prop('applics', [
+    garbage_producer.set_prop('applications', [
         {'result': [Unit('empty1')]} for _ in range(10)
     ])
     

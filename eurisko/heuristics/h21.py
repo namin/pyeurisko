@@ -52,8 +52,8 @@ def setup_h21(heuristic) -> None:
         - overlap_ratio: Fraction of shared applications
         - unique_results: Results unique to unit
         """
-        unit_apps = unit.get_prop('applics', [])
-        other_apps = other.get_prop('applics', [])
+        unit_apps = unit.get_prop('applications', [])
+        other_apps = other.get_prop('applications', [])
         
         # Convert to sets for comparison
         unit_results = {
@@ -155,7 +155,7 @@ def setup_h21(heuristic) -> None:
             # Worth based on overlap and uniqueness
             worth = int(min(1000, (
                 400 * ext['overlap'] +  # Reward completeness of overlap
-                200 * (ext['unique'] / len(unit.get_prop('applics', []))) +  # Reward uniqueness
+                200 * (ext['unique'] / len(unit.get_prop('applications', []))) +  # Reward uniqueness
                 200  # Base worth
             )))
             conjec.set_prop('worth', worth)

@@ -37,13 +37,13 @@ def setup_h2(heuristic) -> None:
                 if not creditor_unit:
                     continue
                     
-                applics = creditor_unit.get_prop('applics') or []
-                if len(applics) >= 10:
+                applications = creditor_unit.get_prop('applications') or []
+                if len(applications) >= 10:
                     # Check if all results lack applications
                     if all(isinstance(app, dict) and
-                          all(not hasattr(u, 'get_prop') or not u.get_prop('applics')
+                          all(not hasattr(u, 'get_prop') or not u.get_prop('applications')
                               for u in app.get('result', []))
-                          for app in applics):
+                          for app in applications):
                         potential_culprits.add(creditor)
 
         context['culprits'] = list(potential_culprits)

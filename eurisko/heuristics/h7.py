@@ -23,7 +23,7 @@ def setup_h7(heuristic) -> None:
     heuristic.set_prop('then_print_to_user_record', (21543, 172))
     heuristic.set_prop('overall_record', (71147, 172))
 
-    def check_applics(context: Dict[str, Any]) -> bool:
+    def check_applications(context: Dict[str, Any]) -> bool:
         """Check if the concept has no instances."""
         unit = context.get('unit')
         if not unit:
@@ -76,7 +76,7 @@ def setup_h7(heuristic) -> None:
         return True
 
     # Configure the heuristic
-    heuristic.set_prop('if_potentially_relevant', check_applics)
+    heuristic.set_prop('if_potentially_relevant', check_applications)
     heuristic.set_prop('if_truly_relevant', check_relevance)
     heuristic.set_prop('then_print_to_user', print_results)
     heuristic.set_prop('then_compute', compute_action)

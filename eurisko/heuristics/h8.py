@@ -11,7 +11,7 @@ def setup_h8(heuristic) -> None:
         "IF the current task is to find application-instances of a unit, and it has "
         "an algorithm, THEN look over instances of generalizations of the unit, "
         "and see if any of them are valid application-instances of this as well.")
-    heuristic.set_prop('abbrev', "Applics (u) may be found against Applics (genl (u))")
+    heuristic.set_prop('abbrev', "Applications (u) may be found against Applications (genl (u))")
 
     def check_task_relevance(context: Dict[str, Any]) -> bool:
         """Verify task is for finding applications."""
