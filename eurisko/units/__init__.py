@@ -270,5 +270,7 @@ class UnitRegistry:
 def initialize_all_units(registry) -> None:
     from .core import initialize_core_units
     from .concepts import initialize_core_concepts
+    from .lisp_units import initialize_lisp_units
     initialize_core_units(registry)
     initialize_core_concepts(registry)
+    initialize_lisp_units(registry)

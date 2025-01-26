@@ -5,6 +5,8 @@ from typing import Dict, List, Any, Tuple, Optional
 import sexpdata
 
 def parse_unit_def(e) -> Dict[str, Any]:
+    if isinstance(e[0], sexpdata.Symbol) and e[0].value() != 'defunit':
+        return None
     name = str(e[1])
     prope = e[2:]
     props = dict([(prope[i], prope[i+1]) for i in range(0, len(prope) - 1, 2)])
@@ -17,6 +19,7 @@ def split_unit_definitions(text: str) -> List[str]:
     """Split a LISP file into individual unit definitions."""
     es = sexpdata.loads("(begin "+text+")")
     units = [parse_unit_def(e) for e in es[1:]]
+    units = [u for u in units if u]
     return units
 
 def convert_unit_to_python(unit_data: Dict[str, Any]) -> str:
