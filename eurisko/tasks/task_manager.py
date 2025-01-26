@@ -21,7 +21,7 @@ class TaskManager:
         self.abort_current_task: bool = False
         self.current_task: Optional[Task] = None
         self.verbosity: int = 1
-        self.heuristic_stats = defaultdict(lambda: {'tries': 0, 'successes': 0})
+        self.heuristic_stats = defaultdict(lambda: {'tries_for_success': 0, 'success': 0, 'tries_for_relevant': 0, 'relevant': 0})
         # Import here to avoid circular imports
         from ..system import System
         self.system = System(self)
@@ -147,10 +147,13 @@ class TaskManager:
         return True
     
     def _apply_heuristic(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
+        """Apply a heuristic's then-parts, assumes if_parts showed relevance."""
+
         # Ensure system is in context
         if 'system' not in context:
             context['system'] = self.system
-        """Apply a heuristic's then-parts."""
+
+        # Only proceed if relevant
         any_action_executed = False
         all_actions_succeeded = True
 
@@ -181,15 +184,22 @@ class TaskManager:
 
         # Only count as success if at least one action executed and all executed actions succeeded
         success = any_action_executed and all_actions_succeeded
-        self.track_heuristic_result(heuristic.name, success)
         return success
 
-    def track_heuristic_result(self, heuristic_name: str, success: bool):
-        """Track success/failure statistics for heuristics."""
+    def track_heuristic_result(self, heuristic_name: str, mark: str, outcome: bool):
         stats = self.heuristic_stats[heuristic_name]
-        stats['tries'] += 1
-        if success:
-            stats['successes'] += 1
+        tries_mark = 'tries_for_'+mark
+        stats.setdefault(tries_mark, 0)
+        stats.setdefault(mark, 0)
+        stats[tries_mark] += 1
+        stats[mark] += 1
+
+    def print_stats(self):
+        print("\nHeuristic Performance:")
+        for h_name, stats in sorted(self.heuristic_stats.items()):
+            relevant_rate = (stats['relevant'] / stats['tries_for_relevant'] * 100) if stats['tries_for_relevant'] > 0 else 0
+            success_rate = (stats['success'] / stats['tries_for_success'] * 100) if stats['tries_for_success'] > 0 else 0
+            print(f"{h_name} -> {success_rate:.0f}% success ({relevant_rate:.0f}% relevant)")
 
     def work_on_task(self, task: Task) -> Dict[str, Any]:
         """Execute a task using heuristics."""
@@ -273,15 +283,16 @@ class TaskManager:
 
             # Only apply if relevant (via if-parts)
             logger.debug(f"Checking if {heuristic.name} relevant for task type {context.get('task_type')}")
-            if not self._is_heuristic_relevant(heuristic, context):
+            relevant = self._is_heuristic_relevant(heuristic, context)
+            self.track_heuristic_result(heuristic.name, "relevant", relevant)
+            if not relevant:
                 logger.debug(f"{heuristic.name} not relevant")
                 continue
 
             # Apply heuristic's then-parts
             logger.debug(f"Applying {heuristic.name}")
             success = self._apply_heuristic(heuristic, context)
-            logger.debug(f"{heuristic.name} applied with success={success}")
-            self.track_heuristic_result(heuristic.name, success)
+            self.track_heuristic_result(heuristic.name, "success", success)
 
             if success and self.verbosity > 39:
                 print(f"  The ThenParts of {heuristic.name} have been executed")
@@ -296,13 +307,6 @@ class TaskManager:
 
         self._process_task_results(task.results)
         return task.results
-
-    def print_stats(self):
-        if self.heuristic_stats:
-            print("\nHeuristic Performance:")
-            for h_name, stats in sorted(self.heuristic_stats.items()):
-                success_rate = (stats['successes'] / stats['tries'] * 100) if stats['tries'] > 0 else 0
-                print(f"{h_name} -> {success_rate:.0f}% ({stats['tries']} tries, {stats['successes']} successes)")
 
     def _execute_task_phase(self, unit: Unit, phase: str, context: Dict[str, Any]) -> bool:
         """Execute a specific phase of task processing."""

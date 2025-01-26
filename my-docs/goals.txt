@@ -1,9 +1,11 @@
 For reference, we are trying to replicate the project eurisclo, a sibling project, which has units.lisp, eurisclo.lisp and heuristics.lisp in its src directory. This is based on EUR, unearthed Eurisko code by Doug Lenat, also in the src of eurisclo.
 
-THe current goal is at the interplay of heuristics, task manager and main.
+The current goal is at the interplay of heuristics, task manager and main.
 We expect the cycle in main, as new units and tasks are created.
 Why is this not happening?
 Do NOT enable eternal mode, this runs forever so you won't get any output from that, and it's not currently interesting.
+
+The immediate task is to fix the stats accumulation and printing in task_manager.py
 
 Ignore *~ files. They are emacs backup files.
 
