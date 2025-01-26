@@ -1,244 +1,229 @@
-"""H14 heuristic implementation: Create prevention rules for problematic replacements.
-
-This heuristic creates prevention rules when concepts are deleted by analyzing patterns
-where specific replacement components consistently lead to failures. It examines both
-the specific values and their types to identify problematic replacement patterns.
-"""
-from typing import Any, Dict, Optional, Tuple, Union, Callable
-from ..unit import Unit
+"""H14 heuristic implementation: Create type-based prevention rules."""
+from typing import Any, Dict, List, Optional
 import logging
-import types
+import inspect
 
 logger = logging.getLogger(__name__)
 
 def setup_h14(heuristic) -> None:
-    """Configure H14: Create prevention rules for problematic replacements."""
-    # Set properties from original LISP implementation
+    """Configure H14: Create type-based prevention rules.
+    
+    This heuristic examines failing concepts to understand type changes that
+    led to failure. It creates prevention rules that block problematic type
+    transitions (e.g., simple to complex) while still allowing safe changes.
+    """
     heuristic.set_prop('worth', 700)
     heuristic.set_prop('english',
-        "IF C is about to die, then try to form a new heuristic, one which -- "
-        "had it existed earlier -- would have prevented C from ever being defined "
-        "in the first place, by preventing the same losing sort of entity being "
-        "the replacer")
-    heuristic.set_prop('abbrev', "Form a rule that would have prevented this mistake")
-    heuristic.set_prop('arity', 1)
+        "IF C is about to die, THEN try to form prevention rules based on "
+        "problematic type transformations that led to failure.")
+    heuristic.set_prop('abbrev', "Form type-based prevention rules")
 
-    def check_potentially_relevant(context: Dict[str, Any]) -> bool:
+    def analyze_type_changes(old_value: Any, new_value: Any) -> Dict[str, Any]:
+        """Analyze type changes between values in detail.
+        
+        Examines:
+        - Basic type transitions (e.g., int to function)
+        - Structural changes (atomic to compound)
+        - Complexity increases
+        """
+        def get_type_category(value: Any) -> str:
+            """Determine high-level type category."""
+            if callable(value):
+                return 'function'
+            elif isinstance(value, (list, tuple, set)):
+                return 'sequence'
+            elif isinstance(value, dict):
+                return 'mapping'
+            elif isinstance(value, (int, float)):
+                return 'numeric'
+            elif isinstance(value, str):
+                return 'text'
+            else:
+                return type(value).__name__
+
+        def measure_complexity(value: Any) -> int:
+            """Estimate structural complexity of a value."""
+            if callable(value):
+                try:
+                    source = inspect.getsource(value)
+                    return len(source.split('\n'))
+                except:
+                    return 5  # Default for functions
+            elif isinstance(value, (list, tuple, set)):
+                return sum(measure_complexity(x) for x in value) + 1
+            elif isinstance(value, dict):
+                return sum(
+                    measure_complexity(k) + measure_complexity(v)
+                    for k, v in value.items()
+                ) + 1
+            elif isinstance(value, str):
+                return len(value)
+            else:
+                return 1
+
+        old_type = type(old_value).__name__
+        new_type = type(new_value).__name__
+        old_category = get_type_category(old_value)
+        new_category = get_type_category(new_value)
+        
+        old_complexity = measure_complexity(old_value)
+        new_complexity = measure_complexity(new_value)
+        
+        return {
+            'from_type': old_type,
+            'to_type': new_type,
+            'from_category': old_category,
+            'to_category': new_category,
+            'type_changed': old_type != new_type,
+            'category_changed': old_category != new_category,
+            'complexity_increased': new_complexity > old_complexity,
+            'complexity_ratio': new_complexity / old_complexity if old_complexity > 0 else float('inf')
+        }
+
+    def check_unit_deletion(context: Dict[str, Any]) -> bool:
         """Check if unit is being deleted."""
         unit = context.get('unit')
         deleted_units = context.get('deleted_units', [])
-        return unit and unit.name in deleted_units
-
-    def check_relevance(context: Dict[str, Any]) -> bool:
-        """Check if we can identify replacement patterns."""
-        unit = context.get('unit')
-        if not unit:
+        
+        if not unit or unit.name not in deleted_units:
             return False
-
-        # Need creditor information
-        creditors = unit.get_prop('creditors')
+            
+        # Need to know what created this unit
+        creditors = unit.get_prop('creditors', [])
         if not creditors:
             return False
-
-        # Store registry for later use
-        context['registry'] = heuristic.unit_registry
+            
+        # Store creator info for later
+        creator = creditors[0]
+        context['creator'] = creator
         return True
 
-    def print_results(context: Dict[str, Any]) -> bool:
-        """Print explanation of the prevention rule created."""
-        unit = context.get('unit')
-        task_results = context.get('task_results', {})
-        new_units = task_results.get('new_units', [])
-        pattern = task_results.get('pattern_detected', {})
-        if not unit or not new_units or not pattern:
-            return False
-            
-        from_type = pattern.get('from_type', '')
-        to_type = pattern.get('to_type', '')
+    def get_creation_task(unit: Any, creator: str) -> Optional[Dict[str, Any]]:
+        """Find the task that created this unit."""
+        # First try unit's own applications
+        unit_apps = unit.get_prop('applications') or []
         
-        logger.info(f"\nJust before destroying {unit.name}, created prevention rule: "
-                   f"will no longer replace {from_type} values with {to_type} values "
-                   f"in the {pattern.get('slot')} slot")
-        return True
-
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Create prevention rule from replacement pattern."""
-        unit = context.get('unit')
-        registry = context.get('registry')
-        if not unit or not registry:
-            return False
-            
-        # Get the creator heuristic's record
-        creditor_name = unit.get_prop('creditors')[0]  # Take first creditor
-        creditor = registry.get_unit(creditor_name)
-        if not creditor:
-            return False
-            
-        # Find the relevant application record
-        app_record = find_creation_record(creditor, unit.name)
-        if not app_record:
-            return False
-            
-        # Extract replacement pattern
-        pattern = extract_replacement_pattern(app_record)
-        if not pattern:
-            return False
-            
-        # Create prevention rule
-        rule_unit = create_prevention_rule(unit, pattern, creditor_name)
-        if not rule_unit:
-            return False
-            
-        # Register the new rule
-        registry.register(rule_unit)
-            
-        # Add to results
-        if 'task_results' not in context:
-            context['task_results'] = {}
-        slot, old_val, new_val, from_type, to_type = pattern
-        context['task_results'].update({
-            'new_units': [rule_unit],
-            'pattern_detected': {
-                'slot': slot,
-                'from': old_val,
-                'to': new_val,
-                'from_type': from_type,
-                'to_type': to_type
-            }
-        })
+        # Then check creator's applications
+        creator_unit = unit.get_prop('creditors_applications') or []
         
-        return True
-
-    def find_creation_record(creditor: Unit, unit_name: str) -> Optional[Dict[str, Any]]:
-        """Find the application record that created the unit."""
-        applications = creditor.get_prop('applications') or []
-        for app in applications:
-            results = app.get('result', [])
-            if isinstance(results, list) and unit_name in results:
-                return app
-        return None
-
-    def extract_replacement_pattern(record: Dict[str, Any]) -> Optional[Tuple[str, Any, Any, str, str]]:
-        """Extract the replacement pattern including type information."""
-        try:
-            task_info = record.get('task_info', {})
-            if not task_info:
-                return None
-                
-            slot = task_info.get('slot_to_change')
+        # Combine both sources
+        all_apps = unit_apps + creator_unit
+        
+        for app in all_apps:
+            task_info = app.get('task_info', {})
             old_value = task_info.get('old_value')
             new_value = task_info.get('new_value')
             
-            if not all([slot, old_value is not None, new_value is not None]):
-                return None
-                
-            # Determine value types
-            from_type = get_value_type(old_value)
-            to_type = get_value_type(new_value)
-                
-            return (slot, old_value, new_value, from_type, to_type)
-            
-        except Exception as e:
-            logger.error(f"Error extracting replacement pattern: {e}")
-            return None
+            if old_value is not None and new_value is not None:
+                type_analysis = analyze_type_changes(old_value, new_value)
+                if type_analysis['type_changed'] or type_analysis['complexity_increased']:
+                    task_info['type_analysis'] = type_analysis
+                    return app
+                    
+        return None
 
-    def get_value_type(value: Any) -> str:
-        """Determine a descriptive type for a value."""
-        if isinstance(value, (int, float)):
-            return 'number'
-        elif isinstance(value, str):
-            return 'string'
-        elif isinstance(value, (types.FunctionType, types.LambdaType)):
-            return 'function'
-        elif isinstance(value, list):
-            return 'list'
-        elif isinstance(value, dict):
-            return 'dict'
-        elif callable(value):
-            return 'callable'
-        return type(value).__name__
+    def compute_action(context: Dict[str, Any]) -> bool:
+        """Create type-based prevention rules."""
+        unit = context.get('unit')
+        creator = context.get('creator')
+        if not unit or not creator:
+            return False
 
-    def create_prevention_rule(unit: Unit, pattern: Tuple[str, Any, Any, str, str],
-                             creditor: str) -> Optional[Unit]:
-        """Create a new prevention rule unit."""
-        try:
-            # Create rule unit
-            rule = Unit(f"prevent-repl-{unit.name}", worth=600)
-            
-            # Unpack pattern
-            slot, old_val, new_val, from_type, to_type = pattern
-            
-            # Set properties
-            rule.set_prop('isa', ['prevention-rule'])
-            rule.set_prop('slot_to_avoid', slot)
-            rule.set_prop('pattern_from', str(old_val))
-            rule.set_prop('pattern_to', str(new_val))
-            rule.set_prop('from_type', from_type)
-            rule.set_prop('to_type', to_type)
-            rule.set_prop('learned_from', unit.name)
-            rule.set_prop('source_creditor', creditor)
-            rule.set_prop('english',
-                f"Do not replace {from_type} values with {to_type} values in the {slot} slot")
-            
-            # Add behavior enforcement functions
-            def check_potential(task_context: Dict[str, Any]) -> bool:
-                """Check if a task might violate this prevention rule."""
-                task = task_context.get('task', {})
-                unit = task_context.get('unit')
-                if not task or not unit:
-                    return False
-                    
-                # Check slot match
-                if task.get('slot_to_change') != slot:
-                    return False
-                    
-                # Get current value of that slot
-                current_value = unit.get_prop(slot)
-                if current_value is None:
-                    return False
-                    
-                # Check current value type
-                if get_value_type(current_value) != from_type:
-                    return False
-                    
-                # Check new value type
-                new_value = task.get('new_value')
-                if new_value is None:
-                    return False
-                    
-                # Match if new value has the problematic type
-                return get_value_type(new_value) == to_type
-                       
-            def validate_change(task_context: Dict[str, Any]) -> bool:
-                """Validate if a proposed change violates this prevention rule."""
-                return not check_potential(task_context)
-                
-            def explain_violation(task_context: Dict[str, Any]) -> str:
-                """Explain why a change was prevented."""
-                task = task_context.get('task', {})
-                unit = task_context.get('unit')
-                if not task or not unit:
-                    return "Invalid task context"
-                    
-                current_value = unit.get_prop(task.get('slot_to_change'))
-                new_value = task.get('new_value')
-                
-                return (f"Prevented replacing {from_type} value ({current_value}) with "
-                       f"{to_type} value ({new_value}) in {slot} slot based on learning "
-                       f"from failure of {unit.name}")
-                       
-            rule.set_prop('if_potentially_relevant', check_potential)
-            rule.set_prop('if_truly_relevant', validate_change)
-            rule.set_prop('explain_prevention', explain_violation)
-            
-            return rule
-            
-        except Exception as e:
-            logger.error(f"Error creating prevention rule: {e}")
-            return None
+        # Get information about how unit was created
+        creation_task = get_creation_task(unit, creator)
+        if not creation_task:
+            return False
 
-    # Configure the heuristic
-    heuristic.set_prop('if_potentially_relevant', check_potentially_relevant)
-    heuristic.set_prop('if_truly_relevant', check_relevance)
-    heuristic.set_prop('then_print_to_user', print_results)
+        task_info = creation_task.get('task_info', {})
+        changed_slot = task_info.get('slot_to_change')
+        type_analysis = task_info.get('type_analysis')
+        
+        if not all([changed_slot, type_analysis]):
+            return False
+
+        # Create prevention rules
+        new_rules = []
+        
+        # Rule for type changes if relevant
+        if type_analysis['type_changed']:
+            type_rule = {
+                'name': (
+                    f"prevent_{type_analysis['from_type']}_to_"
+                    f"{type_analysis['to_type']}_changes"
+                ),
+                'type': 'type-prevention-rule',
+                'english': (
+                    f"Prevent changes in {changed_slot} slot that convert "
+                    f"{type_analysis['from_type']} values to "
+                    f"{type_analysis['to_type']} values"
+                ),
+                'slot_to_avoid': changed_slot,
+                'from_type': type_analysis['from_type'],
+                'to_type': type_analysis['to_type'],
+                'learned_from': unit.name,
+                'source_creditor': creator
+            }
+            new_rules.append(type_rule)
+
+        # Rule for complexity increases if relevant
+        if type_analysis['complexity_increased']:
+            complexity_rule = {
+                'name': f"prevent_complexity_increase_in_{changed_slot}",
+                'type': 'complexity-prevention-rule',
+                'english': (
+                    f"Prevent changes to {changed_slot} slot that significantly "
+                    f"increase structural complexity"
+                ),
+                'slot_to_avoid': changed_slot,
+                'check': 'complexity_increase',
+                'learned_from': unit.name,
+                'source_creditor': creator,
+                'complexity_threshold': type_analysis['complexity_ratio']
+            }
+            new_rules.append(complexity_rule)
+
+        if new_rules:
+            context['task_results'] = context.get('task_results', {})
+            context['task_results'].update({
+                'new_units': new_rules,
+                'type_analysis': type_analysis
+            })
+            return True
+
+        return False
+
+    def print_to_user(context: Dict[str, Any]) -> bool:
+        """Report on prevention rules created."""
+        unit = context.get('unit')
+        task_results = context.get('task_results', {})
+        
+        if not unit or not task_results:
+            return False
+            
+        new_units = task_results.get('new_units', [])
+        if not new_units:
+            return False
+
+        type_analysis = task_results.get('type_analysis', {})
+        
+        logger.info(
+            f"\nCreated prevention rules from {unit.name} failure:")
+            
+        for rule in new_units:
+            if rule['type'] == 'type-prevention-rule':
+                logger.info(
+                    f"- Type rule: prevent {rule['from_type']} to "
+                    f"{rule['to_type']} conversions in {rule['slot_to_avoid']}"
+                )
+            else:
+                logger.info(
+                    f"- Complexity rule: prevent large increases "
+                    f"(>{type_analysis['complexity_ratio']:.1f}x) in "
+                    f"{rule['slot_to_avoid']}"
+                )
+        return True
+
+    # Configure heuristic slots
+    heuristic.set_prop('if_potentially_relevant', check_unit_deletion)
     heuristic.set_prop('then_compute', compute_action)
+    heuristic.set_prop('then_print_to_user', print_to_user)

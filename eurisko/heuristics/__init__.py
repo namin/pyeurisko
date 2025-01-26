@@ -1,4 +1,4 @@
-"""Core heuristic implementation for PyEurisko."""
+"""Heuristics package for PyEurisko."""
 from .base import Heuristic
 from .registry import HeuristicRegistry
 

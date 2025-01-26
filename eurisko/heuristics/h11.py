@@ -1,148 +1,175 @@
-"""H11 heuristic implementation: Find applications from domain examples.
-
-This heuristic finds applications of a unit by taking examples from its domain and 
-running the unit's algorithm on them. If the unit has multiple domain components, it 
-takes combinations of examples to find valid applications.
-"""
+"""H11 heuristic implementation: Find applications through domain examples."""
 from typing import Any, Dict, List
-from ..unit import Unit
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 
 def setup_h11(heuristic) -> None:
-    """Configure H11: Find applications from domain examples."""
-    # Set properties from original LISP implementation
+    """Configure H11: Find applications using domain examples.
+    
+    This heuristic finds applications for an operation by testing it with
+    examples from its domain, enabling systematic discovery of valid
+    applications through domain exploration.
+    """
     heuristic.set_prop('worth', 700)
     heuristic.set_prop('english',
-        "IF the current task is to find application-instances of a unit f, and it "
-        "has an Algorithm for computing its values, and it has a Domain, THEN "
-        "choose examples of its domain component/s, and run the alg for f on such inputs")
-    heuristic.set_prop('abbrev', "Apply algorithm to domain examples")
-    heuristic.set_prop('arity', 1)
-    
-    # Set record counts from original
-    heuristic.set_prop('then_compute_record', (2296694, 66))
-    heuristic.set_prop('then_print_to_user_record', (47517, 66))
-    heuristic.set_prop('overall_record', (2369179, 66))
-    heuristic.set_prop('then_compute_failed_record', (1319487, 23))
+        "IF the current task is to find application-instances of a unit f, "
+        "and it has an Algorithm for computing values, and it has a Domain, "
+        "THEN choose examples of its domain components and run the algorithm.")
+    heuristic.set_prop('abbrev', "Test algorithm on domain examples")
 
-    def check_task(context: Dict[str, Any]) -> bool:
-        """Check if we're working on an applications task."""
+    def check_task_relevance(context: Dict[str, Any]) -> bool:
+        """Verify task is for finding applications."""
         task = context.get('task')
-        return task and task.get('task_type') == 'find_applications'
-
-    def check_relevance(context: Dict[str, Any]) -> bool:
-        """Check if unit has algorithm and domain."""
         unit = context.get('unit')
-        if not unit:
+        
+        if not task or not unit:
+            return False
+            
+        if task.get('task_type') != 'find_applications':
             return False
             
         # Need algorithm and domain
-        if not unit.get_prop('algorithm'):
+        algorithm = unit.get_prop('algorithm')
+        domain = unit.get_prop('domain', [])
+        
+        if not algorithm or not domain:
             return False
             
-        domain_names = unit.get_prop('domain')
-        if not domain_names:
-            return False
-            
-        # Store for later use
-        context['registry'] = heuristic.unit_registry
-        context['domain_names'] = domain_names
+        context['algorithm'] = algorithm
+        context['domain_names'] = domain
         return True
 
-    def print_results(context: Dict[str, Any]) -> bool:
-        """Print the applications found."""
-        unit = context.get('unit')
-        new_values = context.get('task_results', {}).get('new_values', [])
-        if not unit or not new_values:
-            return False
+    def get_domain_examples(
+        domain_units: List[str],
+        registry: Any,
+        max_examples: int = 5
+    ) -> List[List[Any]]:
+        """Get combinations of examples from domain units."""
+        examples_by_domain = {}
         
-        logger.info(f"\nFound {len(new_values)} new applications for {unit.name}")
-        logger.debug(f"Applications: {new_values}")
-        return True
+        for domain_name in domain_units:
+            domain = registry.unit_registry.get_unit(domain_name)
+            if not domain:
+                continue
+                
+            domain_examples = domain.get_prop('examples', [])
+            if not domain_examples:
+                continue
+                
+            examples_by_domain[domain_name] = domain_examples
+            
+        # If we don't have examples for all domains, fail
+        if len(examples_by_domain) != len(domain_units):
+            return []
+            
+        # Generate random combinations
+        combinations = []
+        for _ in range(max_examples):
+            combo = []
+            for domain_name in domain_units:
+                example = random.choice(examples_by_domain[domain_name])
+                combo.append(example)
+            combinations.append(combo)
+            
+        return combinations
+
+    def validate_domain_example(
+        example: Any,
+        domain_name: str,
+        registry: Any
+    ) -> bool:
+        """Validate an example against domain definition."""
+        domain = registry.unit_registry.get_unit(domain_name)
+        if not domain:
+            return False
+            
+        definition = domain.get_prop('definition')
+        if not definition:
+            return True  # No definition means accept all
+            
+        try:
+            return definition(example)
+        except Exception:
+            return False
 
     def compute_action(context: Dict[str, Any]) -> bool:
-        """Find applications by applying algorithm to domain examples."""
+        """Find applications using domain examples."""
         unit = context.get('unit')
+        algorithm = context.get('algorithm')
+        domain_names = context.get('domain_names', [])
         registry = context.get('registry')
-        domain_names = context.get('domain_names')
-        if not all([unit, registry, domain_names]):
+        
+        if not all([unit, algorithm, domain_names, registry]):
             return False
-            
-        # Get algorithm
-        algorithm = unit.get_prop('algorithm')
-        
-        # Get domain examples
-        domain_examples = []
-        for name in domain_names:
-            domain_unit = registry.get_unit(name)
-            if not domain_unit:
-                continue
-                
-            examples = domain_unit.get_prop('examples') or []
-            if not examples:
-                continue
-                
-            domain_examples.append(examples)
-            
-        # Must have examples for each domain
-        if len(domain_examples) != len(domain_names):
-            return False
-            
-        # Track applications
-        new_values = []
-        current_apps = unit.get_prop('applications') or []
-        known_apps = {str(app) for app in current_apps}
-        
-        # Try single domain case first
-        if len(domain_examples) == 1:
-            examples = domain_examples[0]
-            for example in examples:
-                args = [example]
-                app = apply_to_args(args, algorithm)
-                if app and str(app) not in known_apps:
-                    new_values.append(app)
-                    known_apps.add(str(app))
-                    
-        # Handle multiple domain case
-        else:
-            import itertools
-            for args in itertools.product(*domain_examples):
-                app = apply_to_args(list(args), algorithm)
-                if app and str(app) not in known_apps:
-                    new_values.append(app)
-                    known_apps.add(str(app))
-        
-        # Update results if we found any
-        if new_values:
-            if 'task_results' not in context:
-                context['task_results'] = {}
-            context['task_results']['new_values'] = new_values
-            
-            # Add to unit's applications
-            current_apps.extend(new_values)
-            unit.set_prop('applications', current_apps)
-            
-        return bool(new_values)
 
-    def apply_to_args(args: List[Any], algorithm: callable) -> Dict[str, Any]:
-        """Apply algorithm to arguments and format result."""
-        try:
-            if len(args) == 1:
-                result = algorithm(args[0])
-            else:
+        # Get example combinations to test
+        combinations = get_domain_examples(domain_names, registry)
+        if not combinations:
+            return False
+
+        # Track new applications
+        new_applications = []
+
+        # Test each combination
+        for args in combinations:
+            # Skip if we already know this application
+            if unit.has_application(args):
+                continue
+                
+            # Validate args against domain definitions
+            if not all(
+                validate_domain_example(arg, domain, registry)
+                for arg, domain in zip(args, domain_names)
+            ):
+                continue
+
+            # Try applying the algorithm
+            try:
                 result = algorithm(*args)
-                
-            return {
-                'args': args,
-                'result': result
-            }
-        except:
-            return None
+                new_applications.append({
+                    'args': args,
+                    'result': result,
+                    'domains': domain_names
+                })
+            except Exception as e:
+                logger.debug(
+                    f"Failed to apply {unit.name} to {args}: {e}"
+                )
 
-    # Configure the heuristic
-    heuristic.set_prop('if_working_on_task', check_task)
-    heuristic.set_prop('if_truly_relevant', check_relevance)
-    heuristic.set_prop('then_print_to_user', print_results)
+        if new_applications:
+            context['task_results'] = context.get('task_results', {})
+            context['task_results']['new_values'] = new_applications
+            return True
+
+        return False
+
+    def print_to_user(context: Dict[str, Any]) -> bool:
+        """Report on applications found."""
+        unit = context.get('unit')
+        task_results = context.get('task_results', {})
+        
+        if not unit or not task_results:
+            return False
+        
+        new_apps = task_results.get('new_values', [])
+        if not new_apps:
+            return False
+
+        logger.info(
+            f"\nFound {len(new_apps)} new applications for {unit.name} "
+            f"using domain examples:"
+        )
+        
+        for app in new_apps:
+            args = app['args']
+            result = app['result']
+            logger.info(f"  {args} -> {result}")
+        
+        return True
+
+    # Configure heuristic slots
+    heuristic.set_prop('if_potentially_relevant', check_task_relevance)
     heuristic.set_prop('then_compute', compute_action)
+    heuristic.set_prop('then_print_to_user', print_to_user)

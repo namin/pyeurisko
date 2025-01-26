@@ -1,209 +1,199 @@
-"""H15 heuristic implementation: Find examples from operation ranges."""
-from typing import Any, Dict, List, Optional, Set, Tuple, DefaultDict
-from collections import defaultdict
-from ..unit import Unit
+"""H15 heuristic implementation: Find examples through multiple operations."""
+from typing import Any, Dict, List, Optional, Set
 import logging
 
 logger = logging.getLogger(__name__)
 
 def setup_h15(heuristic) -> None:
-    """Configure H15: Find examples from multiple operation ranges."""
+    """Configure H15: Find examples from multiple operations.
+    
+    This heuristic examines multiple operations that can produce examples
+    of a concept, enabling more sophisticated example discovery by analyzing
+    patterns across different sources. It builds on H10's capabilities
+    by considering multiple operations simultaneously and tracking the
+    provenance of each example.
+    """
     heuristic.set_prop('worth', 700)
     heuristic.set_prop('english',
-        "IF the current task is to find examples of a unit, and it is the range of "
-        "some operation f, THEN gather together the outputs of the I/O pairs stored "
-        "on Applics of f")
-    heuristic.set_prop('abbrev', "Find examples from operation outputs") 
-    heuristic.set_prop('arity', 1)
-    
-    heuristic.set_prop('then_compute_record', (5368, 7))
-    heuristic.set_prop('then_add_to_agenda_failed_record', (3302, 3))
-    heuristic.set_prop('then_add_to_agenda_record', (36, 4))
-    heuristic.set_prop('then_print_to_user_record', (1201, 4))
-    heuristic.set_prop('overall_record', (7825, 4))
+        "IF the current task is to find examples of a unit, and it is the "
+        "range of multiple operations, THEN gather together the outputs of "
+        "all I/O pairs across those operations.")
+    heuristic.set_prop('abbrev', "Find examples from multiple operations")
 
-    def check_task(context: Dict[str, Any]) -> bool:
-        """Check if we're working on an examples task."""
+    def check_task_relevance(context: Dict[str, Any]) -> bool:
+        """Verify task is for finding examples with multiple sources."""
         task = context.get('task')
-        return task and task.get('task_type') == 'find_examples'
-
-    def check_relevance(context: Dict[str, Any]) -> bool:
-        """Check if unit is in the range of some operations."""
         unit = context.get('unit')
-        if not unit or not unit.get_prop('is_range_of'):
+        
+        if not task or not unit:
             return False
-        context['registry'] = heuristic.unit_registry
+            
+        if task.get('task_type') != 'find_examples':
+            return False
+            
+        # Need multiple operations that produce this type
+        operations = unit.get_prop('is_range_of', [])
+        if len(operations) < 2:  # Need at least 2 operations
+            return False
+            
+        context['source_ops'] = operations
         return True
 
-    def build_dependency_info(registry: Any, start_ops: List[str]) -> Tuple[Dict[str, str], Dict[str, List[str]], Set[str]]:
-        """Build maps for results and their dependencies."""
-        produces = {}  # Map values to operations
-        depends_on = defaultdict(list)  # Map operations to dependencies
-        all_ops = set()  # Track all relevant operations
+    def analyze_output_patterns(
+        outputs: Dict[str, List[Any]]
+    ) -> Dict[str, Any]:
+        """Analyze patterns in outputs across operations.
+        
+        Examines similarities and differences in values produced by
+        different operations to help understand relationships between
+        operations and guide future example discovery.
+        """
+        all_values = set()
+        value_counts = {}
+        op_patterns = {}
+        
+        for op_name, op_outputs in outputs.items():
+            # Track unique values from this operation
+            op_values = set(op_outputs)
+            all_values.update(op_values)
+            
+            # Analyze value patterns for this operation
+            op_patterns[op_name] = {
+                'unique_values': len(op_values),
+                'total_values': len(op_outputs),
+                'value_types': {
+                    type(val).__name__
+                    for val in op_outputs
+                }
+            }
+            
+            # Update global value counts
+            for val in op_outputs:
+                value_counts[val] = value_counts.get(val, 0) + 1
+                
+        return {
+            'total_unique': len(all_values),
+            'value_overlap': {
+                val: count
+                for val, count in value_counts.items()
+                if count > 1  # Values produced by multiple ops
+            },
+            'operation_patterns': op_patterns
+        }
 
-        # First collect all results
-        for unit in registry.all_units().values():
-            apps = unit.get_prop('applications')
-            if not apps:
+    def get_operation_outputs(
+        operations: List[str],
+        registry: Any
+    ) -> Dict[str, List[Any]]:
+        """Get outputs from all relevant operations."""
+        outputs_by_op = {}
+        
+        for op_name in operations:
+            op = registry.unit_registry.get_unit(op_name)
+            if not op:
                 continue
-
-            for app in apps:
-                if isinstance(app, dict):
-                    result = app.get('result')
-                    if isinstance(result, str):
-                        produces[result] = unit.name
-
-        # Then build dependencies
-        for unit in registry.all_units().values():
-            op_name = unit.name
-            apps = unit.get_prop('applications')
-            if not apps:
+                
+            # Get applications and extract results
+            applications = op.get_prop('applications', [])
+            if not applications:
                 continue
-
-            deps = []
-            for app in apps:
-                if isinstance(app, dict):
-                    for arg in app.get('args', []):
-                        arg_str = str(arg)
-                        if arg_str in produces:
-                            provider = produces[arg_str]
-                            if provider != op_name and provider not in deps:
-                                deps.append(provider)
-                                all_ops.add(provider)
-
-            if deps or op_name in start_ops:
-                depends_on[op_name] = sorted(deps)
-                all_ops.add(op_name)
-
-        return produces, dict(depends_on), all_ops
-
-    def find_operation_chain(unit: Unit, registry: Any) -> List[Tuple[str, List[str]]]:
-        """Find operations and their dependencies that produce examples."""
-        start_ops = unit.get_prop('is_range_of')
-        if not start_ops:
-            return []
-
-        # Build dependency graph
-        produces, depends_on, all_ops = build_dependency_info(registry, start_ops)
-        chain = []
-        processed = set()
-
-        def process_op(op_name: str) -> None:
-            if op_name in processed:
-                return
-
-            # Process dependencies first
-            deps = depends_on.get(op_name, [])
-            for dep in sorted(deps):
-                if dep not in processed:
-                    process_op(dep)
-
-            # Add operation with its sorted dependencies
-            processed.add(op_name)
-            chain.append((op_name, depends_on.get(op_name, [])))
-
-        # Process operations in order
-        for op in sorted(all_ops):
-            if op not in processed:
-                process_op(op)
-
-        return list(reversed(chain))
+                
+            outputs = []
+            for app in applications:
+                result = app.get('result')
+                if result is not None:
+                    outputs.append(result)
+                    
+            if outputs:
+                outputs_by_op[op_name] = outputs
+                
+        return outputs_by_op
 
     def compute_action(context: Dict[str, Any]) -> bool:
-        """Find examples from operation outputs."""
+        """Find examples from multiple operation outputs."""
         unit = context.get('unit')
+        source_ops = context.get('source_ops', [])
         registry = context.get('registry')
-        if not unit or not registry:
-            return False
-
-        # Build operation chain with dependencies
-        ops_chain = find_operation_chain(unit, registry)
-        if not ops_chain:
-            return False
-
-        # Get current examples
-        current = unit.get_prop('examples') or []
-        current_strs = {str(ex) for ex in current}
-        non_examples = unit.get_prop('non_examples') or []
-        non_examples_strs = {str(ex) for ex in non_examples}
-        seen = current_strs | non_examples_strs
         
-        # Find new examples
-        new_values = []
-        source_operations = []
-
-        # Process operations in chain order
-        target_ops = set(unit.get_prop('is_range_of'))
-        for op_name, _ in ops_chain:
-            if op_name in target_ops:
-                op_unit = registry.get_unit(op_name)
-                if not op_unit:
-                    continue
-
-                apps = op_unit.get_prop('applications') or []
-                for app in apps:
-                    result = app.get('result')
-                    if isinstance(result, str) and result not in seen:
-                        new_values.append(result)
-                        seen.add(result)
-                        if op_name not in source_operations:
-                            source_operations.append(op_name)
-
-        if new_values:
-            if 'task_results' not in context:
-                context['task_results'] = {}
-            context['task_results'].update({
-                'new_values': new_values,
-                'source_operations': source_operations,
-                'operation_chain': ops_chain
-            })
-
-            unit.set_prop('examples', current + new_values)
-        else:
-            add_application_tasks(context, [op for op, _ in ops_chain])
-
-        return bool(new_values)
-
-    def add_application_tasks(context: Dict[str, Any], ops: List[str]) -> None:
-        """Add tasks to find applications for operations."""
-        unit = context.get('unit')
-        if not unit:
-            return
-
-        new_tasks = []
-        for op_name in ops:
-            new_tasks.append({
-                'priority': 500,
-                'unit': op_name,
-                'task_type': 'find_applications',
-                'reasons': [f"Need applications to find examples of {unit.name}"],
-                'supports': {'credit_to': ['h15']}
-            })
-
-        if new_tasks:
-            if 'task_results' not in context:
-                context['task_results'] = {}
-            context['task_results'].update({
-                'new_tasks': new_tasks,
-                'new_tasks_info': f"Finding applications for {len(ops)} operations"
-            })
-
-    def print_results(context: Dict[str, Any]) -> bool:
-        """Print examples found and their sources."""
-        unit = context.get('unit')
-        results = context.get('task_results', {})
-        new_values = results.get('new_values', [])
-        ops = results.get('source_operations', [])
-        if not unit or not new_values:
+        if not all([unit, source_ops, registry]):
             return False
 
-        logger.info(f"\nFound {len(new_values)} examples for {unit.name} "
-                   f"from operations: {', '.join(ops)}")
-        logger.debug(f"Examples: {new_values}")
+        # Get outputs from all operations
+        outputs_by_op = get_operation_outputs(source_ops, registry)
+        if len(outputs_by_op) < 2:  # Need at least 2 operations with outputs
+            return False
+
+        # Analyze output patterns
+        pattern_analysis = analyze_output_patterns(outputs_by_op)
+
+        # Track new examples and their sources
+        current_examples = set(unit.get_prop('examples', []))
+        new_examples = set()
+        example_sources = {}
+
+        # Process outputs from each operation
+        for op_name, outputs in outputs_by_op.items():
+            for output in outputs:
+                if output not in current_examples:
+                    new_examples.add(output)
+                    sources = example_sources.get(output, set())
+                    sources.add(op_name)
+                    example_sources[output] = sources
+
+        if new_examples:
+            context['task_results'] = context.get('task_results', {})
+            context['task_results'].update({
+                'new_values': list(new_examples),
+                'example_sources': example_sources,
+                'pattern_analysis': pattern_analysis,
+                'source_operations': list(set(
+                    source
+                    for sources in example_sources.values()
+                    for source in sources
+                ))
+            })
+            return True
+
+        return False
+
+    def print_to_user(context: Dict[str, Any]) -> bool:
+        """Report on examples found through multiple operations."""
+        unit = context.get('unit')
+        task_results = context.get('task_results', {})
+        
+        if not unit or not task_results:
+            return False
+            
+        new_examples = task_results.get('new_values', [])
+        example_sources = task_results.get('example_sources', {})
+        pattern_analysis = task_results.get('pattern_analysis', {})
+        
+        if not new_examples:
+            return False
+
+        # Report new examples and their sources
+        logger.info(
+            f"\nFound {len(new_examples)} new examples for {unit.name} "
+            f"through {len(pattern_analysis['operation_patterns'])} operations:"
+        )
+        
+        for example in sorted(new_examples):
+            sources = example_sources.get(example, set())
+            logger.info(
+                f"- {example} (from {', '.join(sorted(sources))})"
+            )
+            
+        # Report any interesting patterns
+        overlaps = pattern_analysis.get('value_overlap', {})
+        if overlaps:
+            logger.info("\nPattern Analysis:")
+            logger.info(
+                f"- {len(overlaps)} values produced by multiple operations"
+            )
+            
         return True
 
-    # Configure the heuristic
-    heuristic.set_prop('if_working_on_task', check_task)
-    heuristic.set_prop('if_truly_relevant', check_relevance)
-    heuristic.set_prop('then_print_to_user', print_results)
+    # Configure heuristic slots
+    heuristic.set_prop('if_potentially_relevant', check_task_relevance)
     heuristic.set_prop('then_compute', compute_action)
+    heuristic.set_prop('then_print_to_user', print_to_user)

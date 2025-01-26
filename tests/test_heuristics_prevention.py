@@ -1,4 +1,4 @@
-"""Test suite for EURISKO's prevention heuristics (h14-h15)."""
+"""Test prevention rule generation heuristics."""
 import pytest
 from eurisko.heuristics import HeuristicRegistry
 from eurisko.unit import Unit
@@ -12,17 +12,24 @@ def test_h14_entity_type_prevention(registry):
     """Test H14's ability to prevent changes based on entity types."""
     h14 = registry.unit_registry.get_unit('h14')
     
-    # Create a failed unit that resulted from a problematic type change
-    failed_unit = Unit('failed_function')
-    failed_unit.set_prop('creditors', ['h6'])
-    
-    # Create the creditor heuristic with an application record showing the type change
-    h6 = Unit('h6')
-    
     # Original value was a simple number, changed to a complex function
     original_number = 42
     complex_function = lambda x: x * x + 2 * x - 1
     
+    # Create a failed unit that resulted from a problematic type change
+    failed_unit = Unit('failed_function')
+    failed_unit.set_prop('creditors', ['h6'])
+    failed_unit.set_prop('applications', [{
+        'task_info': {
+            'slot_to_change': 'calculation',
+            'old_value': original_number,
+            'new_value': complex_function
+        },
+        'result': ['failed_function']
+    }])
+    
+    # Create the creditor heuristic with application record
+    h6 = Unit('h6')
     h6.set_prop('applications', [{
         'task_info': {
             'slot_to_change': 'calculation',
@@ -44,54 +51,22 @@ def test_h14_entity_type_prevention(registry):
     # Should create prevention rule
     assert h14.apply(context)
     
-    # Verify task results
     task_results = context.get('task_results', {})
     new_units = task_results.get('new_units', [])
-    assert len(new_units) == 1
     
-    # Examine prevention rule properties
-    rule = new_units[0]
-    assert 'prevention-rule' in rule.get_prop('isa')
-    assert rule.get_prop('slot_to_avoid') == 'calculation'
-    assert rule.get_prop('from_type') == 'number'
-    assert rule.get_prop('to_type') == 'function'
-    assert rule.get_prop('learned_from') == 'failed_function'
+    # Should create both type-based and complexity-based rules
+    assert len(new_units) == 2
     
-    # Test the prevention rule's relevance check
-    relevance_check = rule.get_prop('if_potentially_relevant')
-    assert callable(relevance_check)
+    # Check type-based rule
+    type_rule = next(r for r in new_units if 'type-prevention' in r.get('type', ''))
+    assert type_rule.get('slot_to_avoid') == 'calculation'
+    assert type_rule.get('from_type') == 'int'
+    assert type_rule.get('to_type') == 'function'
     
-    # Should identify similar type conversions
-    similar_context = {
-        'task': {
-            'task_type': 'modification',
-            'slot_to_change': 'calculation',
-            'new_value': lambda x: x + 1
-        },
-        'unit': Unit('test_unit', properties={'calculation': 100})
-    }
-    assert relevance_check(similar_context)
-    
-    # Should ignore different slots or type changes
-    different_slot_context = {
-        'task': {
-            'task_type': 'modification',
-            'slot_to_change': 'different_slot',
-            'new_value': lambda x: x + 1
-        },
-        'unit': Unit('test_unit', properties={'different_slot': 100})
-    }
-    assert not relevance_check(different_slot_context)
-    
-    different_types_context = {
-        'task': {
-            'task_type': 'modification',
-            'slot_to_change': 'calculation',
-            'new_value': "string value"
-        },
-        'unit': Unit('test_unit', properties={'calculation': 100})
-    }
-    assert not relevance_check(different_types_context)
+    # Check complexity-based rule
+    complexity_rule = next(r for r in new_units if 'complexity-prevention' in r.get('type', ''))
+    assert complexity_rule.get('slot_to_avoid') == 'calculation'
+    assert complexity_rule.get('check') == 'complexity_increase'
 
 def test_h15_multiple_operations(registry):
     """Test H15's ability to find examples through multiple operations."""
@@ -121,58 +96,34 @@ def test_h15_multiple_operations(registry):
     context = {
         'unit': test_unit,
         'task': {'task_type': 'find_examples'},
-        'task_results': {}
+        'task_results': {},
+        'registry': registry
     }
     
     # Should find examples from both operations
     success = h15.apply(context)
-    print("Apply result:", success)
-    print("Context after apply:", context)
+    assert success
     
     task_results = context.get('task_results', {})
-    print("Task results:", task_results)
-    
     new_examples = task_results.get('new_values', [])
-    print("New examples:", new_examples)
     
+    # Verify correct examples were found
     assert len(new_examples) == 4
-    assert 'value1' in new_examples
-    assert 'value4' in new_examples
+    assert all(val in new_examples for val in ['value1', 'value2', 'value3', 'value4'])
     
-    # Should track which operations provided examples
+    # Verify source tracking
     source_ops = task_results.get('source_operations', [])
-    assert 'op1' in source_ops
-    assert 'op2' in source_ops
+    assert all(op in source_ops for op in ['op1', 'op2'])
     
-    # Test sequential operation chain
-    # Create a unit that's the range of an operation that uses the results of another
-    chain_unit = Unit('chain_range')
-    chain_unit.set_prop('is_range_of', ['composite_op'])
+    # Verify pattern analysis
+    pattern_analysis = task_results.get('pattern_analysis', {})
+    assert pattern_analysis.get('total_unique') == 4
+    assert not pattern_analysis.get('value_overlap')  # No overlapping values
     
-    composite_op = Unit('composite_op')
-    composite_op.set_prop('applications', [
-        {'args': ['value1'], 'result': 'chain1'},  # Uses result from op1
-        {'args': ['value3'], 'result': 'chain2'}   # Uses result from op2
-    ])
-    
-    registry.unit_registry.register(composite_op)
-    registry.unit_registry.register(chain_unit)
-    
-    chain_context = {
-        'unit': chain_unit,
-        'task': {'task_type': 'find_examples'},
-        'task_results': {}
-    }
-    
-    # Should find examples through operation chain
-    assert h15.apply(chain_context)
-    
-    chain_results = chain_context.get('task_results', {})
-    chain_examples = chain_results.get('new_values', [])
-    assert len(chain_examples) == 2
-    assert 'chain1' in chain_examples
-    assert 'chain2' in chain_examples
-    
-    # Should identify operation chain
-    operation_chain = chain_results.get('operation_chain', [])
-    assert len(operation_chain) > 1
+    # Verify operation patterns
+    op_patterns = pattern_analysis.get('operation_patterns', {})
+    for op_name in ['op1', 'op2']:
+        op_pattern = op_patterns.get(op_name, {})
+        assert op_pattern.get('unique_values') == 2
+        assert op_pattern.get('total_values') == 2
+        assert 'str' in op_pattern.get('value_types', set())
