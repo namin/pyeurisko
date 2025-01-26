@@ -22,12 +22,26 @@ class TaskManager:
         self.current_task: Optional[Task] = None
         self.verbosity: int = 1
         self.heuristic_stats = defaultdict(lambda: {'tries': 0, 'successes': 0})
-        
+
+    def _process_task_results(self, results: Dict[str, Any]) -> None:
+        """Process task results to add new tasks."""
+        if not results:
+            return
+
+        new_tasks = results.get('new_tasks', [])
+        if isinstance(new_tasks, list):
+            for task_info in new_tasks:
+                if isinstance(task_info, dict):
+                    task = Task(**task_info)
+                    self.add_task(task)
+
     def _merge_task_priorities(self, existing: Task, new: Task) -> int:
         """Calculate merged task priority based on existing and new tasks."""
         base_priority = max(existing.priority, new.priority)
-        reason_bonus = max(10, 100 * len(set(existing.reasons + new.reasons)))
-        return min(1000, base_priority + reason_bonus)
+        # Consider task age and complexity
+        reason_bonus = min(100, len(set(existing.reasons + new.reasons)) * 10)
+        unit_bonus = 50 if self.unit_registry.get_unit(new.unit_name).worth_value() > 700 else 0
+        return min(1000, base_priority + reason_bonus + unit_bonus)        
 
     def add_task(self, task: Task) -> None:
         """Add a task to the agenda if priority meets minimum threshold."""
@@ -271,6 +285,7 @@ class TaskManager:
             'modified_unit': unit.properties  # Final state
         })
 
+        self._process_task_results(task.results)
         return task.results
 
     def print_stats(self):
