@@ -26,6 +26,8 @@ def setup_h1(heuristic) -> None:
 
     @rule_factory
     def if_potentially_relevant(rule, context):
+        logger.info(f"H1 checking potential relevance for unit {context.get('unit', 'no_unit')}, looking for applications")
+        logger.debug(f"H1 checking potential relevance for {context.get('unit', 'no_unit')}, looking for applications")
         """Check that unit has some recorded applications."""
         unit = context.get('unit')
         if not unit:
@@ -35,6 +37,8 @@ def setup_h1(heuristic) -> None:
         
     @rule_factory
     def if_truly_relevant(rule, context):
+        logger.info(f"H1 checking true relevance for unit {context.get('unit', 'no_unit')}, needs good/bad apps ratio")
+        logger.debug(f"H1 checking true relevance for {context.get('unit', 'no_unit')}, needs good/bad apps ratio")
         """Check if unit has good and bad applications."""
         unit = context.get('unit')
         if not unit:
@@ -70,6 +74,7 @@ def setup_h1(heuristic) -> None:
 
     @rule_factory
     def then_print_to_user(rule, context):
+        logger.info(f"H1 printing for unit {context.get('unit', 'no_unit')}, conjecture: {context.get('conjecture')}")
         """Print explanation of action to user."""
         unit = context.get('unit')
         conjec = context.get('conjecture')
@@ -85,6 +90,8 @@ def setup_h1(heuristic) -> None:
 
     @rule_factory
     def then_conjecture(rule, context):
+        logger.info(f"H1 creating conjecture about unit {context.get('unit', 'no_unit')}, system present: {bool(context.get('system'))}")
+        logger.debug(f"H1 creating conjecture about {context.get('unit', 'no_unit')}, system: {context.get('system')}")
         """Create conjecture about specializing the unit."""
         unit = context.get('unit')
         system = context.get('system')
@@ -120,20 +127,24 @@ def setup_h1(heuristic) -> None:
 
     @rule_factory
     def then_add_to_agenda(rule, context):
+        logger.info(f"H1 adding task to agenda for {context.get('unit', 'no_unit')}, conjecture: {context.get('conjecture')}, system: {bool(context.get('system'))}")
+        logger.info(f"H1 trying to add task for unit {context.get('unit', 'no_unit')}, conjecture: {context.get('conjecture')}")
         """Add task to specialize the unit."""
         unit = context.get('unit')
         system = context.get('system')
         conjec = context.get('conjecture')
         
         if not all([unit, system, conjec]):
+            logger.info(f"H1 missing requirements - unit: {bool(unit)}, system: {bool(system)}, conjecture: {bool(conjec)}")
             return False
         
         # Create specialization task
         task = {
             'priority': unit.get_prop('worth', 500),
-            'unit': unit,
-            'slot': 'specializations', 
-            'reasons': [conjec],
+            'unit_name': unit.name,
+            'slot_name': 'specializations', 
+            'reasons': [conjec.name],
+            'task_type': 'specialization',
             'supplemental': {
                 'credit_to': ['h1'],
                 'task_type': 'specialization'

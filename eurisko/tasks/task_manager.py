@@ -22,6 +22,9 @@ class TaskManager:
         self.current_task: Optional[Task] = None
         self.verbosity: int = 1
         self.heuristic_stats = defaultdict(lambda: {'tries': 0, 'successes': 0})
+        # Import here to avoid circular imports
+        from ..system import System
+        self.system = System(self)
 
     def _process_task_results(self, results: Dict[str, Any]) -> None:
         """Process task results to add new tasks."""
@@ -114,6 +117,8 @@ class TaskManager:
         return heuristics
 
     def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
+        # Add system to context
+        context['system'] = self.system
         """Check if a heuristic's if-parts are satisfied."""
         logger.debug(f"\nChecking relevance of {heuristic.name}")
         logger.debug(f"Context: task_type={context.get('task_type')}, supplemental={context.get('supplemental')}")
@@ -142,6 +147,9 @@ class TaskManager:
         return True
     
     def _apply_heuristic(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
+        # Ensure system is in context
+        if 'system' not in context:
+            context['system'] = self.system
         """Apply a heuristic's then-parts."""
         any_action_executed = False
         all_actions_succeeded = True
@@ -238,6 +246,7 @@ class TaskManager:
             'task_type': task.task_type,
             'supplemental': task.supplemental,
             'task_manager': self,
+            'system': self.system,
             'current_unit': unit,
             'current_slot': task.slot_name,
             'old_value': current_value,

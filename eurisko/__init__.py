@@ -5,8 +5,9 @@ This package provides a framework for implementing self-modifying heuristics
 and machine learning through an extensible unit-based knowledge representation system.
 """
 
+from .system import System
+from .tasks.task_manager import TaskManager
 from .units import Unit, UnitRegistry
-from .slots import Slot, SlotRegistry
-from .tasks import Task, TaskManager
+from .slots import SlotRegistry
 
-__version__ = '0.2.0'
+__all__ = ['System', 'TaskManager', 'Unit', 'UnitRegistry', 'SlotRegistry']
