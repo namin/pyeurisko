@@ -192,7 +192,8 @@ class TaskManager:
         stats.setdefault(tries_mark, 0)
         stats.setdefault(mark, 0)
         stats[tries_mark] += 1
-        stats[mark] += 1
+        if outcome:
+            stats[mark] += 1
 
     def print_stats(self):
         print("\nHeuristic Performance:")
