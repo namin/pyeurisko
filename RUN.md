@@ -8,3 +8,4 @@ With execute_command, use a `workdir` with the current directory.
   - Analyze and suggests further improvements.
   - Focus on errors, and be mindful of success rates of heuristics.
   - The heuristics are indvidually implemented in the directory `eurisko/heuristics` following the pattern `h*.py`.
+  - The units are implemented in the directory `eurisko/units`.
