@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 from ..units import Unit
 import logging
 import random
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -28,28 +29,8 @@ def setup_h17(heuristic) -> None:
     heuristic.set_prop('overall_record', (1943, 4))
     heuristic.set_prop('arity', 1)
 
-    def is_generalization_task(context: Dict[str, Any]) -> bool:
-        """Check if current task is for generalization without selected slots."""
-        task = context.get('task')
-        if not task:
-            return False
-            
-        task_type = task.get('task_type')
-        supplemental = task.get('supplemental') or {}
-        return (
-            task_type == 'generalization' and
-            'slot_to_change' not in supplemental
-        )
-
     def assess_slot_worth(slot: str, unit: Unit) -> float:
-        """Calculate relative worth of generalizing a slot.
-        
-        Considers:
-        - Slot's current worth
-        - Whether slot is marked as criterial
-        - Historical success in generalizing this slot
-        - Complexity of current slot value
-        """
+        """Calculate relative worth of generalizing a slot."""
         base_worth = unit.get_prop(f'{slot}_worth', 100)
         
         # Bonus for criterial slots
@@ -64,48 +45,81 @@ def setup_h17(heuristic) -> None:
             
         return base_worth
 
-    def select_slots_to_generalize(unit: Unit, max_slots: int = 3) -> List[str]:
-        """Choose slots for generalization using worth-weighted random selection."""
+    @rule_factory
+    def if_working_on_task(rule, context):
+        """Check if current task is for generalization without selected slots."""
+        task = context.get('task')
+        if not task:
+            return False
+            
+        task_type = task.get('task_type')
+        supplemental = task.get('supplemental') or {}
+        return (
+            task_type == 'generalization' and
+            'slot_to_change' not in supplemental
+        )
+
+    @rule_factory
+    def then_compute(rule, context):
+        """Select slots and update task context."""
+        unit = context.get('unit')
+        task = context.get('task')
+        
+        if not unit or not task:
+            return False
+            
+        # Get available slots and calculate their worths
         available_slots = unit.get_prop('slots', [])
         if not available_slots:
-            return []
+            return False
             
-        # Calculate worth for each slot
         slot_worths = {
             slot: assess_slot_worth(slot, unit)
             for slot in available_slots
         }
         
         # Weighted random selection
+        max_slots = 3
         total_worth = sum(slot_worths.values())
+        selected = []
+        
         if total_worth == 0:
-            return random.sample(
+            selected = random.sample(
                 available_slots,
                 min(max_slots, len(available_slots))
             )
-            
-        selected = []
-        remaining_slots = list(available_slots)
+        else:
+            remaining_slots = list(available_slots)
+            while len(selected) < max_slots and remaining_slots:
+                weights = [slot_worths[s]/total_worth for s in remaining_slots]
+                chosen = random.choices(remaining_slots, weights=weights)[0]
+                selected.append(chosen)
+                remaining_slots.remove(chosen)
         
-        while len(selected) < max_slots and remaining_slots:
-            weights = [slot_worths[s]/total_worth for s in remaining_slots]
-            chosen = random.choices(remaining_slots, weights=weights)[0]
-            selected.append(chosen)
-            remaining_slots.remove(chosen)
+        if not selected:
+            return False
             
-        return selected
+        # Store selection results with worth assessments
+        context['selected_slots'] = selected
+        context['slot_worths'] = {
+            slot: slot_worths[slot]
+            for slot in selected
+        }
+        return True
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Explain slot selection rationale."""
         unit = context.get('unit')
         slots = context.get('selected_slots', [])
+        slot_worths = context.get('slot_worths', {})
         
         if not unit or not slots:
             return False
             
         slot_details = []
         for slot in slots:
-            worth = assess_slot_worth(slot, unit)
+            worth = slot_worths.get(slot, 0)
             is_criterial = slot in (unit.get_prop('criterial_slots') or [])
             detail = f"{slot} (worth: {worth:.0f}{', criterial' if is_criterial else ''})"
             slot_details.append(detail)
@@ -116,42 +130,25 @@ def setup_h17(heuristic) -> None:
         )
         return True
 
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Select slots and update task context."""
-        unit = context.get('unit')
-        task = context.get('task')
-        
-        if not unit or not task:
-            return False
-            
-        # Just select slots and store in context for add_to_agenda to use
-        selected_slots = select_slots_to_generalize(unit)
-        if not selected_slots:
-            return False
-            
-        # Store in context for add_to_agenda but don't modify task
-        context['selected_slots'] = selected_slots
-        return True
-
-    def add_to_agenda(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_add_to_agenda(rule, context):
         """Add tasks for each selected slot."""
         unit = context.get('unit')
-        system = context.get('system')
         task = context.get('task')
         selected_slots = context.get('selected_slots', [])
+        slot_worths = context.get('slot_worths', {})
         
-        if not all([unit, system, task, selected_slots]):
+        if not all([unit, task, selected_slots]):
             return False
             
         base_priority = task.get('priority', 500)
         worth_stats = task.get('supplemental', {}).get('worth_stats', {})
+        success_ratio = worth_stats.get('success_ratio', 0.5)
         
-        new_tasks = []
         for slot in selected_slots:
-            slot_worth = assess_slot_worth(slot, unit)
+            slot_worth = slot_worths.get(slot, 100)
             
             # Calculate priority based on slot assessment and unit performance
-            success_ratio = worth_stats.get('success_ratio', 0.5)
             priority = int(
                 base_priority * 
                 (slot_worth / 100) * 
@@ -160,7 +157,7 @@ def setup_h17(heuristic) -> None:
             
             new_task = {
                 'priority': priority,
-                'unit': unit,
+                'unit': unit.name,
                 'slot': 'generalizations',
                 'reasons': [
                     f"Generalizing {slot} slot of {unit.name} "
@@ -174,16 +171,10 @@ def setup_h17(heuristic) -> None:
                 }
             }
             
-            new_tasks.append(new_task)
-            
-        # Store results in context
+            if not rule.task_manager.add_task(new_task):
+                continue
+        
         context['task_results'] = {
-            'new_tasks': new_tasks
+            'new_tasks': f"{len(selected_slots)} slots selected for generalization"
         }
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_working_on_task', is_generalization_task)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)
-    heuristic.set_prop('then_add_to_agenda', add_to_agenda)
