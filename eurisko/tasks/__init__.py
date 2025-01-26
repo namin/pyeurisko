@@ -134,12 +134,12 @@ class TaskManager:
         """Check if a heuristic's if-parts are satisfied."""
         # Check if_potentially_relevant first
         check = heuristic.get_prop('if_potentially_relevant')
-        if not check(context):
+        if check and not check(context):
             return False
                 
         # Then check if_truly_relevant 
         check = heuristic.get_prop('if_truly_relevant')
-        if not check(context):
+        if check and not check(context):
             return False
                 
         return True
@@ -151,20 +151,21 @@ class TaskManager:
         # Get all the then_ slots
         for prop_name in heuristic.properties:
             if prop_name.startswith('then_'):
-                actions = heuristic.get_prop(prop_name)
-                if actions:
-                    then_parts.extend(actions)
+                action = heuristic.get_prop(prop_name)
+                if action:
+                    if callable(action):
+                        then_parts.append(action)
                     
         # Execute them
         success = True
         for action in then_parts:
-            try:
-                if not action(context):
-                    success = False
-            except Exception as e:
-                if self.verbosity > 1:
-                    print(f"Error applying heuristic {heuristic.name}: {e}")
+            #try:
+            if not action(context):
                 success = False
+            #except Exception as e:
+            #    if self.verbosity > 1:
+            #        print(f"Error applying heuristic {heuristic.name}: {e}")
+            #    success = False
                 
         return success
         
