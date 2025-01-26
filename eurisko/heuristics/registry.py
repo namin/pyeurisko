@@ -10,9 +10,9 @@ from . import (
 class HeuristicRegistry:
     """Manages registration and access to heuristics."""
     
-    def __init__(self):
+    def __init__(self, unit_registry=None):
         """Initialize registry with unit registry and setup functions."""
-        self.unit_registry = UnitRegistry()
+        self.unit_registry = unit_registry or UnitRegistry()
         self._setup_functions = {
             'h1': h1.setup_h1,
             'h2': h2.setup_h2,
@@ -45,8 +45,10 @@ class HeuristicRegistry:
     def _initialize_heuristics(self) -> None:
         """Initialize all registered heuristics."""
         for name, setup_fn in self._setup_functions.items():
-            heuristic = Heuristic(name, self.unit_registry)
+            heuristic = Heuristic(name, registry=self.unit_registry)
             setup_fn(heuristic)
+            # Ensure registry is still set after setup
+            heuristic.unit_registry = self.unit_registry
             self.unit_registry.register(heuristic)
 
     def register_heuristic(

@@ -1,3 +1,4 @@
+"""Task classes for managing unit operations."""
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple, Callable
 from .unit import Unit, UnitRegistry
@@ -11,22 +12,36 @@ class Task:
     reasons: List[str]
     supplemental: Dict[str, Any] = field(default_factory=dict)
     results: Dict[str, Any] = field(default_factory=dict)
+    task_type: Optional[str] = None
     
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get a task property, checking supplemental and results."""
-        if key in self.supplemental:
-            return self.supplemental[key]
-        if key in self.results:
-            return self.results[key]
-        return default
+    def __post_init__(self):
+        """Set task_type from supplemental data if provided."""
+        if not self.task_type and 'task_type' in self.supplemental:
+            self.task_type = self.supplemental['task_type']
 
-    def __getitem__(self, key: str) -> Any:
-        """Make task subscriptable for supplemental data."""
-        return self.supplemental[key]
-    
     def __lt__(self, other: 'Task') -> bool:
         """Tasks are ordered by priority, higher priority first."""
         return self.priority > other.priority  # Reversed for priority queue
+        
+    def __getitem__(self, key: str) -> Any:
+        """Support dictionary-style access to task properties."""
+        try:
+            if key == 'supplemental':
+                return self.supplemental
+            if key == 'task_type':
+                return self.task_type or self.supplemental.get('task_type')
+            if hasattr(self, key):
+                return getattr(self, key)
+            return self.supplemental[key]
+        except (KeyError, AttributeError):
+            raise KeyError(f"Task has no item '{key}'")
+        
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a task property with a default value."""
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 class TaskManager:
     """Manages the agenda of tasks to be worked on."""
@@ -128,6 +143,7 @@ class TaskManager:
             'slot': task.slot_name,
             'reasons': task.reasons,
             'task_num': self.task_num,
+            'task_type': task.task_type,
             'supplemental': task.supplemental,
         }
 

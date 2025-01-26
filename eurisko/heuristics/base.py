@@ -15,6 +15,7 @@ class Heuristic(Unit):
         self.unit_registry = registry
         self.set_prop('isa', ['heuristic'])
         self.set_prop('english', description)
+        self.set_prop('unit_registry', registry)  # Store registry in props too
         self.initialize_records()
 
     def initialize_records(self) -> None:

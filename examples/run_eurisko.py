@@ -10,7 +10,7 @@ from typing import Dict, List, Any
 from collections import defaultdict
 from eurisko.main import Eurisko
 from eurisko.unit import Unit
-from eurisko.heuristics import Heuristic
+from eurisko.heuristics import Heuristic, HeuristicRegistry
 from eurisko.concepts import initialize_core_concepts
 from eurisko.init_heuristics import initialize_all_heuristics
 from eurisko.tasks import Task
@@ -22,22 +22,54 @@ class EnhancedEurisko(Eurisko):
         super().__init__(verbosity=verbosity)
         self.heuristic_stats = defaultdict(lambda: {'tries': 0, 'successes': 0})
         self.synthesized_units = set()
-        self.task_results = {}
+        self._reset_task_state()
         
-    def get_task_result(self, key: str, default=None):
-        """Get a task result by key."""
-        return self.task_results.get(key, default)
+    def _reset_task_state(self):
+        """Reset task-related state variables."""
+        self.current_task = None
+        self.current_results = {}
+        self.global_results = {}
         
     def add_task_result(self, key: str, value: Any):
-        """Add a task result."""
-        self.task_results[key] = value
+        """Add a result for the current task."""
+        self.current_results[key] = value
+        self.global_results[key] = value
+        
+    def get_task_result(self, key: str, default=None):
+        """Get a task result by key, checking current task first."""
+        return self.current_results.get(key) or self.global_results.get(key, default)
+        
+    def create_unit(self, name: str, parent_type: str) -> Unit:
+        """Create a new unit of the given type."""
+        unit = Unit(name)
+        if parent_type:
+            unit.set_prop('isa', [parent_type])
+        self.unit_registry.register(unit)
+        self.synthesized_units.add(name)
+        return unit
+        
+    def add_conjecture(self, conjec: Unit) -> None:
+        """Add a conjecture to the system."""
+        self.unit_registry.register(conjec)
+        self.synthesized_units.add(conjec.name)
 
     def initialize(self):
         """Initialize system with core units and concepts."""
         super().initialize()
+        
+        # Initialize the heuristic registry with our unit registry
+        heuristic_registry = HeuristicRegistry()
+        heuristic_registry.unit_registry = self.unit_registry
+        heuristic_registry._initialize_heuristics()
+        
+        # Initialize core concepts
         initialize_core_concepts(self.unit_registry)
         initialize_all_heuristics(self.unit_registry)
+        
         self._generate_initial_tasks()
+        
+        # Share registries with task manager
+        self.task_manager.unit_registry = self.unit_registry
 
     def _generate_initial_tasks(self):
         """Generate initial tasks focusing on core operations."""
@@ -51,6 +83,7 @@ class EnhancedEurisko(Eurisko):
                     unit_name=op_name,
                     slot_name='specializations',
                     reasons=['Initial specialization exploration'],
+                    task_type='specialization',
                     supplemental={'task_type': 'specialization'}
                 )
                 self.task_manager.add_task(task)
@@ -61,6 +94,7 @@ class EnhancedEurisko(Eurisko):
                     unit_name=op_name,
                     slot_name='applics',
                     reasons=['Find additional applications'],
+                    task_type='find_applications',
                     supplemental={'task_type': 'find_applications'}
                 )
                 self.task_manager.add_task(task)
@@ -74,6 +108,7 @@ class EnhancedEurisko(Eurisko):
                     unit_name=op_name,
                     slot_name='analyze',
                     reasons=[f'Initial analysis of {op_name} operation'],
+                    task_type='analysis',
                     supplemental={'task_type': 'analysis'}
                 )
                 self.task_manager.add_task(task)
@@ -95,9 +130,10 @@ class EnhancedEurisko(Eurisko):
         if not unit:
             logger.warning(f"Unit {task.unit_name} not found")
             return False
-        
-        # Reset task results
-        self.task_results = {}
+            
+        # Reset task state for this task
+        self.current_task = task
+        self.current_results = {}
             
         # Create comprehensive context for heuristics
         context = {
@@ -106,10 +142,13 @@ class EnhancedEurisko(Eurisko):
             'system': self,
             'registry': self.unit_registry,
             'task_manager': self.task_manager,
-            'task_results': self.task_results,
+            'task_results': self.current_results,
             'applics': unit.get_prop('applics') or [],
             'applications': unit.get_prop('applications') or [],
-            'worth': unit.get_prop('worth', 500)
+            'worth': unit.get_prop('worth', 500),
+            'task_type': task.task_type,
+            'supplemental': task.supplemental,
+            'unit_registry': self.unit_registry  # Explicitly include registry
         }
         
         # Apply relevant heuristics
@@ -118,7 +157,7 @@ class EnhancedEurisko(Eurisko):
             heuristic = self.unit_registry.get_unit(h_name)
             if not heuristic:
                 continue
-                
+
             # Check if heuristic is potentially relevant
             if_relevant = heuristic.get_prop('if_potentially_relevant')
             if if_relevant:
@@ -134,7 +173,8 @@ class EnhancedEurisko(Eurisko):
                 if not is_relevant:
                     logger.info(f"        the IF-POTENTIALLY-RELEVANT slot of {h_name} didn't hold for {task.unit_name}")
                     continue
-                
+
+            # Check if heuristic is truly relevant
             if_truly = heuristic.get_prop('if_truly_relevant')
             if if_truly:
                 try:
@@ -149,25 +189,27 @@ class EnhancedEurisko(Eurisko):
                 
             # Apply heuristic actions
             success = False
-            then_compute = heuristic.get_prop('then_compute')
-            if then_compute:
-                try:
-                    success = then_compute(context)
-                    if success:
-                        logger.info(f"HEURISTIC {h_name} SUCCEEDED")
-                    else:
-                        logger.info(f"        heuristic {h_name} failed")
-                except Exception as e:
-                    logger.error(f"Error in compute action for {h_name}: {e}")
-
-            then_add = heuristic.get_prop('then_add_to_agenda')
-            if then_add:
-                try:
-                    success = then_add(context) or success
-                    if success:
-                        logger.info(f"        heuristic {h_name} agenda success")
-                except Exception as e:
-                    logger.error(f"Error in add to agenda for {h_name}: {e}")
+            
+            # Try various action types
+            for action_type in ['then_compute', 'then_conjecture', 'then_define_new_concepts', 'then_add_to_agenda']:
+                action = heuristic.get_prop(action_type)
+                if action:
+                    try:
+                        result = action(context)
+                        success = success or result
+                        if result:
+                            logger.info(f"HEURISTIC {h_name} succeeded with {action_type}")
+                    except Exception as e:
+                        logger.error(f"Error in {action_type} for {h_name}: {e}")
+                        
+            # Print results if successful
+            if success:
+                print_fn = heuristic.get_prop('then_print_to_user')
+                if print_fn:
+                    try:
+                        print_fn(context)
+                    except Exception as e:
+                        logger.error(f"Error in print action for {h_name}: {e}")
                     
             # Track results
             self.track_heuristic_result(h_name, success)
@@ -176,12 +218,14 @@ class EnhancedEurisko(Eurisko):
             if success:
                 logger.info(f"Heuristic {h_name} achieved success!")
                 
+        # Save task results to global state
+        self.global_results.update(self.current_results)
+        
         return any(r['success'] for r in results)
 
     def print_detailed_status(self):
         """Print detailed system status including heuristic performance."""
         total_units = len(self.unit_registry.all_units())
-        total_slots = len(self.slot_registry.all_slots())
         synthesized = len(self.synthesized_units)
         
         # Count units by category
@@ -215,6 +259,7 @@ class EnhancedEurisko(Eurisko):
                     unit_name=unit.name,
                     slot_name='analyze',
                     reasons=['Operation needs analysis'],
+                    task_type='analysis',
                     supplemental={'task_type': 'analysis'}
                 )
                 self.task_manager.add_task(task)
