@@ -1,6 +1,7 @@
 """H12 heuristic implementation: Create prevention rules from failed concepts."""
 from typing import Any, Dict, List, Optional
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,8 @@ def setup_h12(heuristic) -> None:
         "it existed earlier -- would have prevented C from ever being defined.")
     heuristic.set_prop('abbrev', "Form prevention rule from failed concept")
 
-    def check_unit_deletion(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_potentially_relevant(rule, context):
         """Check if unit is being deleted."""
         unit = context.get('unit')
         deleted_units = context.get('deleted_units', [])
@@ -35,26 +37,22 @@ def setup_h12(heuristic) -> None:
         context['creator'] = creator
         return True
 
-    def get_creation_task(unit: Any, creator: str) -> Optional[Dict[str, Any]]:
-        """Find the task that created this unit."""
-        # Check creator's applications for task that made this unit
-        creator_apps = unit.get_prop('applications') or []
-        
-        # Look for application that created this unit
-        for app in creator_apps:
-            if app.get('task_info'):
-                return app
-        return None
-
-    def compute_action(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_compute(rule, context):
         """Create prevention rule based on failure analysis."""
         unit = context.get('unit')
         creator = context.get('creator')
         if not unit or not creator:
             return False
 
-        # Get information about how unit was created
-        creation_task = get_creation_task(unit, creator)
+        # Find task that created this unit by checking creator's applications
+        creator_apps = unit.get_prop('applications') or []
+        creation_task = None
+        for app in creator_apps:
+            if app.get('task_info'):
+                creation_task = app
+                break
+                
         if not creation_task:
             return False
 
@@ -63,26 +61,30 @@ def setup_h12(heuristic) -> None:
         if not changed_slot:
             return False
 
-        # Create prevention rule
+        # Create prevention rule unit
         rule_name = f"prevent_{changed_slot}_changes"
-        prevention_rule = {
-            'name': rule_name,
-            'isa': ['prevention-rule'],
-            'english': (
-                f"Prevent changes to {changed_slot} slot that led to the "
-                f"failure of {unit.name}"
-            ),
-            'slot_to_avoid': changed_slot,
-            'learned_from': unit.name,
-            'creditor': creator
-        }
+        prevention_rule = rule.unit_registry.create_unit(rule_name)
+        if not prevention_rule:
+            return False
+            
+        prevention_rule.set_prop('isa', ['prevention-rule'])
+        prevention_rule.set_prop('english', 
+            f"Prevent changes to {changed_slot} slot that led to the "
+            f"failure of {unit.name}")
+        prevention_rule.set_prop('slot_to_avoid', changed_slot)
+        prevention_rule.set_prop('learned_from', unit.name)
+        prevention_rule.set_prop('creditor', creator)
+        
+        # Register the new rule
+        rule.unit_registry.register(prevention_rule)
 
-        # Record the new rule
+        # Record the new rule in results
         context['task_results'] = context.get('task_results', {})
         context['task_results']['new_units'] = [prevention_rule]
         return True
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Report on prevention rule creation."""
         unit = context.get('unit')
         task_results = context.get('task_results', {})
@@ -98,13 +100,8 @@ def setup_h12(heuristic) -> None:
             f"\nLearned prevention rule from failure of {unit.name}:"
         )
         
-        for rule in new_units:
+        for prevention_rule in new_units:
             logger.info(
-                f"- Will prevent changes to {rule['slot_to_avoid']} slot"
+                f"- Will prevent changes to {prevention_rule.get_prop('slot_to_avoid')} slot"
             )
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_potentially_relevant', check_unit_deletion)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)

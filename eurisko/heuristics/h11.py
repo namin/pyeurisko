@@ -2,6 +2,7 @@
 from typing import Any, Dict, List
 import logging
 import random
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,8 @@ def setup_h11(heuristic) -> None:
         "THEN choose examples of its domain components and run the algorithm.")
     heuristic.set_prop('abbrev', "Test algorithm on domain examples")
 
-    def check_task_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_potentially_relevant(rule, context):
         """Verify task is for finding applications."""
         task = context.get('task')
         unit = context.get('unit')
@@ -41,16 +43,20 @@ def setup_h11(heuristic) -> None:
         context['domain_names'] = domain
         return True
 
-    def get_domain_examples(
-        domain_units: List[str],
-        registry: Any,
-        max_examples: int = 5
-    ) -> List[List[Any]]:
-        """Get combinations of examples from domain units."""
-        examples_by_domain = {}
+    @rule_factory
+    def then_compute(rule, context):
+        """Find applications using domain examples."""
+        unit = context.get('unit')
+        algorithm = context.get('algorithm')
+        domain_names = context.get('domain_names', [])
         
-        for domain_name in domain_units:
-            domain = registry.unit_registry.get_unit(domain_name)
+        if not all([unit, algorithm, domain_names]):
+            return False
+
+        # Get example combinations from domain units
+        examples_by_domain = {}
+        for domain_name in domain_names:
+            domain = rule.unit_registry.get_unit(domain_name)
             if not domain:
                 continue
                 
@@ -60,54 +66,19 @@ def setup_h11(heuristic) -> None:
                 
             examples_by_domain[domain_name] = domain_examples
             
-        # If we don't have examples for all domains, fail
-        if len(examples_by_domain) != len(domain_units):
-            return []
-            
+        # Need examples for all domains
+        if len(examples_by_domain) != len(domain_names):
+            return False
+
         # Generate random combinations
         combinations = []
+        max_examples = 5
         for _ in range(max_examples):
             combo = []
-            for domain_name in domain_units:
+            for domain_name in domain_names:
                 example = random.choice(examples_by_domain[domain_name])
                 combo.append(example)
             combinations.append(combo)
-            
-        return combinations
-
-    def validate_domain_example(
-        example: Any,
-        domain_name: str,
-        registry: Any
-    ) -> bool:
-        """Validate an example against domain definition."""
-        domain = registry.unit_registry.get_unit(domain_name)
-        if not domain:
-            return False
-            
-        definition = domain.get_prop('definition')
-        if not definition:
-            return True  # No definition means accept all
-            
-        try:
-            return definition(example)
-        except Exception:
-            return False
-
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Find applications using domain examples."""
-        unit = context.get('unit')
-        algorithm = context.get('algorithm')
-        domain_names = context.get('domain_names', [])
-        registry = context.get('registry')
-        
-        if not all([unit, algorithm, domain_names, registry]):
-            return False
-
-        # Get example combinations to test
-        combinations = get_domain_examples(domain_names, registry)
-        if not combinations:
-            return False
 
         # Track new applications
         new_applications = []
@@ -119,10 +90,24 @@ def setup_h11(heuristic) -> None:
                 continue
                 
             # Validate args against domain definitions
-            if not all(
-                validate_domain_example(arg, domain, registry)
-                for arg, domain in zip(args, domain_names)
-            ):
+            valid = True
+            for arg, domain_name in zip(args, domain_names):
+                domain = rule.unit_registry.get_unit(domain_name)
+                if not domain:
+                    valid = False
+                    break
+                    
+                definition = domain.get_prop('definition')
+                if definition:
+                    try:
+                        if not definition(arg):
+                            valid = False
+                            break
+                    except Exception:
+                        valid = False
+                        break
+                        
+            if not valid:
                 continue
 
             # Try applying the algorithm
@@ -145,7 +130,8 @@ def setup_h11(heuristic) -> None:
 
         return False
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Report on applications found."""
         unit = context.get('unit')
         task_results = context.get('task_results', {})
@@ -168,8 +154,3 @@ def setup_h11(heuristic) -> None:
             logger.info(f"  {args} -> {result}")
         
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_potentially_relevant', check_task_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)

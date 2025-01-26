@@ -21,7 +21,6 @@ def rule_factory(func: Callable):
         heuristic.set_prop(property_name, factory)
     return make_factory
 
-# TODO: is there a better way
 def discover_heuristics():
     """Discover all available heuristics and their documentation."""
     heuristics = []
@@ -29,7 +28,8 @@ def discover_heuristics():
     
     files = [f for f in os.listdir(directory) 
              if f.endswith('.py') 
-             and f.startswith('h')]
+             and f.startswith('h')
+             and not any(x in f for x in ['criterial', 'good'])]  # Skip special cases
     
     for file in sorted(files):
         module_name = file[:-3]  # Remove .py extension
@@ -59,12 +59,16 @@ def discover_heuristics():
 def initialize_all_heuristics(unit_registry) -> None:
     heuristics = discover_heuristics()
     for h in heuristics:
-        if h['name'] not in ['h'+str(i) for i in range(1, 11)]:
-            continue
-        unit = unit_registry.create_unit(h['name'])
-        unit.set_prop('isa', ['heuristic', 'anything'])
-        if not unit.get_prop('english'):
-            unit.set_prop('english', h['description'])
-        setup_func = h['setup_func']
-        setup_func(unit)
-        unit_registry.register(unit)
+        try:
+            h_num = int(h['name'][1:])  # Extract number from hX
+            if h_num not in range(1, 12):  # Updated to include h11
+                continue
+            unit = unit_registry.create_unit(h['name'])
+            unit.set_prop('isa', ['heuristic', 'anything'])
+            if not unit.get_prop('english'):
+                unit.set_prop('english', h['description'])
+            setup_func = h['setup_func']
+            setup_func(unit)
+            unit_registry.register(unit)
+        except ValueError:
+            continue  # Skip any malformed heuristic names
