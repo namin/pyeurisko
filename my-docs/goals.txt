@@ -1,6 +1,7 @@
 For reference, we are trying to replicate the project eurisclo, a sibling project, which has units.lisp, eurisclo.lisp and heuristics.lisp in its src directory. This is based on EUR, unearthed Eurisko code by Doug Lenat, also in the src of eurisclo.
 
 We should start by debugging h5, and get it to interact with h6.
+The last thing you found out was that h5 was not propagating the context as it should, sometimes it got reset between rules, and so you moved state to the task.
 
 Ignore *~ files. They are emacs backup files.
 
