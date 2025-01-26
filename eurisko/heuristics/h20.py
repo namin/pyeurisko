@@ -1,186 +1,139 @@
-"""H20 heuristic implementation: Cross-operation pattern detection."""
-from typing import Any, Dict, List, Set
-from ..units import Unit
+"""H20 heuristic implementation: Test on sibling operation inputs."""
+from typing import Any, Dict
 import logging
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h20(heuristic) -> None:
-    """Configure H20: Detect patterns across operations.
-    
-    This heuristic examines operations that can apply to the same inputs,
-    running them and looking for potential relationships or patterns in their
-    behavior.
-    """
+    """Configure H20: Run algorithm on sibling operation inputs."""
     heuristic.set_prop('worth', 600)
-    heuristic.set_prop('english',
-        "IF an operation F can apply to any of the domain items of another operation, "
-        "THEN apply it and look for patterns between their behaviors.")
-    heuristic.set_prop('abbrev', "Run F on args used for other ops")
-    
-    # Initialize record keeping
-    heuristic.set_prop('then_compute_failed_record', (5828, 14))
-    heuristic.set_prop('then_compute_record', (-546691, 16))
-    heuristic.set_prop('then_add_to_agenda_record', (5355, 16))
-    heuristic.set_prop('overall_record', (-528368, 16))
+    heuristic.set_prop('english', "IF an op f can apply to any of the domain items of another op, THEN so apply it and maybe some patterns will emerge")
+    heuristic.set_prop('abbrev', "Run f on args used for other ops")
     heuristic.set_prop('arity', 1)
+    
+    def record_func(rule, context):
+        return True
+    for record_type in ['then_compute', 'then_add_to_agenda', 'then_print_to_user', 'overall']:
+        heuristic.set_prop(f'{record_type}_record', record_func)
+    heuristic.set_prop('then_compute_failed_record', record_func)
 
     @rule_factory
     def if_potentially_relevant(rule, context):
-        """Check if operation has algorithm and can be meaningfully compared."""
+        """Check if unit has an algorithm."""
         unit = context.get('unit')
         if not unit:
             return False
-            
-        # Need an executable algorithm
-        algorithm = unit.get_prop('alg')
-        if not algorithm:
-            return False
-            
-        context['algorithm'] = algorithm
-        return True
+        return bool(unit.get_prop('algorithm'))
 
     @rule_factory
     def if_truly_relevant(rule, context):
-        """Find operations to compare against."""
+        """Check if we have similar ops to test."""
         unit = context.get('unit')
-        if not unit:
+        if not unit or unit.get_prop('subsumed_by'):
             return False
             
-        # Find comparable operations with same arity and sufficient applications
-        comparable_ops = []
+        # Find similar operations
+        siblings = unit.get_prop('siblings', [])
+        space_to_use = []
         unit_arity = unit.get_prop('arity')
-        siblings = unit.get_prop('sibs', [])
         
-        for sib_name in siblings:
-            sib = rule.unit_registry.get_unit(sib_name)
-            if not sib or sib.name == unit.name:
+        for sibling in siblings:
+            if sibling == unit.name:
                 continue
-                
-            # Check arity matches
-            if sib.get_prop('arity') != unit_arity:
+            sib_unit = rule.unit_registry.get_unit(sibling)
+            if not sib_unit:
                 continue
+            if (sib_unit.get_prop('arity') == unit_arity and 
+                len(sib_unit.get_prop('applications', [])) > 3):
+                space_to_use.append(sib_unit)
                 
-            # Check has sufficient applications
-            if len(sib.get_prop('applications', [])) > 3:
-                comparable_ops.append(sib)
-        
-        if not comparable_ops:
-            return False
-            
-        # Verify we can test domain compatibility
-        domain_tests = []
-        for domain in unit.get_prop('domain', []):
-            test = domain.get('test')
-            if not test:
-                return False
-            domain_tests.append(test)
-            
-        context['comparable_ops'] = comparable_ops
-        context['domain_tests'] = domain_tests
-        return True
+        context['space_to_use'] = space_to_use
+        context['domain_tests'] = unit.get_prop('domain_tests', [])
+        return bool(space_to_use)
 
-    @rule_factory
+    @rule_factory 
     def then_compute(rule, context):
-        """Apply operation to inputs from other operations."""
+        """Apply algorithm to sibling operation arguments."""
         unit = context.get('unit')
-        comparable_ops = context.get('comparable_ops', [])
-        algorithm = context.get('algorithm')
-        domain_tests = context.get('domain_tests', [])
-        
-        if not all([unit, comparable_ops, algorithm, domain_tests]):
+        space_to_use = context.get('space_to_use')
+        domain_tests = context.get('domain_tests')
+        if not all([unit, space_to_use]):
             return False
             
-        added_ops = []
-        successful_applications = {}
+        algorithm = unit.get_prop('algorithm')
+        added_some = []
         
-        for other_op in comparable_ops:
-            successful_args = []
-            for application in other_op.get_prop('applications', []):
-                args = application.get('args', [])
+        for sibling in space_to_use:
+            sibling_apps = sibling.get_prop('applications', [])
+            
+            for app in sibling_apps:
+                args = app.get('args', [])
+                if not args:
+                    continue
                 
-                # Skip if we already know this application
-                if unit.has_application(args):
+                # Skip if already tried
+                if any(args == existing.get('args') for existing in unit.get_prop('applications', [])):
                     continue
                     
-                # Verify args pass domain tests
+                # Test domain constraints
                 if not all(test(arg) for test, arg in zip(domain_tests, args)):
                     continue
                     
-                # Apply algorithm
+                # Try applying algorithm
                 try:
                     result = algorithm(*args)
-                    unit.add_application(args, result)
-                    successful_args.append(args)
+                    unit.add_to_prop('applications', {'args': args, 'result': result})
+                    if sibling not in added_some:
+                        added_some.append(sibling)
                 except Exception as e:
-                    logger.debug(f"Failed to apply {unit.name} to {args}: {e}")
-            
-            if successful_args:
-                added_ops.append(other_op)
-                successful_applications[other_op.name] = successful_args
+                    logger.warning(f"Failed to apply {unit.name} to {args}: {e}")
                     
-        if added_ops:
-            context['added_ops'] = added_ops
-            context['successful_applications'] = successful_applications
-            return True
-            
-        return False
+        context['added_some'] = added_some
+        return bool(added_some)
 
     @rule_factory
     def then_print_to_user(rule, context):
-        """Report on operations compared and patterns found."""
+        """Print units with shared applications."""
         unit = context.get('unit')
-        added_ops = context.get('added_ops', [])
-        successful_applications = context.get('successful_applications', {})
-        
-        if not unit or not added_ops:
+        added_some = context.get('added_some')
+        if not all([unit, added_some]):
             return False
             
-        logger.info(
-            f"\nRan {unit.name}'s algorithm on data from other operations:"
-        )
-        
-        for op in added_ops:
-            app_count = len(successful_applications.get(op.name, []))
-            logger.info(
-                f"- {op.name}: {app_count} successful applications"
-            )
-            
-        logger.info("\nWill examine for potential connections between these operations.")
+        logger.info(f"{unit.name}'s algorithm has been run on new data upon which "
+                   f"these have already been run: {[u.name for u in added_some]}")
+        logger.info(f"We will sometime look for connections between {unit.name} "
+                   f"and each of those other operations.")
         return True
 
     @rule_factory
     def then_add_to_agenda(rule, context):
-        """Add tasks to investigate patterns between operations."""
+        """Add tasks to investigate connections."""
         unit = context.get('unit')
-        added_ops = context.get('added_ops', [])
-        
-        if not unit or not added_ops:
+        added_some = context.get('added_some')
+        if not all([unit, added_some]):
             return False
             
-        for other_op in added_ops:
+        for sibling in added_some:
             task = {
-                'priority': int((
-                    unit.get_prop('worth', 500) + 
-                    other_op.get_prop('worth', 500)
-                ) / 2),
-                'unit': unit.name,
+                'priority': (unit.worth_value() + sibling.worth_value() + 
+                           rule.worth_value()) // 3,
+                'unit': unit,
                 'slot': 'conjectures',
                 'reasons': [
-                    f"{unit.name} has now been run on the same data as "
-                    f"{other_op.name} - investigate potential patterns"
+                    f"{unit.name} has now been run on the same data as {sibling.name}, "
+                    "and we should investigate any patterns connecting them"
                 ],
                 'supplemental': {
                     'credit_to': ['h20'],
-                    'involved_units': [other_op.name]
+                    'involved_units': [sibling.name]
                 }
             }
+            rule.task_manager.add_task(task)
             
-            if not rule.task_manager.add_task(task):
-                continue
-                
-        context['task_results'] = {
-            'new_tasks': f"{len(added_ops)} operations will be examined for connections"
-        }
+        task_results = context.get('task_results', {})
+        task_results['new_tasks'] = [f"{len(added_some)} units may have connections "
+                                   "to current one"]
+        context['task_results'] = task_results
+        
         return True
