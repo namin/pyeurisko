@@ -17,12 +17,14 @@ def setup_h6(heuristic) -> None:
     heuristic.set_prop('abbrev', "Specialize a given slot of a given unit")
     heuristic.set_prop('arity', 1)
     
-    # Set record counts from original
-    heuristic.set_prop('then_compute_record', (58183, 73))
-    heuristic.set_prop('then_define_new_concepts_record', (74674, 73))
-    heuristic.set_prop('then_print_to_user_record', (31470, 73))
-    heuristic.set_prop('overall_record', (188387, 73))
-    heuristic.set_prop('then_compute_failed_record', (24908, 56))
+    # Initialize record properties as functions (not tuples)
+    def record_func(rule, context):
+        return True
+    heuristic.set_prop('then_compute_record', record_func)
+    heuristic.set_prop('then_define_new_concepts_record', record_func)
+    heuristic.set_prop('then_print_to_user_record', record_func)
+    heuristic.set_prop('overall_record', record_func)
+    heuristic.set_prop('then_compute_failed_record', record_func)
 
     @rule_factory
     def if_working_on_task(rule, context):

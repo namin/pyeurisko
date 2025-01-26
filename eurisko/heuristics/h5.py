@@ -60,11 +60,15 @@ def setup_h5(heuristic) -> None:
         if not unit or not task:
             return False
 
-        # Get valid slots - intersection with known slot types
-        unit_slots = unit.get_prop('slots') or []
+        # Get all slots - this was wrong!
+        logger.debug(f"Getting slots for {unit.name}")
+        all_slots = list(unit.properties.keys())
         slot_types = rule.unit_registry.get_units_by_category('slot')
-        valid_slots = set(unit_slots) & set(slot_types)
-        slots = list(valid_slots) if valid_slots else unit_slots
+        logger.debug(f"Unit properties: {all_slots}")
+        logger.debug(f"Known slot types: {slot_types}")
+        valid_slots = list(set(all_slots) & set(slot_types))
+        logger.debug(f"Valid slots after intersection: {valid_slots}")
+        slots = valid_slots if valid_slots else all_slots
 
         if not slots:
             return False

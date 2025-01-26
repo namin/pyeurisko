@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Callable
 from ..units import Unit, UnitRegistry
 from ..slots import SlotRegistry
 
+logger = logging.getLogger(__name__)
+
 @dataclass
 class Task:
     """Represents a task to be worked on by the system."""
@@ -140,8 +142,11 @@ class TaskManager:
             """Handle function that returns another function."""
             if not factory:
                 return True
-            test_func = factory(heuristic)  # Get actual test function 
-            return test_func(context)
+                
+            if not isinstance(factory, Callable):
+                return True
+                
+            return factory(heuristic, context)
 
         # Check if_potentially_relevant first
         if_factory = heuristic.get_prop('if_potentially_relevant')
@@ -167,12 +172,15 @@ class TaskManager:
             action_factory = heuristic.get_prop(prop_name)
             if not action_factory:
                 continue
+                
+            if not isinstance(action_factory, Callable):
+                if self.verbosity > 1:
+                    print(f"Action from {prop_name} failed for {heuristic.name}")
+                continue
 
             any_action_executed = True
             try:
-                # Get actual action function from factory
-                action = action_factory(heuristic)
-                result = not action(context)
+                result = action_factory(heuristic, context)
                 if not isinstance(result, bool) or not result:
                     if self.verbosity > 1:
                         print(f"Action from {prop_name} failed for {heuristic.name}")
@@ -257,8 +265,11 @@ class TaskManager:
             'task_results': task.results
         }
 
-        if self.verbosity > 10:
-            print(f"\nTask {self.task_num}: Working on {unit.name}:{task.slot_name}")
+        if self.verbosity > 1:
+                logger.debug(f"Task Number {self.task_num}:")
+                logger.debug(f"  Unit: {unit.name}")
+                logger.debug(f"  Task type: {task.task_type}")
+                logger.debug(f"  Supplemental: {task.supplemental}")
 
         # Get heuristics that could apply (analogous to (heuristics) in Lisp)
         heuristics = self._get_heuristics()

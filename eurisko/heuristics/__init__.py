@@ -6,6 +6,7 @@ import time
 import os
 import importlib
 import inspect
+import logging
 from ..units import Unit, UnitRegistry
 from .enabled import enabled_heuristics
 
@@ -20,9 +21,11 @@ def rule_factory(func: Callable):
                 return func(rule, context)
             return wrapper
         heuristic.set_prop(property_name, factory)
+        return factory # Return the factory function
     return make_factory
 
 def discover_heuristics():
+    logger = logging.getLogger(__name__)
     """Discover all available heuristics and their documentation."""
     heuristics = []
     directory = os.path.dirname(__file__)
@@ -57,15 +60,28 @@ def discover_heuristics():
     return heuristics
 
 def initialize_all_heuristics(unit_registry) -> None:
+    logger = logging.getLogger(__name__)
     heuristics = discover_heuristics()
+    logger.info(f"Discovered heuristics: {[h['name'] for h in heuristics]}")
+    
     for h in heuristics:
-        if not h in enabled_heuristics:
+        if h['name'] not in enabled_heuristics:
+            logger.debug(f"Skipping disabled heuristic {h['name']}")
             continue
+            
+        logger.info(f"Initializing heuristic {h['name']}")
+        
         unit = unit_registry.create_unit(h['name'])
-        unit.set_prop('isa', ['heuristic', 'anything'])
+        unit.set_prop('isa', ['heuristic', 'anything', 'op'])
         if not unit.get_prop('english'):
             unit.set_prop('english', h['description'])
+            
         setup_func = h['setup_func']
         setup_func(unit)
+        
+        unit.task_manager = unit_registry
+        unit.unit_registry = unit_registry
+        unit.worth_value = lambda: unit.get_prop('worth', 500)
+        
         unit_registry.register(unit)
 

@@ -19,9 +19,9 @@ class Eurisko:
 
         log_level = logging.DEBUG if verbosity > 1 else logging.INFO
         logging.basicConfig(
-            format='%(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S',
+            format='%(levelname)s - %(name)s - %(message)s',
             level=log_level,
+            force=True
         )
         self.logger = logging.getLogger(__name__)
 

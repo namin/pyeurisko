@@ -16,12 +16,13 @@ def setup_h1(heuristic) -> None:
         "of F may be superior to F, and add tasks to specialize F to the Agenda.")
     heuristic.set_prop('abbrev', "Specialize a sometimes-useful action")
     
-    # Initialize records as in LISP
-    heuristic.set_prop('then_conjecture_record', (2393, 5))
-    heuristic.set_prop('then_add_to_agenda_record', (377, 5))
-    heuristic.set_prop('then_print_to_user_record', (2601, 5))
-    heuristic.set_prop('overall_record', (7078, 5))
-    heuristic.set_prop('arity', 1)
+    # Initialize record properties as functions
+    def record_func(rule, context):
+        return True
+    heuristic.set_prop('then_conjecture_record', record_func)
+    heuristic.set_prop('then_add_to_agenda_record', record_func)
+    heuristic.set_prop('then_print_to_user_record', record_func)
+    heuristic.set_prop('overall_record', record_func)
 
     @rule_factory
     def if_potentially_relevant(rule, context):
