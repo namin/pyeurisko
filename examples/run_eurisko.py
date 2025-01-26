@@ -30,24 +30,36 @@ class EnhancedEurisko(Eurisko):
 
     def _generate_initial_tasks(self):
         """Generate initial tasks focusing on core operations."""
-        # Start with COMPOSE as in the original logs
-        compose = self.unit_registry.get_unit('COMPOSE')
-        if compose:
-            task = Task(
-                priority=500,
-                unit_name=compose.name,
-                slot_name='analyze',
-                reasons=['Initial analysis of COMPOSE operation'],
-                supplemental={'task_type': 'analysis'}
-            )
-            self.task_manager.add_task(task)
+        # Start with operations that have applications
+        for op_name in ['ADD', 'MULTIPLY']:
+            op = self.unit_registry.get_unit(op_name)
+            if op and op.get_prop('applics'):
+                # Add specialization task for ops with mixed success
+                task = Task(
+                    priority=500,
+                    unit_name=op_name,
+                    slot_name='specializations',
+                    reasons=['Initial specialization exploration'],
+                    supplemental={'task_type': 'specialization'}
+                )
+                self.task_manager.add_task(task)
+                
+                # Add application finding task
+                task = Task(
+                    priority=450,
+                    unit_name=op_name,
+                    slot_name='applics',
+                    reasons=['Find additional applications'],
+                    supplemental={'task_type': 'find_applications'}
+                )
+                self.task_manager.add_task(task)
             
         # Add tasks for other key operations
-        for op_name in ['SET-UNION', 'LIST-UNION', 'BAG-UNION']:
+        for op_name in ['COMPOSE', 'SET-UNION', 'LIST-UNION', 'BAG-UNION']:
             op = self.unit_registry.get_unit(op_name)
             if op:
                 task = Task(
-                    priority=450,
+                    priority=400,
                     unit_name=op_name,
                     slot_name='analyze',
                     reasons=[f'Initial analysis of {op_name} operation'],
@@ -73,11 +85,16 @@ class EnhancedEurisko(Eurisko):
             logger.warning(f"Unit {task.unit_name} not found")
             return False
             
-        # Create context for heuristics
+        # Create comprehensive context for heuristics
         context = {
             'unit': unit,
             'task': task,
-            'system': self
+            'system': self,
+            'registry': self.unit_registry,
+            'task_results': {},
+            'applics': unit.get_prop('applics') or [],
+            'applications': unit.get_prop('applications') or [],
+            'worth': unit.get_prop('worth', 500)
         }
         
         # Apply relevant heuristics
@@ -91,33 +108,51 @@ class EnhancedEurisko(Eurisko):
             if_relevant = heuristic.get_prop('if_potentially_relevant')
             if if_relevant:
                 print(f"\nAttempting to check relevance for {h_name} on {task.unit_name}", flush=True)
-                print(f"Applications: {unit.properties.get('applications')}", flush=True)
-                is_relevant = if_relevant(context)
-                print(f"Got relevance result: {is_relevant}", flush=True)
+                print(f"Applications: {unit.get_prop('applics')}", flush=True)
+                try:
+                    is_relevant = if_relevant(context)
+                    print(f"Got relevance result: {is_relevant}", flush=True)
+                except Exception as e:
+                    logger.error(f"Error checking relevance for {h_name}: {e}")
+                    continue
+                    
                 if not is_relevant:
                     logger.info(f"        the IF-POTENTIALLY-RELEVANT slot of {h_name} didn't hold for {task.unit_name}")
                     continue
                 
             if_truly = heuristic.get_prop('if_truly_relevant')
-            if if_truly and not if_truly(context):
-                logger.info(f"        the IF-TRULY-RELEVANT slot of {h_name} didn't hold for {task.unit_name}")
-                continue
+            if if_truly:
+                try:
+                    is_truly_relevant = if_truly(context)
+                except Exception as e:
+                    logger.error(f"Error checking true relevance for {h_name}: {e}")
+                    continue
+                    
+                if not is_truly_relevant:
+                    logger.info(f"        the IF-TRULY-RELEVANT slot of {h_name} didn't hold for {task.unit_name}")
+                    continue
                 
             # Apply heuristic actions
             success = False
             then_compute = heuristic.get_prop('then_compute')
             if then_compute:
-                success = then_compute(context)
-                if success:
-                    logger.info(f"HEURISTIC {h_name} SUCCEEDED")
-                else:
-                    logger.info(f"        heuristic {h_name} failed")
+                try:
+                    success = then_compute(context)
+                    if success:
+                        logger.info(f"HEURISTIC {h_name} SUCCEEDED")
+                    else:
+                        logger.info(f"        heuristic {h_name} failed")
+                except Exception as e:
+                    logger.error(f"Error in compute action for {h_name}: {e}")
 
             then_add = heuristic.get_prop('then_add_to_agenda')
             if then_add:
-                success = then_add(context) or success
-                if success:
-                    logger.info(f"        heuristic {h_name} agenda success")
+                try:
+                    success = then_add(context) or success
+                    if success:
+                        logger.info(f"        heuristic {h_name} agenda success")
+                except Exception as e:
+                    logger.error(f"Error in add to agenda for {h_name}: {e}")
                     
             # Track results
             self.track_heuristic_result(h_name, success)
@@ -175,15 +210,23 @@ def init_test_applications(registry):
     """Initialize some test applications for units."""
     add = registry.get_unit('ADD')
     if add:
-        add.add_application([1, 2], 3, worth=800)
-        add.add_application([2, 3], 5, worth=600)
-        add.add_application([3, 4], 7, worth=400)
+        applications = [
+            {'args': [1, 2], 'result': 3, 'worth': 800},
+            {'args': [2, 3], 'result': 5, 'worth': 600},
+            {'args': [3, 4], 'result': 7, 'worth': 400}
+        ]
+        add.set_prop('applics', applications)
+        add.set_prop('applications', applications)
 
-    multiply = registry.get_unit('MULTIPLY') 
+    multiply = registry.get_unit('MULTIPLY')
     if multiply:
-        multiply.add_application([2, 3], 6, worth=900)
-        multiply.add_application([3, 4], 12, worth=500)
-        multiply.add_application([4, 5], 20, worth=300)
+        applications = [
+            {'args': [2, 3], 'result': 6, 'worth': 900},
+            {'args': [3, 4], 'result': 12, 'worth': 500},
+            {'args': [4, 5], 'result': 20, 'worth': 300}
+        ]
+        multiply.set_prop('applics', applications)
+        multiply.set_prop('applications', applications)
 
 def main():
     parser = argparse.ArgumentParser(description='Run Enhanced PyEurisko')
