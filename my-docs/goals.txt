@@ -3,6 +3,7 @@ For reference, we are trying to replicate the project eurisclo, a sibling projec
 THe current goal is at the interplay of heuristics, task manager and main.
 We expect the cycle in main, as new units and tasks are created.
 Why is this not happening?
+Do NOT enable eternal mode, this runs forever so you won't get any output from that, and it's not currently interesting.
 
 Ignore *~ files. They are emacs backup files.
 
