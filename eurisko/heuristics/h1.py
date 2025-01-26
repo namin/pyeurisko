@@ -1,6 +1,7 @@
 """H1 heuristic implementation: Specialize sometimes-useful actions."""
 from typing import Any, Dict
 from ..units import Unit
+from ..tasks.task import Task
 import logging
 from ..heuristics import rule_factory
 
@@ -27,38 +28,43 @@ def setup_h1(heuristic) -> None:
     @rule_factory
     def if_potentially_relevant(rule, context):
         logger.info(f"H1 checking potential relevance for unit {context.get('unit', 'no_unit')}, looking for applications")
-        logger.debug(f"H1 checking potential relevance for {context.get('unit', 'no_unit')}, looking for applications")
-        """Check that unit has some recorded applications."""
         unit = context.get('unit')
         if not unit:
+            logger.info("H1 no unit in context")
             return False
         applications = unit.get_prop('applications')
-        return bool(applications)
+        if not applications:
+            logger.info(f"H1 no applications for {unit.name}")
+            return False
+            
+        logger.info(f"H1 found {len(applications)} applications for {unit.name}")
+        return True
         
     @rule_factory
     def if_truly_relevant(rule, context):
         logger.info(f"H1 checking true relevance for unit {context.get('unit', 'no_unit')}, needs good/bad apps ratio")
-        logger.debug(f"H1 checking true relevance for {context.get('unit', 'no_unit')}, needs good/bad apps ratio")
-        """Check if unit has good and bad applications."""
         unit = context.get('unit')
         if not unit:
+            logger.info("H1 no unit in context")
             return False
             
         # Get applications
         applications = unit.get_prop('applications')
         if not applications:
+            logger.info(f"H1 no applications for {unit.name}")
             return False
             
         # Count good vs total applications
-        # In test case, each application is a dict with 'worth' directly
         total_count = len(applications)
         good_count = sum(1 for app in applications if app.get('worth', 0) >= 800)
         
         if total_count == 0:
+            logger.info(f"H1 no valid applications for {unit.name}")
             return False
             
         # Need at least one good application
         if good_count == 0:
+            logger.info(f"H1 no good applications for {unit.name}")
             return False
             
         # Store fraction for use in conjecture
@@ -67,18 +73,24 @@ def setup_h1(heuristic) -> None:
             
         # Check not subsumed
         if unit.get_prop('subsumed_by'):
+            logger.info(f"H1 unit {unit.name} is subsumed")
             return False
             
         # More than 4/5 should be bad (i.e., fraction good < 0.2)
-        return fraction <= 0.2
+        if fraction > 0.2:
+            logger.info(f"H1 too many good applications ({fraction:.2f}) for {unit.name}")
+            return False
+            
+        logger.info(f"H1 unit {unit.name} is relevant with {fraction:.2f} good fraction")
+        return True
 
     @rule_factory
     def then_print_to_user(rule, context):
-        logger.info(f"H1 printing for unit {context.get('unit', 'no_unit')}, conjecture: {context.get('conjecture')}")
-        """Print explanation of action to user."""
+        logger.info(f"H1 printing user message for {context.get('unit', 'no_unit')}")
         unit = context.get('unit')
         conjec = context.get('conjecture')
         if not unit or not conjec:
+            logger.info("H1 missing unit or conjecture for user message")
             return False
             
         logger.info(f"\n{conjec}:\nSince some specializations of {unit.name} are quite "
@@ -90,20 +102,20 @@ def setup_h1(heuristic) -> None:
 
     @rule_factory
     def then_conjecture(rule, context):
-        logger.info(f"H1 creating conjecture about unit {context.get('unit', 'no_unit')}, system present: {bool(context.get('system'))}")
-        logger.debug(f"H1 creating conjecture about {context.get('unit', 'no_unit')}, system: {context.get('system')}")
-        """Create conjecture about specializing the unit."""
+        logger.info(f"H1 creating conjecture about {context.get('unit', 'no_unit')}")
         unit = context.get('unit')
         system = context.get('system')
         fraction = context.get('fraction', 0)
         
         if not unit or not system:
+            logger.info(f"H1 missing unit={bool(unit)} or system={bool(system)}")
             return False
         
         # Create new conjecture
         conjec_name = system.new_name('conjec')
         conjec = system.create_unit(conjec_name, 'proto-conjec')
         if not conjec:
+            logger.info("H1 failed to create conjecture unit")
             return False
         
         english = (f"Specializations of {unit.name} may be more useful than it is, "
@@ -120,39 +132,45 @@ def setup_h1(heuristic) -> None:
         
         # Add to conjectures list
         if not system.add_conjecture(conjec):
+            logger.info("H1 failed to add conjecture to system")
             return False
             
         context['conjecture'] = conjec
+        logger.info(f"H1 created conjecture {conjec_name}")
         return True
 
     @rule_factory
     def then_add_to_agenda(rule, context):
-        logger.info(f"H1 adding task to agenda for {context.get('unit', 'no_unit')}, conjecture: {context.get('conjecture')}, system: {bool(context.get('system'))}")
-        logger.info(f"H1 trying to add task for unit {context.get('unit', 'no_unit')}, conjecture: {context.get('conjecture')}")
-        """Add task to specialize the unit."""
+        logger.info(f"H1 adding task for {context.get('unit', 'no_unit')}")
+        
         unit = context.get('unit')
         system = context.get('system')
         conjec = context.get('conjecture')
+        task_mgr = context.get('task_manager')
         
-        if not all([unit, system, conjec]):
-            logger.info(f"H1 missing requirements - unit: {bool(unit)}, system: {bool(system)}, conjecture: {bool(conjec)}")
+        if not all([unit, system, conjec, task_mgr]):
+            logger.info(f"H1 missing: unit={bool(unit)}, system={bool(system)}, conjec={bool(conjec)}, task_mgr={bool(task_mgr)}")
             return False
-        
-        # Create specialization task
-        task = {
-            'priority': unit.get_prop('worth', 500),
-            'unit_name': unit.name,
-            'slot_name': 'specializations', 
-            'reasons': [conjec.name],
-            'task_type': 'specialization',
-            'supplemental': {
+            
+        task = Task(
+            priority=unit.get_prop('worth', 500),
+            unit_name=unit.name,
+            slot_name='specializations',
+            reasons=[conjec.name],
+            task_type='specialization',
+            supplemental={
                 'credit_to': ['h1'],
                 'task_type': 'specialization'
             }
-        }
+        )
         
-        if not system.task_manager.add_task(task):
-            return False
-            
-        system.add_task_result('new_tasks', "1 unit must be specialized")
+        task_mgr.add_task(task)
+        logger.info(f"H1 added task to specialize {unit.name}")
+        
+        if 'task_results' in context:
+            results = context['task_results']
+            if 'new_tasks' not in results:
+                results['new_tasks'] = []
+            results['new_tasks'].append(f"Specializing {unit.name} based on {conjec.name}")
+        
         return True
