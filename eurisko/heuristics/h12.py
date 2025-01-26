@@ -1,107 +1,144 @@
-"""H12 heuristic implementation: Create prevention rules from failed concepts."""
-from typing import Any, Dict, List, Optional
+"""H12 heuristic implementation: Create rules to prevent mistakes."""
+from typing import Any, Dict
 import logging
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h12(heuristic) -> None:
-    """Configure H12: Learn from concept deletion.
-    
-    This heuristic examines concepts being deleted due to failure and creates
-    prevention rules that would have blocked their creation, helping the system
-    avoid similar mistakes in the future.
-    """
+    """Configure H12: Form rules that would have prevented mistakes."""
     heuristic.set_prop('worth', 700)
-    heuristic.set_prop('english',
-        "IF C is about to die, THEN try to form a new heuristic that -- had "
-        "it existed earlier -- would have prevented C from ever being defined.")
-    heuristic.set_prop('abbrev', "Form prevention rule from failed concept")
+    heuristic.set_prop('english', 
+        "IF C is about to die, then try to form a new heuristic, one which -- had "
+        "it existed earlier -- would have prevented C from ever being defined in "
+        "the first place")
+    heuristic.set_prop('abbrev', "Form a rule that would have prevented this mistake")
+    heuristic.set_prop('arity', 1)
+    
+    def record_func(rule, context):
+        return True
+    for record_type in ['then_compute', 'then_define_new_concepts', 'then_print_to_user', 'overall']:
+        heuristic.set_prop(f'{record_type}_record', record_func)
 
     @rule_factory
     def if_potentially_relevant(rule, context):
-        """Check if unit is being deleted."""
+        """Check if unit is about to be deleted."""
         unit = context.get('unit')
-        deleted_units = context.get('deleted_units', [])
-        
-        if not unit or unit.name not in deleted_units:
+        if not unit:
             return False
             
-        # Need to know what created this unit
-        creditors = unit.get_prop('creditors', [])
-        if not creditors:
+        deleted_units = context.get('task_results', {}).get('deleted_units', {}).get('units', [])
+        return unit in deleted_units
+
+    @rule_factory
+    def then_print_to_user(rule, context):
+        """Print explanation of preventative rule."""
+        unit = context.get('unit')
+        c_slot = context.get('c_slot')
+        g_slot = context.get('g_slot')
+        if not all([unit, c_slot, g_slot]):
             return False
             
-        # Store creator info for later
-        creator = creditors[0]  # Main creator
-        context['creator'] = creator
+        logger.info(f"\n\nJust before destroying a losing concept, Eurisko generalized "
+                   f"from that bad experience, in the following way: Eurisko will no "
+                   f"longer alter the {c_slot} slot of a unit when trying to find "
+                   f"{g_slot} of that unit. We learned our lesson from {unit.name}\n")
         return True
 
     @rule_factory
     def then_compute(rule, context):
-        """Create prevention rule based on failure analysis."""
+        """Extract task and slot information."""
         unit = context.get('unit')
-        creator = context.get('creator')
-        if not unit or not creator:
+        if not unit:
             return False
-
-        # Find task that created this unit by checking creator's applications
-        creator_apps = unit.get_prop('applications') or []
+            
+        # Get creating task info
+        creditors = unit.get_prop('creditors', [])
+        if not creditors:
+            return False
+            
+        creator = rule.unit_registry.get_unit(creditors[0])
+        if not creator:
+            return False
+            
+        # Find the task that created this unit
+        creator_apps = creator.get_prop('applications', [])
         creation_task = None
         for app in creator_apps:
-            if app.get('task_info'):
-                creation_task = app
+            if app.get('results') and unit in app['results']:
+                creation_task = app.get('task')
                 break
                 
         if not creation_task:
             return False
-
-        task_info = creation_task.get('task_info', {})
-        changed_slot = task_info.get('slot_to_change')
-        if not changed_slot:
-            return False
-
-        # Create prevention rule unit
-        rule_name = f"prevent_{changed_slot}_changes"
-        prevention_rule = rule.unit_registry.create_unit(rule_name)
-        if not prevention_rule:
+            
+        # Extract slot information
+        c_slot = creation_task.get('supplemental', {}).get('slot_to_change')
+        g_slot = creation_task.get('slot')
+        if not c_slot or not g_slot:
             return False
             
-        prevention_rule.set_prop('isa', ['prevention-rule'])
-        prevention_rule.set_prop('english', 
-            f"Prevent changes to {changed_slot} slot that led to the "
-            f"failure of {unit.name}")
-        prevention_rule.set_prop('slot_to_avoid', changed_slot)
-        prevention_rule.set_prop('learned_from', unit.name)
-        prevention_rule.set_prop('creditor', creator)
-        
-        # Register the new rule
-        rule.unit_registry.register(prevention_rule)
-
-        # Record the new rule in results
-        context['task_results'] = context.get('task_results', {})
-        context['task_results']['new_units'] = [prevention_rule]
+        context['c_slot'] = c_slot
+        context['g_slot'] = g_slot
         return True
 
     @rule_factory
-    def then_print_to_user(rule, context):
-        """Report on prevention rule creation."""
+    def then_define_new_concepts(rule, context):
+        """Create preventative rule unit."""
         unit = context.get('unit')
-        task_results = context.get('task_results', {})
-        
-        if not unit or not task_results:
+        c_slot = context.get('c_slot')
+        g_slot = context.get('g_slot')
+        if not all([unit, c_slot, g_slot]):
             return False
             
-        new_units = task_results.get('new_units', [])
-        if not new_units:
+        # Create new avoid rule
+        new_unit = rule.unit_registry.create_unit('h-avoid')
+        if not new_unit:
             return False
-
-        logger.info(
-            f"\nLearned prevention rule from failure of {unit.name}:"
-        )
+            
+        # Set properties from context
+        new_unit.set_prop('g_slot', g_slot)
+        new_unit.set_prop('c_slot', c_slot)
+        # Get sibling slots
+        sibling_slots = []
+        for slot in unit.get_prop('slots', []):
+            if slot.startswith(c_slot) or c_slot.startswith(slot):
+                sibling_slots.append(slot)
+        new_unit.set_prop('c_slot_sibs', sibling_slots)
+        new_unit.set_prop('not_for_real', True)
+            
+        # Update task results
+        task_results = context.get('task_results', {})
+        new_units = task_results.get('new_units', [])
+        new_units.append(new_unit)
+        task_results['new_units'] = new_units
+        context['task_results'] = task_results
         
-        for prevention_rule in new_units:
-            logger.info(
-                f"- Will prevent changes to {prevention_rule.get_prop('slot_to_avoid')} slot"
-            )
+        # Record application in h12
+        h12 = rule.unit_registry.get_unit('h12')
+        if h12:
+            task = context.get('task', {})
+            app = {
+                'args': [task],
+                'results': [new_unit],
+                'credit': {'initial': 1.0},
+                'description': [
+                    "Will avoid",
+                    c_slot, 
+                    f"{', actually all of these: ' if len(sibling_slots) > 1 else ','}", 
+                    sibling_slots if len(sibling_slots) > 1 else '',
+                    "of units whenever finding",
+                    g_slot,
+                    "of them"
+                ]
+            }
+            h12.add_to_prop('applications', app)
+            
+        # Add creditors for created unit
+        creditors = ['h2']
+        if task := context.get('task'):
+            task_creditors = task.get('supplemental', {}).get('credit_to', [])
+            creditors.extend(task_creditors)
+        new_unit.set_prop('creditors', creditors)
+            
         return True
