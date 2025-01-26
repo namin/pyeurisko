@@ -1,177 +1,133 @@
-"""H15 heuristic implementation: Find examples through multiple operations."""
-from typing import Any, Dict, List, Optional, Set
+"""H15 heuristic implementation: Find examples from multiple operations."""
+from typing import Any, Dict
 import logging
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h15(heuristic) -> None:
-    """Configure H15: Find examples from multiple operations.
-    
-    This heuristic examines multiple operations that can produce examples
-    of a concept, enabling more sophisticated example discovery by analyzing
-    patterns across different sources. It builds on H10's capabilities
-    by considering multiple operations simultaneously and tracking the
-    provenance of each example.
-    """
+    """Configure H15: Find examples from operation range outputs."""
     heuristic.set_prop('worth', 700)
-    heuristic.set_prop('english',
-        "IF the current task is to find examples of a unit, and it is the "
-        "range of multiple operations, THEN gather together the outputs of "
-        "all I/O pairs across those operations.")
-    heuristic.set_prop('abbrev', "Find examples from multiple operations")
-
-    @rule_factory
-    def if_potentially_relevant(rule, context):
-        """Verify task is for finding examples with multiple sources."""
-        task = context.get('task')
-        unit = context.get('unit')
-        
-        if not task or not unit:
-            return False
-            
-        if task.get('task_type') != 'find_examples':
-            return False
-            
-        # Need multiple operations that produce this type
-        operations = unit.get_prop('is_range_of', [])
-        if len(operations) < 2:  # Need at least 2 operations
-            return False
-            
-        context['source_ops'] = operations
+    heuristic.set_prop('english', 
+        "IF the current task is to find examples of a unit, and it is the range of "
+        "some operation f, THEN gather together the outputs of the I/O pairs stored on "
+        "Applications of f")
+    heuristic.set_prop('abbrev', "Find examples from operation range outputs")
+    heuristic.set_prop('arity', 1)
+    
+    def record_func(rule, context):
         return True
+    for record_type in ['then_compute', 'then_add_to_agenda', 'then_print_to_user', 'overall']:
+        heuristic.set_prop(f'{record_type}_record', record_func)
+    heuristic.set_prop('then_add_to_agenda_failed_record', record_func)
 
     @rule_factory
-    def then_compute(rule, context):
-        """Find examples from multiple operation outputs."""
+    def if_working_on_task(rule, context):
+        """Check if unit is in operation range."""
         unit = context.get('unit')
-        source_ops = context.get('source_ops', [])
-        
-        if not all([unit, source_ops]):
+        task = context.get('task')
+        if not all([unit, task]) or task.get('slot') != 'examples':
             return False
-
-        # Get outputs from all operations
-        outputs_by_op = {}
-        for op_name in source_ops:
-            op = rule.unit_registry.get_unit(op_name)
-            if not op:
-                continue
-                
-            # Get applications and extract results
-            applications = op.get_prop('applications', [])
-            if not applications:
-                continue
-                
-            outputs = []
-            for app in applications:
-                result = app.get('result')
-                if result is not None:
-                    outputs.append(result)
-                    
-            if outputs:
-                outputs_by_op[op_name] = outputs
-
-        if len(outputs_by_op) < 2:  # Need at least 2 operations with outputs
-            return False
-
-        # Analyze output patterns
-        all_values = set()
-        value_counts = {}
-        op_patterns = {}
-        
-        for op_name, op_outputs in outputs_by_op.items():
-            # Track unique values from this operation
-            op_values = set(op_outputs)
-            all_values.update(op_values)
             
-            # Analyze value patterns for this operation
-            op_patterns[op_name] = {
-                'unique_values': len(op_values),
-                'total_values': len(op_outputs),
-                'value_types': {
-                    type(val).__name__
-                    for val in op_outputs
-                }
-            }
-            
-            # Update global value counts
-            for val in op_outputs:
-                value_counts[val] = value_counts.get(val, 0) + 1
-
-        pattern_analysis = {
-            'total_unique': len(all_values),
-            'value_overlap': {
-                val: count
-                for val, count in value_counts.items()
-                if count > 1  # Values produced by multiple ops
-            },
-            'operation_patterns': op_patterns
-        }
-
-        # Track new examples and their sources
-        current_examples = set(unit.get_prop('examples', []))
-        new_examples = set()
-        example_sources = {}
-
-        # Process outputs from each operation
-        for op_name, outputs in outputs_by_op.items():
-            for output in outputs:
-                if output not in current_examples:
-                    new_examples.add(output)
-                    sources = example_sources.get(output, set())
-                    sources.add(op_name)
-                    example_sources[output] = sources
-
-        if new_examples:
-            context['task_results'] = context.get('task_results', {})
-            context['task_results'].update({
-                'new_values': list(new_examples),
-                'example_sources': example_sources,
-                'pattern_analysis': pattern_analysis,
-                'source_operations': list(set(
-                    source
-                    for sources in example_sources.values()
-                    for source in sources
-                ))
-            })
-            return True
-
-        return False
+        ops_to_use = unit.get_prop('is_range_of', [])
+        context['ops_to_use'] = ops_to_use
+        return bool(ops_to_use)
 
     @rule_factory
     def then_print_to_user(rule, context):
-        """Report on examples found through multiple operations."""
+        """Print example counts."""
         unit = context.get('unit')
-        task_results = context.get('task_results', {})
-        
-        if not unit or not task_results:
+        new_values = context.get('new_values', [])
+        if not all([unit, new_values]):
             return False
             
-        new_examples = task_results.get('new_values', [])
-        example_sources = task_results.get('example_sources', {})
-        pattern_analysis = task_results.get('pattern_analysis', {})
-        
-        if not new_examples:
-            return False
+        logger.info(f"\nInstantiated {unit.name}; there are now "
+                   f"{len(unit.get_prop('examples', []))} examples")
+        logger.info(f"    The new ones are: {new_values}")
+        return True
 
-        # Report new examples and their sources
-        logger.info(
-            f"\nFound {len(new_examples)} new examples for {unit.name} "
-            f"through {len(pattern_analysis['operation_patterns'])} operations:"
-        )
+    @rule_factory 
+    def then_compute(rule, context):
+        """Extract examples from operation applications."""
+        unit = context.get('unit')
+        ops_to_use = context.get('ops_to_use')
+        if not all([unit, ops_to_use]):
+            return False
+            
+        space_to_use = []
+        for op_name in ops_to_use:
+            op_unit = rule.unit_registry.get_unit(op_name)
+            if op_unit:
+                space_to_use.extend(op_unit.get_prop('applications', []))
+                
+        context['space_to_use'] = space_to_use
+        if not space_to_use:
+            return True  # Allow then_add_to_agenda to handle empty case
+            
+        current_examples = unit.get_prop('examples', [])
+        new_examples = []
         
-        for example in sorted(new_examples):
-            sources = example_sources.get(example, set())
-            logger.info(
-                f"- {example} (from {', '.join(sorted(sources))})"
-            )
+        for application in space_to_use:
+            output = application.get('result')
+            if output and output not in current_examples:
+                new_examples.append(output)
+                
+        if new_examples:
+            unit.set_prop('examples', current_examples + new_examples)
+            context['new_values'] = new_examples
             
-        # Report any interesting patterns
-        overlaps = pattern_analysis.get('value_overlap', {})
-        if overlaps:
-            logger.info("\nPattern Analysis:")
-            logger.info(
-                f"- {len(overlaps)} values produced by multiple operations"
-            )
+            task_results = context.get('task_results', {})
+            task_results['new_values'] = {
+                'unit': unit.name,
+                'examples': new_examples,
+                'description': f"Found {len(new_examples)} examples by examining "
+                             f"applications of {len(ops_to_use)} operations"
+            }
+            context['task_results'] = task_results
             
+        return True
+
+    @rule_factory
+    def then_add_to_agenda(rule, context):
+        """Add tasks to find more applications if needed."""
+        unit = context.get('unit')
+        task = context.get('task')
+        ops_to_use = context.get('ops_to_use')
+        space_to_use = context.get('space_to_use')
+        if not all([unit, task, ops_to_use]) or space_to_use:
+            return False
+            
+        # Create tasks for each operation
+        new_tasks = []
+        for op in ops_to_use:
+            new_tasks.append({
+                'priority': task['priority'] - 1,
+                'unit': op,
+                'slot': 'applications',
+                'reasons': [f"Recent task was stymied for lack of such applications"],
+                'supplemental': {'credit_to': ['h15']}
+            })
+            
+        # Add task to retry examples
+        new_tasks.append({
+            'priority': task['priority'] // 2,
+            'unit': unit.name,
+            'slot': 'examples',
+            'reasons': [f"Had to suspend whilst gathering applications of {ops_to_use}"],
+            'supplemental': task.get('supplemental', {})
+        })
+        
+        for new_task in new_tasks:
+            if not rule.task_manager.add_task(new_task):
+                return False
+                
+        task_results = context.get('task_results', {})
+        task_results['new_tasks'] = [
+            f"{len(ops_to_use)} tasks to find Applications and 1 task "
+            "just like the current one"
+        ]
+        context['task_results'] = task_results
+        
+        logger.info(f"\nHmmm... can't proceed with this until some Applications "
+                   f"of {ops_to_use} are known.")
         return True
