@@ -2,6 +2,7 @@
 from typing import Any, Dict, List, Optional
 from ..units import Unit
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -25,27 +26,8 @@ def setup_h22(heuristic) -> None:
     heuristic.set_prop('overall_record', (75, 1))
     heuristic.set_prop('arity', 1)
 
-    def get_instance_slot(unit: Unit) -> Optional[str]:
-        """Determine appropriate instance slot for the unit."""
-        instance_types = unit.get_prop('instances', ['examples'])
-        if not instance_types:
-            return None
-            
-        # Get most specific instance type
-        for slot in instance_types:
-            if unit.get_prop(slot):
-                return slot
-                
-        return instance_types[0]
-
     def get_interestingness_criteria(unit: Unit) -> List[Dict[str, Any]]:
-        """Get criteria for evaluating instance interestingness.
-        
-        Returns a list of criteria, each with:
-        - test: Function to evaluate the criterion
-        - weight: Relative importance (0-1)
-        - description: Human-readable explanation
-        """
+        """Get criteria for evaluating instance interestingness."""
         base_criteria = [
             {
                 'test': lambda x: len(str(x)) > 100,
@@ -66,78 +48,95 @@ def setup_h22(heuristic) -> None:
             
         return base_criteria
 
-    def check_task_completion(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_finished_working_on_task(rule, context):
         """Check if we've just found new instances that need evaluation."""
         unit = context.get('unit')
         task = context.get('task')
         if not unit or not task:
             return False
             
-        # Get instance slot and verify we have instances
-        instance_slot = get_instance_slot(unit)
-        if not instance_slot:
+        # Determine appropriate instance slot
+        instance_types = unit.get_prop('instances', ['examples'])
+        if not instance_types:
             return False
+            
+        # Get most specific instance type with content
+        instance_slot = None
+        for slot in instance_types:
+            if unit.get_prop(slot):
+                instance_slot = slot
+                break
+                
+        if not instance_slot:
+            instance_slot = instance_types[0]
             
         context['instance_slot'] = instance_slot
         
-        # Need interestingness criteria
+        # Get interestingness criteria
         criteria = get_interestingness_criteria(unit)
         if not criteria:
             return False
             
         context['criteria'] = criteria
         
-        # Check if this task found new instances
-        new_values = context.get('system').get_task_result('new_values')
+        # Verify we have new instances to evaluate
+        new_values = context.get('task_results', {}).get('new_values')
         return bool(new_values)
 
-    def get_more_interesting_slot(slots: List[str]) -> Optional[str]:
-        """Determine which slot represents more interesting instances."""
+    @rule_factory
+    def then_print_to_user(rule, context):
+        """Report plan to evaluate instance interestingness."""
+        unit = context.get('unit')
+        instance_slot = context.get('instance_slot')
+        criteria = context.get('criteria', [])
+        
+        if not all([unit, instance_slot]):
+            return False
+            
+        num_instances = len(unit.get_prop(instance_slot, []))
+        
+        logger.info(
+            f"\nWill evaluate the interestingness of {num_instances} instances "
+            f"of {unit.name} using {len(criteria)} criteria:"
+        )
+        
+        for criterion in criteria:
+            logger.info(f"- {criterion['description']} (weight: {criterion['weight']})")
+        
+        return True
+
+    @rule_factory
+    def then_add_to_agenda(rule, context):
+        """Add task to evaluate instance interestingness."""
+        unit = context.get('unit')
+        instance_slot = context.get('instance_slot')
+        criteria = context.get('criteria', [])
+        
+        if not all([unit, instance_slot, criteria]):
+            return False
+            
+        # Determine target slot for interesting instances
         slot_ranking = {
             'examples': 1,
             'int_examples': 2,
             'very_int_examples': 3
         }
         
-        return max(slots, key=lambda s: slot_ranking.get(s, 0))
-
-    def print_to_user(context: Dict[str, Any]) -> bool:
-        """Report plan to evaluate instance interestingness."""
-        unit = context.get('unit')
-        instance_slot = context.get('instance_slot')
-        num_instances = len(unit.get_prop(instance_slot, []))
-        
-        if not all([unit, instance_slot]):
-            return False
-            
-        logger.info(
-            f"\nWill evaluate the interestingness of {num_instances} instances "
-            f"of {unit.name} using {len(context.get('criteria', []))} criteria."
-        )
-        return True
-
-    def add_to_agenda(context: Dict[str, Any]) -> bool:
-        """Add task to evaluate instance interestingness."""
-        unit = context.get('unit')
-        system = context.get('system')
-        instance_slot = context.get('instance_slot')
-        
-        if not all([unit, system, instance_slot]):
-            return False
-            
-        # Determine appropriate slot for more interesting instances
-        target_slot = get_more_interesting_slot([
+        available_slots = [
             instance_slot,
             'int_examples',
             'very_int_examples'
-        ])
+        ]
+        
+        target_slot = max(available_slots, key=lambda s: slot_ranking.get(s, 0))
         
         if target_slot == instance_slot:
             return False
             
         task = {
             'priority': unit.get_prop('worth', 500),
-            'unit': unit,
+            'unit': unit.name,
             'slot': target_slot,
             'reasons': [
                 f"Evaluate which instances of {unit.name} are particularly "
@@ -146,18 +145,14 @@ def setup_h22(heuristic) -> None:
             'supplemental': {
                 'credit_to': ['h22'],
                 'source_slot': instance_slot,
-                'criteria': context.get('criteria', [])
+                'criteria': criteria
             }
         }
         
-        system.task_manager.add_task(task)
-        system.add_task_result(
-            'new_tasks',
-            f"Will evaluate interestingness of {unit.name} instances"
-        )
+        if not rule.task_manager.add_task(task):
+            return False
+            
+        context['task_results'] = {
+            'new_tasks': f"Will evaluate interestingness of {unit.name} instances"
+        }
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_finished_working_on_task', check_task_completion)
-    heuristic.set_prop('then_print_to_user', print_to_user)
-    heuristic.set_prop('then_add_to_agenda', add_to_agenda)

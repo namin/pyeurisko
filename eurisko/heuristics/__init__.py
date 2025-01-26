@@ -61,14 +61,15 @@ def initialize_all_heuristics(unit_registry) -> None:
     for h in heuristics:
         try:
             h_num = int(h['name'][1:])  # Extract number from hX
-            if h_num not in range(1, 21):  # Updated to include h11
+            if h_num not in range(1, 23):  # Updated to include h11
                 continue
-            unit = unit_registry.create_unit(h['name'])
-            unit.set_prop('isa', ['heuristic', 'anything'])
-            if not unit.get_prop('english'):
-                unit.set_prop('english', h['description'])
-            setup_func = h['setup_func']
-            setup_func(unit)
-            unit_registry.register(unit)
         except ValueError:
             continue  # Skip any malformed heuristic names
+        unit = unit_registry.create_unit(h['name'])
+        unit.set_prop('isa', ['heuristic', 'anything'])
+        if not unit.get_prop('english'):
+            unit.set_prop('english', h['description'])
+        setup_func = h['setup_func']
+        setup_func(unit)
+        unit_registry.register(unit)
+

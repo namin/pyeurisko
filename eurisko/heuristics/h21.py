@@ -2,6 +2,7 @@
 from typing import Any, Dict, List, Set
 from ..units import Unit
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,8 @@ def setup_h21(heuristic) -> None:
     heuristic.set_prop('overall_record', (11576, 2))
     heuristic.set_prop('arity', 1)
 
-    def check_task_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_working_on_task(rule, context):
         """Verify task is examining conjectures with involved units."""
         task = context.get('task')
         if not task:
@@ -44,47 +46,60 @@ def setup_h21(heuristic) -> None:
         context['involved_units'] = involved_units
         return True
 
-    def analyze_application_overlap(unit: Unit, other: Unit) -> Dict[str, Any]:
-        """Analyze how one unit's applications relate to another's.
+    @rule_factory
+    def then_compute(rule, context):
+        """Identify potential extension relationships."""
+        unit = context.get('unit')
+        involved_units = context.get('involved_units', [])
         
-        Returns a dictionary containing:
-        - fully_contains: Whether unit contains all of other's applications 
-        - overlap_ratio: Fraction of shared applications
-        - unique_results: Results unique to unit
-        """
-        unit_apps = unit.get_prop('applications', [])
-        other_apps = other.get_prop('applications', [])
-        
-        # Convert to sets for comparison
-        unit_results = {
-            tuple(app['args']): app['result']
-            for app in unit_apps
-        }
-        other_results = {
-            tuple(app['args']): app['result']
-            for app in other_apps
-        }
-        
-        # Find overlapping applications
-        shared_args = set(unit_results.keys()) & set(other_results.keys())
-        matching_results = sum(
-            1 for args in shared_args
-            if unit_results[args] == other_results[args]
-        )
-        
-        return {
-            'fully_contains': (
-                matching_results == len(other_results) and
-                len(unit_results) > len(other_results)
-            ),
-            'overlap_ratio': (
-                matching_results / len(other_results)
-                if other_results else 0
-            ),
-            'unique_results': len(unit_results) - matching_results
-        }
+        if not all([unit, involved_units]):
+            return False
+            
+        extensions = []
+        for other_name in involved_units:
+            other = rule.unit_registry.get_unit(other_name)
+            if not other:
+                continue
+                
+            # Compare applications between units
+            unit_apps = unit.get_prop('applications', [])
+            other_apps = other.get_prop('applications', [])
+            
+            # Convert to result mappings for comparison
+            unit_results = {
+                tuple(app['args']): app['result']
+                for app in unit_apps
+            }
+            other_results = {
+                tuple(app['args']): app['result']
+                for app in other_apps
+            }
+            
+            # Find overlapping applications
+            shared_args = set(unit_results.keys()) & set(other_results.keys())
+            matching_results = sum(
+                1 for args in shared_args
+                if unit_results[args] == other_results[args]
+            )
+            
+            # Check for extension relationship
+            if (matching_results == len(other_results) and
+                len(unit_results) > len(other_results)):
+                    
+                extensions.append({
+                    'unit': other,
+                    'overlap_ratio': matching_results / len(other_results),
+                    'unique_results': len(unit_results) - matching_results
+                })
+                
+        if extensions:
+            context['extensions'] = extensions
+            return True
+            
+        return False
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Report discovered extension relationships."""
         unit = context.get('unit')
         extensions = context.get('extensions', [])
@@ -95,56 +110,34 @@ def setup_h21(heuristic) -> None:
         for ext in extensions:
             logger.info(
                 f"\n{unit.name} appears to be an extension of {ext['unit'].name} "
-                f"(contains all results plus {ext['unique']} unique results)"
+                f"(contains all results plus {ext['unique_results']} unique results)"
             )
         return True
 
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Identify potential extension relationships."""
-        unit = context.get('unit')
-        system = context.get('system')
-        involved_units = context.get('involved_units', [])
-        
-        if not all([unit, system, involved_units]):
-            return False
-            
-        extensions = []
-        for other_name in involved_units:
-            other = system.unit_registry.get_unit(other_name)
-            if not other:
-                continue
-                
-            overlap = analyze_application_overlap(unit, other)
-            if overlap['fully_contains']:
-                extensions.append({
-                    'unit': other,
-                    'overlap': overlap['overlap_ratio'],
-                    'unique': overlap['unique_results']
-                })
-                
-        context['extensions'] = extensions
-        return bool(extensions)
-
-    def make_conjecture(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_conjecture(rule, context):
         """Create conjectures about extension relationships."""
         unit = context.get('unit')
-        system = context.get('system')
         extensions = context.get('extensions', [])
         
-        if not all([unit, system, extensions]):
+        if not unit or not extensions:
             return False
             
         for ext in extensions:
             other = ext['unit']
             
             # Create the conjecture
-            conjec_name = system.new_name('conjec')
-            conjec = system.create_unit(conjec_name, 'proto-conjec')
+            conjec_name = f"extend_{unit.name}_{other.name}"
+            conjec = rule.unit_registry.create_unit(conjec_name)
+            if not conjec:
+                continue
+                
+            conjec.set_prop('isa', ['proto-conjec'])
             
             english = (
                 f"All applications of {other.name} are also applications of "
                 f"{unit.name}, suggesting that {unit.name} is an extension of "
-                f"{other.name}. {unit.name} also has {ext['unique']} unique "
+                f"{other.name}. {unit.name} also has {ext['unique_results']} unique "
                 f"applications not covered by {other.name}."
             )
             
@@ -154,8 +147,8 @@ def setup_h21(heuristic) -> None:
             
             # Worth based on overlap and uniqueness
             worth = int(min(1000, (
-                400 * ext['overlap'] +  # Reward completeness of overlap
-                200 * (ext['unique'] / len(unit.get_prop('applications', []))) +  # Reward uniqueness
+                400 * ext['overlap_ratio'] +  # Reward completeness of overlap
+                200 * (ext['unique_results'] / len(unit.get_prop('applications', []))) +  # Reward uniqueness
                 200  # Base worth
             )))
             conjec.set_prop('worth', worth)
@@ -163,8 +156,10 @@ def setup_h21(heuristic) -> None:
             # Record the relationship
             conjec.set_prop('conjecture_about', [unit.name, other.name])
             
+            # Register the conjecture
+            rule.unit_registry.register(conjec)
+            
             # Add conjecture to both units
-            system.add_conjecture(conjec)
             unit.add_to_prop('conjectures', conjec.name)
             other.add_to_prop('conjectures', conjec.name)
             
@@ -173,9 +168,3 @@ def setup_h21(heuristic) -> None:
             other.add_to_prop('extensions', unit.name)
             
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_working_on_task', check_task_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)
-    heuristic.set_prop('then_conjecture', make_conjecture)
