@@ -2,65 +2,10 @@
 
 import re
 from typing import Dict, List, Any, Tuple, Optional
+import sexpdata
 
-def parse_lisp_expression(s: str) -> Any:
-    """Parse a LISP expression, handling nested lists and atoms."""
-    s = s.strip()
-    if not s:
-        return None
-
-    if s[0] == '(':
-        # Parse a list
-        stack = []
-        current = []
-        i = 1  # Skip first paren
-        token = []
-        
-        while i < len(s):
-            c = s[i]
-            
-            if c == '(':
-                stack.append(current)
-                current = []
-            elif c == ')':
-                if token:
-                    current.append(''.join(token))
-                    token = []
-                if stack:
-                    prev = stack.pop()
-                    prev.append(current)
-                    current = prev
-                i += 1
-                break
-            elif c.isspace():
-                if token:
-                    current.append(''.join(token))
-                    token = []
-            else:
-                token.append(c)
-            i += 1
-
-        return current
-    else:
-        # Parse an atom
-        if s.isdigit():
-            return int(s)
-        elif s == 'nil':
-            return None
-        elif s == 't':
-            return True
-        else:
-            return s
-
-def parse_unit_def(text: str) -> Dict[str, Any]:
-    """Parse a unit definition into a dictionary of properties."""
-    # Extract unit name
-    name_match = re.search(r'defunit\s+(\S+)', text)
-    if not name_match:
-        raise ValueError("Could not find unit name")
-    name = name_match.group(1)
-    
-    e = parse_lisp_expression(text)
+def parse_unit_def(e) -> Dict[str, Any]:
+    name = str(e[1])
     prope = e[2:]
     props = dict([(prope[i], prope[i+1]) for i in range(0, len(prope) - 1, 2)])
     return {
@@ -70,51 +15,9 @@ def parse_unit_def(text: str) -> Dict[str, Any]:
 
 def split_unit_definitions(text: str) -> List[str]:
     """Split a LISP file into individual unit definitions."""
-    # Remove comments
-    lines = []
-    for line in text.split('\n'):
-        comment_idx = line.find(';')
-        if comment_idx >= 0:
-            line = line[:comment_idx]
-        if line.strip():
-            lines.append(line)
-    
-    text = '\n'.join(lines)
-    
-    # Split on defunit
-    units = []
-    current = []
-    paren_count = 0
-    
-    for line in text.split('\n'):
-        stripped = line.strip()
-        if stripped.startswith('(defunit') and paren_count == 0:
-            if current:
-                units.append('\n'.join(current))
-            current = [line]
-            paren_count = line.count('(') - line.count(')')
-        else:
-            current.append(line)
-            paren_count += line.count('(') - line.count(')')
-            
-    if current:
-        units.append('\n'.join(current))
-        
+    es = sexpdata.loads("(begin "+text+")")
+    units = [parse_unit_def(e) for e in es[1:]]
     return units
-
-def format_python_value(value: Any) -> str:
-    """Format a parsed LISP value as Python code."""
-    if isinstance(value, list):
-        items = [format_python_value(x) for x in value]
-        return f"[{', '.join(items)}]"
-    elif value is None:
-        return 'None'
-    elif isinstance(value, bool):
-        return str(value).lower()
-    elif isinstance(value, (int, float)):
-        return str(value)
-    else:
-        return f"'{value}'"
 
 def convert_unit_to_python(unit_data: Dict[str, Any]) -> str:
     """Convert a parsed unit into Python initialization code."""
@@ -125,18 +28,21 @@ def convert_unit_to_python(unit_data: Dict[str, Any]) -> str:
     lines.append(f"# {name}")
     lines.append(f"unit = registry.create_unit('{name}')")
     
-    # Set worth first if present
-    if 'worth' in props:
-        lines.append(f"unit.set_prop('worth', {props['worth']})")
-    
-    # Then other properties
     for prop, value in sorted(props.items()):
-        if prop != 'worth':
-            formatted_value = format_python_value(value)
-            lines.append(f"unit.set_prop('{prop}', {formatted_value})")
+        formatted_value = convert_to_python(value)
+        lines.append(f"unit.set_prop('{prop}', {formatted_value})")
     
     lines.append("")  # Add blank line
     return '\n'.join(lines)
+
+def convert_to_python(obj):
+    """Recursively convert sexpdata parsed objects into Python native types."""
+    if isinstance(obj, sexpdata.Symbol):  # Convert symbols to strings
+        return obj.value()
+    elif isinstance(obj, list):  # Convert lists recursively
+        return [convert_to_python(item) for item in obj]
+    else:  # Keep numbers as they are
+        return obj
 
 def convert_lisp_file(input_file: str, output_file: str, module_name: str) -> None:
     """Convert a LISP unit definition file to Python."""
@@ -145,17 +51,7 @@ def convert_lisp_file(input_file: str, output_file: str, module_name: str) -> No
         text = f.read()
     
     # Split into unit definitions
-    unit_texts = split_unit_definitions(text)
-    
-    # Parse each unit
-    units = []
-    for unit_text in unit_texts:
-        try:
-            unit = parse_unit_def(unit_text)
-            units.append(unit)
-        except Exception as e:
-            print(f"Warning: Could not parse unit: {e}")
-            continue
+    units = split_unit_definitions(text)
     
     # Generate Python code
     lines = [
