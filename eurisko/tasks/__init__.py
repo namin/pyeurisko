@@ -287,11 +287,15 @@ class TaskManager:
                 return task.results
 
             # Only apply if relevant (via if-parts)
+            logger.debug(f"Checking if {heuristic.name} is relevant")
             if not self._is_heuristic_relevant(heuristic, context):
+                logger.debug(f"{heuristic.name} not relevant")
                 continue
 
             # Apply heuristic's then-parts
+            logger.debug(f"Applying {heuristic.name}")
             success = self._apply_heuristic(heuristic, context)
+            logger.debug(f"{heuristic.name} applied with success={success}")
             self.track_heuristic_result(heuristic.name, success)
 
             if success and self.verbosity > 39:
