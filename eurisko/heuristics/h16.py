@@ -1,174 +1,132 @@
-"""H16 heuristic implementation: Generalize moderately successful actions."""
-from typing import Any, Dict, Optional
-from ..units import Unit
+"""H16 heuristic implementation: Generalize useful actions."""
+from typing import Any, Dict
 import logging
-import math
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h16(heuristic) -> None:
-    """Configure H16: Generalize moderately successful actions.
-    
-    This heuristic looks for concepts that have shown consistent success
-    (>10% high-worth applications) and suggests exploring generalizations.
-    """
-    # Set core properties from original Eurisko
+    """Configure H16: Generalize a sometimes-useful action."""
     heuristic.set_prop('worth', 600)
-    heuristic.set_prop('english',
-        "IF an op F has shown significant success (more than 1 in 10 applications "
-        "are valuable), THEN conjecture that some Generalizations of F may be even "
-        "more valuable, and add tasks to generalize F to the Agenda.")
-    heuristic.set_prop('abbrev', "Generalize a consistently-useful action")
-    
-    # Initialize success tracking
-    heuristic.set_prop('then_conjecture_record', (653, 4))
-    heuristic.set_prop('then_add_to_agenda_record', (90, 4)) 
-    heuristic.set_prop('then_print_to_user_record', (622, 4))
-    heuristic.set_prop('overall_record', (1756, 4))
+    heuristic.set_prop('english', 
+        "IF the results of performing f are sometimes (at least one time in ten) useful, "
+        "THEN consider creating new generalizations of f")
+    heuristic.set_prop('abbrev', "Generalize a sometimes-useful action")
     heuristic.set_prop('arity', 1)
+    
+    def record_func(rule, context):
+        return True
+    for record_type in ['then_conjecture', 'then_add_to_agenda', 'then_print_to_user', 'overall']:
+        heuristic.set_prop(f'{record_type}_record', record_func)
 
     @rule_factory
     def if_potentially_relevant(rule, context):
-        """Verify unit has recorded applications."""
+        """Check if unit has applications."""
         unit = context.get('unit')
         if not unit:
             return False
-        alg = unit.get_prop('alg')  # Check if unit has algorithm
-        return bool(alg and unit.get_prop('applications'))
+        return bool(unit.get_prop('applications'))
 
     @rule_factory
     def if_truly_relevant(rule, context):
-        """Check if unit demonstrates consistent moderate success."""
+        """Check if worth exceeds threshold."""
         unit = context.get('unit')
         if not unit:
             return False
             
-        # Get and validate applications
-        applications = unit.get_prop('applications')
-        if not applications:
-            return False
-            
-        # Analyze worth distribution
-        worth_values = [app.get('worth', 0) for app in applications]
-        high_worth = sum(1 for w in worth_values if w >= 800)
+        applications = unit.get_prop('applications', [])
+        high_worth_count = 0
+        total_count = 0
         
-        if not worth_values:
+        for app in applications:
+            results = app.get('results', [])
+            for result in results:
+                total_count += 1
+                if result and result.get_prop('worth', 0) >= 800:
+                    high_worth_count += 1
+                    
+        if total_count == 0:
             return False
             
-        avg = sum(worth_values) / len(worth_values)
-        variance = sum((w - avg) ** 2 for w in worth_values) / len(worth_values)
+        fraction = high_worth_count / total_count
+        context['fraction'] = fraction
         
-        worth_stats = {
-            'success_ratio': high_worth / len(applications),
-            'avg_worth': avg,
-            'worth_variance': variance
-        }
-        
-        context['worth_stats'] = worth_stats
-            
-        # Need >10% success rate but not too high to avoid overgeneralization
-        success_ratio = worth_stats['success_ratio']
-        if not (0.1 < success_ratio < 0.8):
-            return False
-            
-        # Check not already subsumed
-        if unit.get_prop('subsumed_by'):
-            return False
-            
-        return True
+        # Check generalization criteria
+        return (fraction > 0.1 and 
+                not unit.get_prop('subsumed_by'))
 
     @rule_factory
     def then_print_to_user(rule, context):
-        """Print explanation of generalization opportunity."""
+        """Print explanation of generalization."""
         unit = context.get('unit')
         conjec = context.get('conjecture')
-        worth_stats = context.get('worth_stats', {})
-        
-        if not all([unit, conjec, worth_stats]):
+        if not all([unit, conjec]):
             return False
             
-        success_pct = worth_stats['success_ratio'] * 100
-        logger.info(
-            f"\n{conjec}:\n"
-            f"Since {unit.name} shows consistent success ({success_pct:.1f}% valuable "
-            f"applications), EURISKO sees potential value in finding concepts that "
-            f"generalize {unit.name}. A new task has been added to explore such "
-            f"generalizations."
-        )
+        logger.info(f"\n{conjec}:\nSince some applications of {unit.name} are very "
+                   f"valuable, EURISKO wants to find new concepts which are slightly "
+                   f"more generalized than {unit.name}, and (to that end) has added "
+                   f"a new task to the agenda to find such concepts.")
         return True
 
     @rule_factory
     def then_conjecture(rule, context):
-        """Create conjecture about generalizing the unit."""
+        """Create conjecture about generalization."""
         unit = context.get('unit')
-        worth_stats = context.get('worth_stats', {})
-        
-        if not all([unit, worth_stats]):
+        fraction = context.get('fraction')
+        if not all([unit, fraction is not None]):
             return False
             
         # Create new conjecture unit
-        conjec_name = f"conjec_{unit.name}_generalization"
-        conjec = rule.unit_registry.create_unit(conjec_name)
+        system = rule.unit_registry
+        conjec_name = system.new_name('conjec')
+        conjec = system.create_unit(conjec_name, 'proto-conjec')
         if not conjec:
             return False
             
-        success_pct = worth_stats['success_ratio'] * 100
-        english = (
-            f"Generalizations of {unit.name} may be valuable in the long run, as it "
-            f"already shows consistent success ({success_pct:.1f}% of applications "
-            f"are valuable) with average worth {worth_stats['avg_worth']:.1f}"
-        )
+        # Set properties
+        description = f"Generalizations of {unit.name} may be very valuable in the " \
+                     f"long run, since it already has some good applications " \
+                     f"({fraction*100:.1f}% are winners)"
+        conjec.set_prop('english', description)
+        conjec.set_prop('abbrev', 
+            f"{unit.name} sometimes wins, so generalizations of it may be very big winners")
         
-        conjec.set_prop('english', english)
-        conjec.set_prop('abbrev',
-            f"{unit.name} wins {success_pct:.1f}% of the time - generalizations may win more")
+        # Calculate worth based on unit and h16
+        h16_worth = rule.worth_value()
+        unit_worth = unit.worth_value()
+        conjec.set_prop('worth', (h16_worth + unit_worth) // 2)
         
-        # Worth based on success rate and consistency
-        base_worth = 600  # H16's base worth
-        consistency_bonus = math.exp(-worth_stats['worth_variance'] / 1000) * 200
-        worth = int(min(1000, base_worth * worth_stats['success_ratio'] + consistency_bonus))
-        
-        conjec.set_prop('worth', worth)
-        conjec.set_prop('isa', ['proto-conjec'])
-        
-        rule.unit_registry.register(conjec)
+        # Add to conjectures
+        if not system.add_conjecture(conjec):
+            return False
+            
         context['conjecture'] = conjec
         return True
 
     @rule_factory
     def then_add_to_agenda(rule, context):
-        """Add task to explore generalizations."""
+        """Add task to generalize the unit."""
         unit = context.get('unit')
         conjec = context.get('conjecture')
-        worth_stats = context.get('worth_stats', {})
+        system = rule.unit_registry
         
-        if not all([unit, conjec, worth_stats]):
+        if not all([unit, conjec, system]):
             return False
             
-        # Calculate priority based on unit worth and success metrics
-        priority = int(
-            unit.get_prop('worth', 500) * 
-            (0.5 + worth_stats['success_ratio']) *
-            math.exp(-worth_stats['worth_variance'] / 1000)
-        )
-        
+        # Create generalization task
         task = {
-            'priority': priority,
-            'unit': unit.name,
+            'priority': (unit.worth_value() + rule.worth_value()) // 2,
+            'unit': unit,
             'slot': 'generalizations',
-            'reasons': [conjec.name],
+            'reasons': [conjec],
             'supplemental': {
-                'credit_to': ['h16'],
-                'task_type': 'generalization',
-                'worth_stats': worth_stats
+                'credit_to': ['h16']
             }
         }
         
-        if not rule.task_manager.add_task(task):
+        if not system.task_manager.add_task(task):
             return False
             
-        context['task_results'] = {
-            'new_tasks': "1 unit will be explored for generalizations"
-        }
+        system.add_task_result('new_tasks', "1 unit must be generalized")
         return True
