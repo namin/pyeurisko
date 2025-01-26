@@ -37,7 +37,9 @@
 │   │   ├── __init__.py # significant
 │   │   └── function_slots.py
 │   ├── tasks
-│   │   └── __init__.py # significant, might want to split out the task manager
+│   │   └── __init__.py # not significant
+│   │   ├── task.py
+│   │   └── task_manager.py # very important for interacting with heuristics
 │   └── units
 │       ├── __init__.py # significant
 │       ├── concepts.py
