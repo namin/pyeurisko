@@ -217,4 +217,7 @@ class UnitRegistry:
         return unit
 
 def initialize_all_units(registry) -> None:
-    pass
+    from .core import initialize_core_units
+    from .concepts import initialize_core_concepts
+    initialize_core_units(registry)
+    initialize_core_concepts(registry)

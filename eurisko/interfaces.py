@@ -103,7 +103,7 @@ class EuriskoObject(BaseEurisko):
             return value in (True, False, 0, 1)
         elif data_type == 'unit':
             # Import here to avoid circular imports
-            from .unit import Unit
+            from .units import Unit
             return isinstance(value, (str, Unit))
         elif data_type == 'lisp_fn':
             return callable(value)
