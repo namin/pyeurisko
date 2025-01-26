@@ -1,91 +1,84 @@
-"""H7 heuristic implementation: Find instances for concepts with none.
-
-This heuristic triggers when a concept has no known instances, prompting the system
-to search for some. It works for both categories and operators.
-"""
-
+"""H7 heuristic implementation: Find instances for concepts with none."""
 from typing import Any, Dict
-from ..units import Unit
 import logging
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h7(heuristic) -> None:
-    """Configure H7: Find instances for concepts with no known instances."""
-    # Set properties from original LISP implementation
+    """Configure H7: Find instances for concepts that have none."""
+    # Set basic properties
     heuristic.set_prop('worth', 700)
-    heuristic.set_prop('english',
+    heuristic.set_prop('english', 
         "IF a concept has no known instances, THEN try to find some")
     heuristic.set_prop('abbrev', "Instantiate a concept having no known instances")
     heuristic.set_prop('arity', 1)
     
-    # Set record counts from original
-    heuristic.set_prop('then_add_to_agenda_record', (11017, 172))
-    heuristic.set_prop('then_print_to_user_record', (21543, 172))
-    heuristic.set_prop('overall_record', (71147, 172))
+    # Initialize record properties
+    def record_func(rule, context):
+        return True
+    heuristic.set_prop('then_add_to_agenda_record', record_func)
+    heuristic.set_prop('then_print_to_user_record', record_func)
+    heuristic.set_prop('overall_record', record_func)
 
     @rule_factory
     def if_potentially_relevant(rule, context):
-        """Check if the concept has no instances."""
+        """Check if unit has no instances."""
         unit = context.get('unit')
         if not unit:
             return False
             
-        return not bool(unit.get_prop('examples'))
+        instances = unit.get_prop('instances', [])
+        return len(instances) == 0
 
-    @rule_factory
+    @rule_factory 
     def if_truly_relevant(rule, context):
-        """Check if the concept is a category or operator."""
+        """Check if unit is a category or operation."""
         unit = context.get('unit')
         if not unit:
             return False
             
-        isa = unit.get_prop('isa')
-        if not isa:
-            return False
-            
-        return 'category' in isa or 'op' in isa
+        # Check unit type
+        unit_type = unit.get_prop('type', '')
+        return unit_type in ['category', 'operation']
 
     @rule_factory
     def then_print_to_user(rule, context):
-        """Print explanation of the instance-finding task."""
+        """Print explanation of action."""
         unit = context.get('unit')
         if not unit:
             return False
             
-        logger.info(f"\nSince {unit.name} has no known examples, "
+        instance_type = unit.get_prop('instance_type', 'instances')
+        logger.info(f"\nSince {unit.name} has no known {instance_type}, "
                    f"it is probably worth looking for some.")
         return True
 
     @rule_factory
-    def then_compute(rule, context):
-        """Create task to find instances."""
+    def then_add_to_agenda(rule, context):
+        """Add task to find instances of the unit."""
         unit = context.get('unit')
         if not unit:
             return False
             
-        # Initialize context if needed
-        if not isinstance(context.get('task'), dict):
-            context['task'] = {}
-            
-        # Create task
+        # Create new task
         task = {
-            'priority': unit.worth_value(),
-            'task_type': 'find_instances',
-            'target_unit': unit.name,
+            'priority': unit.get_prop('worth', 500),
+            'unit': unit,
+            'slot': unit.get_prop('instance_type', 'instances'),
+            'reasons': [
+                f"To properly study {unit.name} we must gather empirical data "
+                "about instances of that concept"
+            ],
             'supplemental': {
                 'credit_to': ['h7']
             }
         }
         
-        # Add task to manager
-        if not rule.task_manager.add_task(task):
+        # Add task and update results
+        system = rule.unit_registry 
+        if not system or not system.task_manager.add_task(task):
             return False
             
-        # Update task results
-        context['task_results'] = {
-            'new_tasks': "1 unit must be instantiated"
-        }
-        
+        system.add_task_result('new_tasks', "1 unit must be instantiated")
         return True
