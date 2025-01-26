@@ -10,33 +10,14 @@ from ..units import Unit, UnitRegistry
 
 def rule_factory(func: Callable):
     """Create a factory decorator for rule functions.
-    Infers property name from function name:
-        check_* -> if_finished_working_on_task
-        print_* -> then_print_to_user
-        compute_* -> then_compute
-        etc.
+    The property name is exactly the function name.
     """
     def make_factory(heuristic):
-        # Map function prefix to property name
-        prefix_map = {
-            'check': 'if_finished_working_on_task',
-            'print': 'then_print_to_user',
-            'compute': 'then_compute',
-            'define': 'then_define_new_concepts',
-            'delete': 'then_delete_old_concepts'
-        }
-        
-        # Get the prefix from function name before underscore
-        prefix = func.__name__.split('_')[0]
-        property_name = prefix_map.get(prefix)
-        if not property_name:
-            raise ValueError(f"Unknown function prefix: {prefix}")
-            
+        property_name = func.__name__
         def factory(rule):
             def wrapper(context):
                 return func(rule, context)
             return wrapper
-            
         heuristic.set_prop(property_name, factory)
     return make_factory
 
@@ -78,7 +59,7 @@ def discover_heuristics():
 def initialize_all_heuristics(unit_registry) -> None:
     heuristics = discover_heuristics()
     for h in heuristics:
-        if h['name'] not in ['h2', 'h3']:
+        if h['name'] not in ['h1', 'h2', 'h3']:
             continue
         unit = unit_registry.create_unit(h['name'])
         unit.set_prop('isa', ['heuristic', 'anything'])

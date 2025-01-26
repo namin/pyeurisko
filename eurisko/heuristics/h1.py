@@ -2,6 +2,7 @@
 from typing import Any, Dict
 from ..units import Unit
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,8 @@ def setup_h1(heuristic) -> None:
     heuristic.set_prop('overall_record', (7078, 5))
     heuristic.set_prop('arity', 1)
 
-    def check_applications(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_potentially_relevant(rule, context):
         """Check that unit has some recorded applications."""
         unit = context.get('unit')
         if not unit:
@@ -30,7 +32,8 @@ def setup_h1(heuristic) -> None:
         applications = unit.get_prop('applications')
         return bool(applications)
         
-    def check_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_truly_relevant(rule, context):
         """Check if unit has good and bad applications."""
         unit = context.get('unit')
         if not unit:
@@ -64,7 +67,8 @@ def setup_h1(heuristic) -> None:
         # More than 4/5 should be bad (i.e., fraction good < 0.2)
         return fraction <= 0.2
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Print explanation of action to user."""
         unit = context.get('unit')
         conjec = context.get('conjecture')
@@ -78,7 +82,8 @@ def setup_h1(heuristic) -> None:
                    f"agenda to find such specializations.")
         return True
 
-    def make_conjecture(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_conjecture(rule, context):
         """Create conjecture about specializing the unit."""
         unit = context.get('unit')
         system = context.get('system')
@@ -108,7 +113,9 @@ def setup_h1(heuristic) -> None:
         context['conjecture'] = conjec
         return True
 
-    def add_to_agenda(context: Dict[str, Any]) -> bool:
+
+    @rule_factory
+    def then_add_to_agenda(rule, context):
         """Add task to specialize the unit."""
         unit = context.get('unit')
         system = context.get('system')
@@ -132,10 +139,3 @@ def setup_h1(heuristic) -> None:
         system.task_manager.add_task(task)
         system.add_task_result('new_tasks', "1 unit must be specialized")
         return True
-
-    # Set up all the slots
-    heuristic.set_prop('if_potentially_relevant', check_applications)
-    heuristic.set_prop('if_truly_relevant', check_relevance)
-    heuristic.set_prop('then_print_to_user', print_to_user)
-    heuristic.set_prop('then_conjecture', make_conjecture)
-    heuristic.set_prop('then_add_to_agenda', add_to_agenda)
