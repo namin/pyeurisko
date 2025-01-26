@@ -30,6 +30,7 @@ class Eurisko:
         initialize_all_heuristics(self.unit_registry)
         initialize_all_units(self.unit_registry)
         initialize_all_slots(self.slot_registry)
+        self.initialize_test_applications(self.unit_registry)
         self._generate_initial_tasks()
 
     def run(self, eternal_mode: bool = False, max_cycles: Optional[int] = None) -> None:
@@ -123,6 +124,28 @@ class Eurisko:
                     ['high worth unit needs examination']  # reasons
                 )
                 self.task_manager.add_task(task)
+
+    def initialize_test_applications(self, registry):
+        """Initialize some test applications for units."""
+        add = registry.get_unit('add')
+        if add:
+            applications = [
+                {'args': [1, 2], 'result': 3, 'worth': 800},
+                {'args': [2, 3], 'result': 5, 'worth': 600},
+                {'args': [3, 4], 'result': 7, 'worth': 400}
+            ]
+            add.set_prop('applics', applications)
+            add.set_prop('applications', applications)
+
+        multiply = registry.get_unit('multiply')
+        if multiply:
+            applications = [
+                {'args': [2, 3], 'result': 6, 'worth': 900},
+                {'args': [3, 4], 'result': 12, 'worth': 500},
+                {'args': [4, 5], 'result': 20, 'worth': 300}
+            ]
+            multiply.set_prop('applics', applications)
+            multiply.set_prop('applications', applications)
 
 def main():
     """Command line entry point."""
