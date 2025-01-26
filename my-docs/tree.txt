@@ -1,0 +1,50 @@
+.
+├── RUN.md
+├── claude-docs # directory of your past musings
+├── eurisko
+│   ├── __init__.py # not significant
+│   ├── heuristics
+│   │   ├── __init__.py # initialization routines, just edit enabled_heuristics if you want to test a new heuristic
+│   │   ├── h1.py
+│   │   ├── h10.py
+│   │   ├── h11.py
+│   │   ├── h12.py
+│   │   ├── h13.py
+│   │   ├── h14.py
+│   │   ├── h15.py
+│   │   ├── h16.py
+│   │   ├── h17.py
+│   │   ├── h18.py
+│   │   ├── h19.py
+│   │   ├── h2.py
+│   │   ├── h20.py
+│   │   ├── h21.py
+│   │   ├── h22.py
+│   │   ├── h23.py
+│   │   ├── h3.py
+│   │   ├── h4.py
+│   │   ├── h5.py
+│   │   ├── h5_criterial.py
+│   │   ├── h5_good.py
+│   │   ├── h6.py # start here, refactor according to your docs
+│   │   ├── h7.py
+│   │   ├── h8.py
+│   │   └── h9.py
+│   ├── interfaces.py # uniformity
+│   ├── main.py # the command-live driver
+│   ├── slots
+│   │   ├── __init__.py # significant
+│   │   └── function_slots.py
+│   ├── tasks
+│   │   └── __init__.py # significant, might want to split out the task manager
+│   └── units
+│       ├── __init__.py # significant
+│       ├── concepts.py
+│       ├── core.py
+│       └── lisp_units.py # converted by tool below
+├── requirements.txt
+├── setup.py
+├── tests # let's focus on main showing interesting things for now
+├── tools
+│   ├── convert_units.py # convert eurisclo's units.lisp automatically
+│   └── test_preds.lisp # excerpt from input

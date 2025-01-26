@@ -1,0 +1,3 @@
+For reference, we are trying to replicate the project eurisclo, a sibling project, which has units.lisp, eurisclo.lisp and heuristics.lisp in its src directory. This is based on EUR, unearthed Eurisko code by Doug Lenat, also in the src of eurisclo.
+
+We should start by refactoring h6, then h5, and get them to interact.

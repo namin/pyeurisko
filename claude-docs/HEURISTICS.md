@@ -48,4 +48,4 @@ Each heuristic has a setup function that configures properties and rule function
    - Learn from the system's own behavior
    - Adjust exploration strategies
 
-See the [Task Manager](../tasks/README.md) for details on how heuristics interact with tasks.
+The heuristics interact with the task manager.
