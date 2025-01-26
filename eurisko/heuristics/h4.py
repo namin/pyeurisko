@@ -1,6 +1,7 @@
 """H4 heuristic implementation: Gather data about new units."""
 from typing import Any, Dict
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,8 @@ def setup_h4(heuristic) -> None:
     heuristic.set_prop('then_print_to_user_record', (18543, 87))
     heuristic.set_prop('overall_record', (68827, 72))
 
-    def check_task(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_finished_working_on_task(rule, context):
         """Check for new units created."""
         task_results = context.get('task_results', {})
         new_units = task_results.get('new_units', [])
@@ -28,7 +30,8 @@ def setup_h4(heuristic) -> None:
         context['valid_units'] = valid_units
         return bool(valid_units)
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Print information about new units."""
         valid_units = context.get('valid_units', [])
         if not valid_units:
@@ -39,10 +42,12 @@ def setup_h4(heuristic) -> None:
                    f"empirical data about them will soon be gathered.")
         return True
 
-    def add_to_agenda(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_add_to_agenda(rule, context):
         """Add tasks to gather data about new units."""
         valid_units = context.get('valid_units', [])
-        if not valid_units or not hasattr(heuristic, 'task_manager'):
+        task_manager = rule.task_manager
+        if not valid_units or not task_manager:
             return False
             
         for unit in valid_units:
@@ -51,7 +56,7 @@ def setup_h4(heuristic) -> None:
             
             # Create task to gather instances
             task = {
-                'priority': int((unit.worth_value() + heuristic.worth_value()) / 2),
+                'priority': int((unit.worth_value() + rule.worth_value()) / 2),
                 'unit': unit,
                 'slot': instance_slot,
                 'reasons': ["After a unit is synthesized, it is useful to seek instances of it."],
@@ -60,15 +65,10 @@ def setup_h4(heuristic) -> None:
                     'task_type': 'data_gathering'
                 }
             }
-            heuristic.task_manager.add_task(task)
+            task_manager.add_task(task)
             
         # Record task creation
         num_units = len(valid_units)
-        heuristic.add_task_result('new_tasks', 
+        rule.add_task_result('new_tasks', 
             f"{num_units} new units must have instances found")
         return True
-
-    # Set up all the slots
-    heuristic.set_prop('if_finished_working_on_task', check_task)
-    heuristic.set_prop('then_print_to_user', print_to_user)
-    heuristic.set_prop('then_add_to_agenda', add_to_agenda)
