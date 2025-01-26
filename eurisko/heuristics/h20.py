@@ -2,6 +2,7 @@
 from typing import Any, Dict, List, Set
 from ..units import Unit
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ def setup_h20(heuristic) -> None:
     heuristic.set_prop('overall_record', (-528368, 16))
     heuristic.set_prop('arity', 1)
 
-    def check_potential_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_potentially_relevant(rule, context):
         """Check if operation has algorithm and can be meaningfully compared."""
         unit = context.get('unit')
         if not unit:
@@ -39,15 +41,20 @@ def setup_h20(heuristic) -> None:
         context['algorithm'] = algorithm
         return True
 
-    def find_comparable_operations(unit: Unit, system: Any) -> List[Unit]:
-        """Find other operations with same arity that have applications."""
-        comparable = []
+    @rule_factory
+    def if_truly_relevant(rule, context):
+        """Find operations to compare against."""
+        unit = context.get('unit')
+        if not unit:
+            return False
+            
+        # Find comparable operations with same arity and sufficient applications
+        comparable_ops = []
         unit_arity = unit.get_prop('arity')
-        
-        # Get sibling operations
         siblings = unit.get_prop('sibs', [])
+        
         for sib_name in siblings:
-            sib = system.unit_registry.get_unit(sib_name)
+            sib = rule.unit_registry.get_unit(sib_name)
             if not sib or sib.name == unit.name:
                 continue
                 
@@ -55,22 +62,10 @@ def setup_h20(heuristic) -> None:
             if sib.get_prop('arity') != unit_arity:
                 continue
                 
-            # Check has applications
+            # Check has sufficient applications
             if len(sib.get_prop('applications', [])) > 3:
-                comparable.append(sib)
-                
-        return comparable
-
-    def check_relevance(context: Dict[str, Any]) -> bool:
-        """Find operations to compare against."""
-        unit = context.get('unit')
-        system = context.get('system')
+                comparable_ops.append(sib)
         
-        if not unit or not system:
-            return False
-            
-        # Find comparable operations
-        comparable_ops = find_comparable_operations(unit, system)
         if not comparable_ops:
             return False
             
@@ -86,22 +81,8 @@ def setup_h20(heuristic) -> None:
         context['domain_tests'] = domain_tests
         return True
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
-        """Report on operations compared and patterns found."""
-        unit = context.get('unit')
-        added_ops = context.get('added_ops', [])
-        
-        if not unit or not added_ops:
-            return False
-            
-        logger.info(
-            f"\nRan {unit.name}'s algorithm on data from: "
-            f"{', '.join(op.name for op in added_ops)}\n"
-            f"Will examine for potential connections between these operations."
-        )
-        return True
-
-    def compute_action(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_compute(rule, context):
         """Apply operation to inputs from other operations."""
         unit = context.get('unit')
         comparable_ops = context.get('comparable_ops', [])
@@ -112,7 +93,10 @@ def setup_h20(heuristic) -> None:
             return False
             
         added_ops = []
+        successful_applications = {}
+        
         for other_op in comparable_ops:
+            successful_args = []
             for application in other_op.get_prop('applications', []):
                 args = application.get('args', [])
                 
@@ -128,21 +112,51 @@ def setup_h20(heuristic) -> None:
                 try:
                     result = algorithm(*args)
                     unit.add_application(args, result)
-                    if other_op not in added_ops:
-                        added_ops.append(other_op)
+                    successful_args.append(args)
                 except Exception as e:
                     logger.debug(f"Failed to apply {unit.name} to {args}: {e}")
+            
+            if successful_args:
+                added_ops.append(other_op)
+                successful_applications[other_op.name] = successful_args
                     
-        context['added_ops'] = added_ops
-        return bool(added_ops)
+        if added_ops:
+            context['added_ops'] = added_ops
+            context['successful_applications'] = successful_applications
+            return True
+            
+        return False
 
-    def add_to_agenda(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
+        """Report on operations compared and patterns found."""
+        unit = context.get('unit')
+        added_ops = context.get('added_ops', [])
+        successful_applications = context.get('successful_applications', {})
+        
+        if not unit or not added_ops:
+            return False
+            
+        logger.info(
+            f"\nRan {unit.name}'s algorithm on data from other operations:"
+        )
+        
+        for op in added_ops:
+            app_count = len(successful_applications.get(op.name, []))
+            logger.info(
+                f"- {op.name}: {app_count} successful applications"
+            )
+            
+        logger.info("\nWill examine for potential connections between these operations.")
+        return True
+
+    @rule_factory
+    def then_add_to_agenda(rule, context):
         """Add tasks to investigate patterns between operations."""
         unit = context.get('unit')
-        system = context.get('system')
         added_ops = context.get('added_ops', [])
         
-        if not all([unit, system, added_ops]):
+        if not unit or not added_ops:
             return False
             
         for other_op in added_ops:
@@ -151,7 +165,7 @@ def setup_h20(heuristic) -> None:
                     unit.get_prop('worth', 500) + 
                     other_op.get_prop('worth', 500)
                 ) / 2),
-                'unit': unit,
+                'unit': unit.name,
                 'slot': 'conjectures',
                 'reasons': [
                     f"{unit.name} has now been run on the same data as "
@@ -162,17 +176,11 @@ def setup_h20(heuristic) -> None:
                     'involved_units': [other_op.name]
                 }
             }
-            system.task_manager.add_task(task)
             
-        system.add_task_result(
-            'new_tasks',
-            f"{len(added_ops)} operations will be examined for connections"
-        )
+            if not rule.task_manager.add_task(task):
+                continue
+                
+        context['task_results'] = {
+            'new_tasks': f"{len(added_ops)} operations will be examined for connections"
+        }
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_potentially_relevant', check_potential_relevance)
-    heuristic.set_prop('if_truly_relevant', check_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)
-    heuristic.set_prop('then_add_to_agenda', add_to_agenda)
