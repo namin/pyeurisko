@@ -1,10 +1,8 @@
 For reference, we are trying to replicate the project eurisclo, a sibling project, which has units.lisp, eurisclo.lisp and heuristics.lisp in its src directory. This is based on EUR, unearthed Eurisko code by Doug Lenat, also in the src of eurisclo.
 
-The current goal is to port the heuristics that are not yet in enabled.py, and to improve the flow with the task manager and other components like main while doing so.
-We got heuristics h5 and h6 working.
-Look at these two heuristics for how the other heuristics should be ported.
-See ../my-claude/WORKING.md as well.
-The next step is to look at whether we can react to new units being discovered, so perhaps focus on a heuristic that generates new units.
+THe current goal is at the interplay of heuristics, task manager and main.
+We expect the cycle in main, as new units and tasks are created.
+Why is this not happening?
 
 Ignore *~ files. They are emacs backup files.
 
