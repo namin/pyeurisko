@@ -1,5 +1,8 @@
 """Unit definitions package for PyEurisko."""
 
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import Any, Dict, List, Optional, Set, Union, Callable
 import random
 from copy import deepcopy
