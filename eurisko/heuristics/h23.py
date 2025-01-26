@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Set, Tuple
 from ..units import Unit
 import logging
 import math
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +28,7 @@ def setup_h23(heuristic) -> None:
         instance: Any,
         criteria: List[Dict[str, Any]]
     ) -> Tuple[float, List[str]]:
-        """Evaluate an instance against interestingness criteria.
-        
-        Returns:
-            Tuple of (score, matching_criteria) where:
-            - score: Float from 0-1 indicating overall interestingness
-            - matching_criteria: List of descriptions of matched criteria
-        """
+        """Evaluate an instance against interestingness criteria."""
         total_weight = sum(c['weight'] for c in criteria)
         if total_weight == 0:
             return 0.0, []
@@ -54,48 +49,35 @@ def setup_h23(heuristic) -> None:
                 
         return score / total_weight, matched
 
-    def check_task_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_working_on_task(rule, context):
         """Verify task is about finding interesting instances."""
         task = context.get('task')
         if not task:
             return False
             
         # Check if this task came from H22
-        if 'h22' not in task.get('supplemental', {}).get('credit_to', []):
+        supplemental = task.get('supplemental', {})
+        if 'h22' not in supplemental.get('credit_to', []):
             return False
             
         # Verify we have evaluation criteria
-        criteria = task.get('supplemental', {}).get('criteria')
+        criteria = supplemental.get('criteria')
         if not criteria:
             return False
             
         # Verify source instances exist
-        source_slot = task.get('supplemental', {}).get('source_slot')
+        source_slot = supplemental.get('source_slot')
         if not source_slot:
             return False
             
         context['source_slot'] = source_slot
         context['criteria'] = criteria
+        context['target_slot'] = task.get('slot', 'int_examples')
         return True
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
-        """Report on interesting instances found."""
-        unit = context.get('unit')
-        interesting = context.get('interesting_instances', [])
-        
-        if not unit or not interesting:
-            return False
-            
-        logger.info(f"\nFound {len(interesting)} interesting instances of {unit.name}:")
-        
-        for instance, score, reasons in interesting:
-            logger.info(
-                f"\n- Score {score:.2f}: {instance}"
-                f"\n  Interesting because: {', '.join(reasons)}"
-            )
-        return True
-
-    def compute_action(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_compute(rule, context):
         """Evaluate instances against interestingness criteria."""
         unit = context.get('unit')
         source_slot = context.get('source_slot')
@@ -114,52 +96,72 @@ def setup_h23(heuristic) -> None:
             
             # Consider instances above 0.4 interestingness score
             if score > 0.4:
-                interesting.append((instance, score, matched_criteria))
+                interesting.append({
+                    'instance': instance,
+                    'score': score,
+                    'reasons': matched_criteria
+                })
                 
-        context['interesting_instances'] = sorted(
-            interesting,
-            key=lambda x: x[1],
-            reverse=True
-        )
-        return bool(interesting)
+        if interesting:
+            # Sort by score
+            interesting.sort(key=lambda x: x['score'], reverse=True)
+            context['interesting_instances'] = interesting
+            return True
+            
+        return False
 
-    def record_interesting_instances(context: Dict[str, Any]) -> bool:
-        """Record discovered interesting instances."""
+    @rule_factory
+    def then_print_to_user(rule, context):
+        """Report on interesting instances found."""
         unit = context.get('unit')
-        task = context.get('task')
-        interesting = context.get('interesting_instances')
+        interesting = context.get('interesting_instances', [])
         
-        if not all([unit, task, interesting]):
+        if not unit or not interesting:
             return False
             
-        # Get target slot for recording interesting instances
-        target_slot = task.get('slot', 'int_examples')
+        logger.info(f"\nFound {len(interesting)} interesting instances of {unit.name}:")
         
-        # Record interesting instances
-        for instance, score, reasons in interesting:
-            # Add to appropriate collection
-            unit.add_to_prop(target_slot, instance)
+        for item in interesting:
+            logger.info(
+                f"\n- Score {item['score']:.2f}: {item['instance']}"
+                f"\n  Interesting because: {', '.join(item['reasons'])}"
+            )
+        return True
+
+    @rule_factory
+    def then_define_new_concepts(rule, context):
+        """Record discovered interesting instances."""
+        unit = context.get('unit')
+        target_slot = context.get('target_slot')
+        interesting = context.get('interesting_instances')
+        
+        if not all([unit, target_slot, interesting]):
+            return False
             
-            # Record why it's interesting
+        # Track instances and their evaluations
+        instances_added = []
+        for item in interesting:
+            instance = item['instance']
+            
+            # Add to target collection
+            unit.add_to_prop(target_slot, instance)
+            instances_added.append(instance)
+            
+            # Record evaluation details
             unit.add_to_prop(
                 f'{target_slot}_reasons',
                 {
                     'instance': instance,
-                    'score': score,
-                    'reasons': reasons,
+                    'score': item['score'],
+                    'reasons': item['reasons'],
                     'discovered_by': 'h23'
                 }
             )
             
-        # Update task results
-        context['system'].add_task_result(
-            'new_values',
-            [i[0] for i in interesting]
-        )
-        return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_working_on_task', check_task_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)
-    heuristic.set_prop('then_define_new_concepts', record_interesting_instances)
+        if instances_added:
+            context['task_results'] = {
+                'new_values': instances_added
+            }
+            return True
+            
+        return False

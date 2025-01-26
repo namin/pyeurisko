@@ -61,7 +61,7 @@ def initialize_all_heuristics(unit_registry) -> None:
     for h in heuristics:
         try:
             h_num = int(h['name'][1:])  # Extract number from hX
-            if h_num not in range(1, 23):  # Updated to include h11
+            if h_num not in range(1, 24):  # Updated to include h11
                 continue
         except ValueError:
             continue  # Skip any malformed heuristic names
