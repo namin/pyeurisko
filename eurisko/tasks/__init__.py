@@ -134,14 +134,20 @@ class TaskManager:
                 
     def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Check if a heuristic's if-parts are satisfied."""
+        def check_conditions(conditions):
+            if callable(conditions):
+                return conditions(context)
+            elif isinstance(conditions, list):
+                return all(c(context) for c in conditions if callable(c))
+            return True
         # Check if_potentially_relevant first
         check = heuristic.get_prop('if_potentially_relevant')
-        if check and not check(context):
+        if check and not check_conditions(check):
             return False
                 
         # Then check if_truly_relevant 
         check = heuristic.get_prop('if_truly_relevant')
-        if check and not check(context):
+        if check and not check_conditions(check):
             return False
                 
         return True
@@ -157,17 +163,21 @@ class TaskManager:
                 if action:
                     if callable(action):
                         then_parts.append(action)
+                    elif isinstance(action, list):
+                        then_parts.extend(a for a in action if callable(a))
                     
         # Execute them
         success = True
         for action in then_parts:
-            #try:
-            if not action(context):
+            try:
+                if not action(context):
+                    if self.verbosity > 1:
+                        print(f"Action {action.__name__} failed in {heuristic.name}")
+                        success = False
+            except Exception as e:
+                if self.verbosity > 1:
+                    print(f"Error applying heuristic {heuristic.name}: {e}")
                 success = False
-            #except Exception as e:
-            #    if self.verbosity > 1:
-            #        print(f"Error applying heuristic {heuristic.name}: {e}")
-            #    success = False
 
         return success
 
