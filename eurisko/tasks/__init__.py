@@ -157,7 +157,8 @@ class TaskManager:
     
     def _apply_heuristic(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Apply a heuristic's then-parts."""
-        success = True
+        any_action_executed = False
+        all_actions_succeeded = True
 
         for prop_name in heuristic.properties:
             if not prop_name.startswith('then_'):
@@ -167,18 +168,23 @@ class TaskManager:
             if not action_factory:
                 continue
 
+            any_action_executed = True
             try:
                 # Get actual action function from factory
                 action = action_factory(heuristic)
-                if not action(context):
+                result = not action(context)
+                if not isinstance(result, bool) or not result:
                     if self.verbosity > 1:
                         print(f"Action from {prop_name} failed for {heuristic.name}")
-                        success = False
+                        all_actions_succeeded = False
             except Exception as e:
                 if self.verbosity > 1:
                     print(f"Error applying heuristic {heuristic.name}: {e}")
-                    success = False
+                    all_actions_succeeded = False
 
+        # Only count as success if at least one action executed and all executed actions succeeded
+        success = any_action_executed and all_actions_succeeded
+        self.track_heuristic_result(heuristic.name, success)
         return success
 
     def track_heuristic_result(self, heuristic_name: str, success: bool):
