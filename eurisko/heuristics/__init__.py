@@ -7,6 +7,7 @@ import os
 import importlib
 import inspect
 from ..units import Unit, UnitRegistry
+from .enabled import enabled_heuristics
 
 def rule_factory(func: Callable):
     """Create a factory decorator for rule functions.
@@ -58,6 +59,8 @@ def discover_heuristics():
 def initialize_all_heuristics(unit_registry) -> None:
     heuristics = discover_heuristics()
     for h in heuristics:
+        if not h in enabled_heuristics:
+            continue
         unit = unit_registry.create_unit(h['name'])
         unit.set_prop('isa', ['heuristic', 'anything'])
         if not unit.get_prop('english'):
