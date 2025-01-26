@@ -37,7 +37,7 @@ def setup_h18(heuristic) -> None:
             
         return (
             task.get('task_type') == 'generalization' and
-            task.get('supplemental', {}).get('slot_to_change') is not None
+            'slot_to_change' in (task.get('supplemental') or {})
         )
 
     def get_slot_generalizer(slot_type: str) -> Optional[str]:

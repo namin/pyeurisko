@@ -35,10 +35,10 @@ def setup_h17(heuristic) -> None:
             return False
             
         task_type = task.get('task_type')
+        supplemental = task.get('supplemental') or {}
         return (
             task_type == 'generalization' and
-            not task.get('slots_to_change') and
-            task.get('slot') == 'generalizations'
+            'slot_to_change' not in supplemental
         )
 
     def assess_slot_worth(slot: str, unit: Unit) -> float:
@@ -174,10 +174,18 @@ def setup_h17(heuristic) -> None:
             
             system.task_manager.add_task(new_task)
             
-        system.add_task_result(
-            'new_tasks',
-            f"{len(selected_slots)} slots of {unit.name} selected for generalization"
-        )
+        # Create task result
+        task_result = {
+            'new_tasks': [
+                    {
+                        'priority': 500,
+                        'unit': unit.name,
+                        'task_type': 'generalization',
+                        'supplemental': {'slot_to_change': slot}
+                    } for slot in selected_slots
+                ]
+            }
+        context['task_results'] = task_result
         return True
 
     # Configure heuristic slots
