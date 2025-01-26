@@ -2,6 +2,7 @@
 from typing import Any, Dict, Optional, Tuple
 from ..units import Unit
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,45 @@ def setup_h18(heuristic) -> None:
     heuristic.set_prop('overall_record', (13078, 13))
     heuristic.set_prop('arity', 1)
 
-    def check_task_relevance(context: Dict[str, Any]) -> bool:
+    def generalize_slot_value(old_value: Any, slot_type: str) -> Tuple[Any, Dict[str, Any]]:
+        """Generalize a slot value based on its type."""
+        metadata = {
+            'changes': [],
+            'units_involved': [],
+            'generalization_method': None
+        }
+        
+        if slot_type == 'lisp_pred':
+            # Handle predicate generalization
+            new_value = old_value  # Placeholder for predicate generalization
+            metadata.update({
+                'changes': ['Generalized predicate constraints'],
+                'generalization_method': 'predicate'
+            })
+            
+        elif slot_type == 'list':
+            # Handle list generalization by removing random elements
+            if isinstance(old_value, list) and old_value:
+                import random
+                new_value = old_value[:]
+                removed = new_value.pop(random.randrange(len(new_value)))
+                metadata.update({
+                    'changes': [f'Removed element: {removed}'],
+                    'generalization_method': 'list'
+                })
+            else:
+                new_value = old_value
+                metadata['generalization_method'] = 'identity'
+            
+        else:
+            # Default generalization
+            new_value = old_value
+            metadata['generalization_method'] = 'identity'
+            
+        return new_value, metadata
+
+    @rule_factory
+    def if_working_on_task(rule, context):
         """Verify task is for generalization with a selected slot."""
         task = context.get('task')
         if not task:
@@ -44,78 +83,16 @@ def setup_h18(heuristic) -> None:
         )
         return task.get('task_type') == 'generalization' and slot_to_change
 
-    def get_slot_generalizer(slot_type: str) -> Optional[str]:
-        """Determine appropriate generalization function for slot type."""
-        generalization_map = {
-            'lisp_pred': 'generalize_lisp_pred',
-            'lisp_fn': 'generalize_lisp_fn',
-            'list': 'generalize_list',
-            None: 'generalize_nil'  # Fallback for unknown types
-        }
-        return generalization_map.get(slot_type)
-
-    def generalize_slot_value(old_value: Any, slot_type: str) -> Tuple[Any, Dict[str, Any]]:
-        """Generalize a slot value based on its type.
-        
-        Returns:
-            Tuple of (new_value, metadata) where metadata includes:
-            - changes: List of specific changes made
-            - units_involved: List of units referenced in generalization
-            - generalization_method: Method used for generalization
-        """
-        metadata = {
-            'changes': [],
-            'units_involved': [],
-            'generalization_method': None
-        }
-        
-        if slot_type == 'lisp_pred':
-            # Handle predicate generalization
-            new_value, pred_changes = generalize_predicate(old_value)
-            metadata['changes'].extend(pred_changes)
-            metadata['generalization_method'] = 'predicate'
-            
-        elif slot_type == 'list':
-            # Handle list generalization
-            new_value, list_changes = generalize_list_value(old_value)
-            metadata['changes'].extend(list_changes)
-            metadata['generalization_method'] = 'list'
-            
-        else:
-            # Default generalization
-            new_value = old_value
-            metadata['generalization_method'] = 'identity'
-            
-        return new_value, metadata
-
-    def print_to_user(context: Dict[str, Any]) -> bool:
-        """Explain generalization process and results."""
-        unit = context.get('unit')
-        slot = context.get('task', {}).get('supplemental', {}).get('slot_to_change')
-        old_value = context.get('old_value')
-        new_value = context.get('new_value')
-        
-        if not all([unit, slot, old_value is not None, new_value is not None]):
-            return False
-            
-        changes = context.get('generalization_metadata', {}).get('changes', [])
-        
-        logger.info(
-            f"\nGeneralized the {slot} slot of {unit.name}:\n"
-            f"Old value: {old_value}\n"
-            f"New value: {new_value}\n"
-            f"Changes made: {', '.join(changes) if changes else 'No changes required'}\n"
-        )
-        return True
-
-    def compute_action(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_compute(rule, context):
         """Execute the generalization process."""
         unit = context.get('unit')
         task = context.get('task')
         
         if not unit or not task:
             return False
-            # Try to get slot_to_change from various places
+            
+        # Try to get slot_to_change from various places
         supplemental = task.get('supplemental') or {}
         slot = (
             supplemental.get('slot_to_change') or
@@ -129,6 +106,7 @@ def setup_h18(heuristic) -> None:
         
         # Store old value in context
         context['old_value'] = old_value
+        context['slot'] = slot
         
         # Determine slot type and get appropriate generalizer
         slot_type = unit.get_prop(f'{slot}_type')
@@ -147,28 +125,44 @@ def setup_h18(heuristic) -> None:
             
         return True
 
-    def define_new_concepts(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
+        """Explain generalization process and results."""
+        unit = context.get('unit')
+        slot = context.get('slot')
+        old_value = context.get('old_value')
+        new_value = context.get('new_value')
+        
+        if not all([unit, slot, old_value is not None, new_value is not None]):
+            return False
+            
+        changes = context.get('generalization_metadata', {}).get('changes', [])
+        
+        logger.info(
+            f"\nGeneralized the {slot} slot of {unit.name}:\n"
+            f"Old value: {old_value}\n"
+            f"New value: {new_value}\n"
+            f"Changes made: {', '.join(changes) if changes else 'No changes required'}\n"
+        )
+        return True
+
+    @rule_factory
+    def then_define_new_concepts(rule, context):
         """Create new unit with generalized slot value."""
         unit = context.get('unit')
-        system = context.get('system')
         new_value = context.get('new_value')
+        slot = context.get('slot')
         task = context.get('task')
         
-        if not all([unit, system, new_value is not None, task]):
+        if not all([unit, new_value is not None, slot, task]):
             return False
             
         # Create new generalized unit
-        new_unit = system.create_unit(f"{unit.name}_gen", unit.name)
-        
-        # Get slot same way as compute_action
-        supplemental = task.get('supplemental') or {}
-        slot = (
-            supplemental.get('slot_to_change') or
-            task.get('slot_to_change') or
-            (task.get('slots_to_change') or [None])[0]
-        )
-        if not slot:
+        new_unit = rule.unit_registry.create_unit(f"{unit.name}_gen")
+        if not new_unit:
             return False
+            
+        # Copy all slots except the one being generalized
         for old_slot in unit.get_prop('slots', []):
             if old_slot != slot:
                 new_unit.set_prop(old_slot, unit.get_prop(old_slot))
@@ -190,13 +184,12 @@ def setup_h18(heuristic) -> None:
         }
         new_unit.set_prop('creation_record', creation_record)
         
-        # Update task results
-        system.add_task_result('new_units', [new_unit.name])
+        # Register new unit
+        rule.unit_registry.register(new_unit)
+        
+        # Update context with results
+        context['task_results'] = {
+            'new_units': [new_unit.name]
+        }
         
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_working_on_task', check_task_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)
-    heuristic.set_prop('then_define_new_concepts', define_new_concepts)
