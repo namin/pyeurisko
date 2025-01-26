@@ -1,3 +1,7 @@
+# Failed Experiment
+
+Warning: This is a failed experiment. :(
+
 # PyEurisko
 
 PyEurisko is a Python implementation inspired by Douglas Lenat's Eurisko system, designed for heuristic discovery and automated reasoning. The system implements core concepts from the original Eurisko while leveraging modern Python features and design patterns.
