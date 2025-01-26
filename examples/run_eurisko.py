@@ -76,7 +76,7 @@ class EnhancedEurisko(Eurisko):
         # Start with operations that have applications
         for op_name in ['ADD', 'MULTIPLY']:
             op = self.unit_registry.get_unit(op_name)
-            if op and op.get_prop('applics'):
+            if op and op.get_prop('applications'):
                 # Add specialization task for ops with mixed success
                 task = Task(
                     priority=500,
@@ -92,7 +92,7 @@ class EnhancedEurisko(Eurisko):
                 task = Task(
                     priority=450,
                     unit_name=op_name,
-                    slot_name='applics',
+                    slot_name='applications',
                     reasons=['Find additional applications'],
                     task_type='find_applications',
                     supplemental={'task_type': 'find_applications'}
@@ -143,7 +143,6 @@ class EnhancedEurisko(Eurisko):
             'registry': self.unit_registry,
             'task_manager': self.task_manager,
             'task_results': self.current_results,
-            'applics': unit.get_prop('applics') or [],
             'applications': unit.get_prop('applications') or [],
             'worth': unit.get_prop('worth', 500),
             'task_type': task.task_type,
@@ -162,7 +161,7 @@ class EnhancedEurisko(Eurisko):
             if_relevant = heuristic.get_prop('if_potentially_relevant')
             if if_relevant:
                 print(f"\nAttempting to check relevance for {h_name} on {task.unit_name}", flush=True)
-                print(f"Applications: {unit.get_prop('applics')}", flush=True)
+                print(f"Applications: {unit.get_prop('applications')}", flush=True)
                 try:
                     is_relevant = if_relevant(context)
                     print(f"Got relevance result: {is_relevant}", flush=True)
@@ -275,7 +274,6 @@ def init_test_applications(registry):
             {'args': [2, 3], 'result': 5, 'worth': 600},
             {'args': [3, 4], 'result': 7, 'worth': 400}
         ]
-        add.set_prop('applics', applications)
         add.set_prop('applications', applications)
 
     multiply = registry.get_unit('MULTIPLY')
@@ -285,7 +283,6 @@ def init_test_applications(registry):
             {'args': [3, 4], 'result': 12, 'worth': 500},
             {'args': [4, 5], 'result': 20, 'worth': 300}
         ]
-        multiply.set_prop('applics', applications)
         multiply.set_prop('applications', applications)
 
 def main():
