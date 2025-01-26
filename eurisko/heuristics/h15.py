@@ -1,6 +1,7 @@
 """H15 heuristic implementation: Find examples through multiple operations."""
 from typing import Any, Dict, List, Optional, Set
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,8 @@ def setup_h15(heuristic) -> None:
         "all I/O pairs across those operations.")
     heuristic.set_prop('abbrev', "Find examples from multiple operations")
 
-    def check_task_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_potentially_relevant(rule, context):
         """Verify task is for finding examples with multiple sources."""
         task = context.get('task')
         unit = context.get('unit')
@@ -39,20 +41,45 @@ def setup_h15(heuristic) -> None:
         context['source_ops'] = operations
         return True
 
-    def analyze_output_patterns(
-        outputs: Dict[str, List[Any]]
-    ) -> Dict[str, Any]:
-        """Analyze patterns in outputs across operations.
+    @rule_factory
+    def then_compute(rule, context):
+        """Find examples from multiple operation outputs."""
+        unit = context.get('unit')
+        source_ops = context.get('source_ops', [])
         
-        Examines similarities and differences in values produced by
-        different operations to help understand relationships between
-        operations and guide future example discovery.
-        """
+        if not all([unit, source_ops]):
+            return False
+
+        # Get outputs from all operations
+        outputs_by_op = {}
+        for op_name in source_ops:
+            op = rule.unit_registry.get_unit(op_name)
+            if not op:
+                continue
+                
+            # Get applications and extract results
+            applications = op.get_prop('applications', [])
+            if not applications:
+                continue
+                
+            outputs = []
+            for app in applications:
+                result = app.get('result')
+                if result is not None:
+                    outputs.append(result)
+                    
+            if outputs:
+                outputs_by_op[op_name] = outputs
+
+        if len(outputs_by_op) < 2:  # Need at least 2 operations with outputs
+            return False
+
+        # Analyze output patterns
         all_values = set()
         value_counts = {}
         op_patterns = {}
         
-        for op_name, op_outputs in outputs.items():
+        for op_name, op_outputs in outputs_by_op.items():
             # Track unique values from this operation
             op_values = set(op_outputs)
             all_values.update(op_values)
@@ -70,8 +97,8 @@ def setup_h15(heuristic) -> None:
             # Update global value counts
             for val in op_outputs:
                 value_counts[val] = value_counts.get(val, 0) + 1
-                
-        return {
+
+        pattern_analysis = {
             'total_unique': len(all_values),
             'value_overlap': {
                 val: count
@@ -80,51 +107,6 @@ def setup_h15(heuristic) -> None:
             },
             'operation_patterns': op_patterns
         }
-
-    def get_operation_outputs(
-        operations: List[str],
-        registry: Any
-    ) -> Dict[str, List[Any]]:
-        """Get outputs from all relevant operations."""
-        outputs_by_op = {}
-        
-        for op_name in operations:
-            op = registry.unit_registry.get_unit(op_name)
-            if not op:
-                continue
-                
-            # Get applications and extract results
-            applications = op.get_prop('applications', [])
-            if not applications:
-                continue
-                
-            outputs = []
-            for app in applications:
-                result = app.get('result')
-                if result is not None:
-                    outputs.append(result)
-                    
-            if outputs:
-                outputs_by_op[op_name] = outputs
-                
-        return outputs_by_op
-
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Find examples from multiple operation outputs."""
-        unit = context.get('unit')
-        source_ops = context.get('source_ops', [])
-        registry = context.get('registry')
-        
-        if not all([unit, source_ops, registry]):
-            return False
-
-        # Get outputs from all operations
-        outputs_by_op = get_operation_outputs(source_ops, registry)
-        if len(outputs_by_op) < 2:  # Need at least 2 operations with outputs
-            return False
-
-        # Analyze output patterns
-        pattern_analysis = analyze_output_patterns(outputs_by_op)
 
         # Track new examples and their sources
         current_examples = set(unit.get_prop('examples', []))
@@ -156,7 +138,8 @@ def setup_h15(heuristic) -> None:
 
         return False
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Report on examples found through multiple operations."""
         unit = context.get('unit')
         task_results = context.get('task_results', {})
@@ -192,8 +175,3 @@ def setup_h15(heuristic) -> None:
             )
             
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_potentially_relevant', check_task_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)
