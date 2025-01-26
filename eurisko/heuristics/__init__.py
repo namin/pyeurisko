@@ -28,8 +28,7 @@ def discover_heuristics():
     
     files = [f for f in os.listdir(directory) 
              if f.endswith('.py') 
-             and f.startswith('h')
-             and not any(x in f for x in ['criterial', 'good'])]  # Skip special cases
+             and f.startswith('h')]
     
     for file in sorted(files):
         module_name = file[:-3]  # Remove .py extension
@@ -59,12 +58,6 @@ def discover_heuristics():
 def initialize_all_heuristics(unit_registry) -> None:
     heuristics = discover_heuristics()
     for h in heuristics:
-        try:
-            h_num = int(h['name'][1:])  # Extract number from hX
-            if h_num not in range(1, 24):  # Updated to include h11
-                continue
-        except ValueError:
-            continue  # Skip any malformed heuristic names
         unit = unit_registry.create_unit(h['name'])
         unit.set_prop('isa', ['heuristic', 'anything'])
         if not unit.get_prop('english'):
