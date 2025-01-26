@@ -15,37 +15,30 @@ def setup_h2(heuristic) -> None:
     heuristic.set_prop('abbrev', "Kill a concept that leads to lots of garbage")
     heuristic.set_prop('arity', 1)
 
-    def check_task(context: Dict[str, Any]) -> bool:
-        """Check for new units from garbage producers."""
+    def check_task(rule, context):
+        """Check if this is the end of a task that created units."""
         task_results = context.get('task_results', {})
         if not task_results:
             return False
             
+        # Check for new units created by slot function
         new_units = task_results.get('new_units', [])
         if not new_units:
             return False
-
+            
         # Find potential culprits (creditors that generate garbage)
         potential_culprits = set()
-        for unit in new_units:
-            if not isinstance(unit, Unit):
-                continue
+        unit = context['unit']
+        
+        # Check if the current unit creates mostly garbage
+        applications = unit.get_prop('applications', [])
+        if len(applications) >= 10:
+            # Look at success rate and worth of results
+            poor_results = sum(1 for app in applications
+                              if not app.get('success', True) or app.get('worth', 0) < 300)
+            if poor_results > len(applications) * 0.7:  # Over 70% poor results
+                potential_culprits.add(unit.name)
                 
-            creditors = unit.get_prop('creditors') or []
-            for creditor in creditors:
-                creditor_unit = heuristic.unit_registry.get_unit(creditor)
-                if not creditor_unit:
-                    continue
-                    
-                applications = creditor_unit.get_prop('applications') or []
-                if len(applications) >= 10:
-                    # Check if all results lack applications
-                    if all(isinstance(app, dict) and
-                          all(not hasattr(u, 'get_prop') or not u.get_prop('applications')
-                              for u in app.get('result', []))
-                          for app in applications):
-                        potential_culprits.add(creditor)
-
         context['culprits'] = list(potential_culprits)
         return bool(potential_culprits)
 
@@ -64,25 +57,18 @@ def setup_h2(heuristic) -> None:
             
         return bool(culprits or deleted)
 
-    def reduce_worth(context: Dict[str, Any]) -> bool:
-        """Severely punish garbage-producing units."""
-        culprits = context.get('culprits', [])
-        if not culprits:
-            return False
-            
-        for creditor in culprits:
-            creditor_unit = heuristic.unit_registry.get_unit(creditor)
-            if creditor_unit:
-                # Severe punishment - reduce worth significantly
-                current_worth = creditor_unit.worth_value()
-                new_worth = max(50, current_worth // 4)  # Prevent worth from going too low
-                creditor_unit.set_prop('worth', new_worth)
-                
-        # Record the punishment in task results
-        context['task_results']['punished_units'] = (
-            culprits, "because they've led to so many questionable units being created!"
-        )
-        return True
+    def reduce_worth(rule, context):
+        """Punish units that generate garbage."""
+        unit = context['current_unit']
+        applications = unit.get_prop('applications', [])
+        if len(applications) >= 10:
+            # Check quality of results
+            poor_results = sum(1 for app in applications 
+                             if not app['success'] or app['worth'] < 300)
+            if poor_results > len(applications) * 0.7:  # Mostly poor results
+                unit.set_worth(unit.worth // 2)  # Severe punishment
+                return True
+        return False
 
     def delete_old_concepts(context: Dict[str, Any]) -> bool:
         """Delete units whose worth has fallen too low."""

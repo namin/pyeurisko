@@ -20,20 +20,32 @@ class Unit(EuriskoObject):
                 return alg
         return None
 
-    def apply_algorithm(self, args: List[Any]) -> Any:
-        """Apply the unit's algorithm to arguments."""
-        alg = self.get_algorithm()
+    def apply_algorithm(self, args) -> Any:
+        """Apply unit's algorithm to arguments."""
+        alg = self.get_algorithm()  # Get best available algorithm
         if alg:
             try:
-                return alg(*args)
+                result = alg(*args)
+                # Record successful application
+                self.add_application(args, result)
+                return result
             except Exception as e:
-                logger.error(f"Algorithm execution failed: {e}")
+                # Record failed application
+                self.add_application(args, None, success=False)
                 return None
         return None
-        
-    # Alias for compatibility with tests
-    apply_alg = apply_algorithm
 
+    def add_application(self, args, result, success=True):
+        """Record an application of this unit."""
+        applications = self.get_prop('applications', [])
+        applications.append({
+            'args': args,
+            'result': result,
+            'success': success,
+            'worth': 500 if success else 100
+        })
+        self.set_prop('applications', applications)
+        
     def get_definition(self) -> Optional[Callable]:
         """Get the best available definition implementation."""
         for defn_type in ['fast_defn', 'defn', 'recursive_defn', 'unitized_defn', 'iterative_defn']:

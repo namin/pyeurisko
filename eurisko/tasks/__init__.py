@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple, Callable
 from ..units import Unit, UnitRegistry
+from ..slots import SlotRegistry
 
 @dataclass
 class Task:
@@ -53,6 +54,7 @@ class TaskManager:
         self.task_num: int = 0
         self.min_priority: int = 150
         self.unit_registry = UnitRegistry()
+        self.slot_registry = SlotRegistry()
         self.abort_current_task: bool = False
         self.current_task: Optional[Task] = None
         self.verbosity: int = 1
@@ -189,51 +191,99 @@ class TaskManager:
             stats['successes'] += 1
 
     def work_on_task(self, task: Task) -> Dict[str, Any]:
-        """Execute a task using available heuristics."""
+        """Execute a task using heuristics."""
         self.task_num += 1
         self.current_task = task
         unit = self.unit_registry.get_unit(task.unit_name)
-        
+
         if not unit:
             return {'status': 'failed', 'reason': 'unit not found'}
+
+        # Get slot if it exists
+        slot = self.slot_registry.get_slot(task.slot_name)
             
         # Reset task state
         self.abort_current_task = False
-        task.results = {}
+        task.results = {
+            'status': 'in_progress',
+            'initial_unit_state': unit.properties.copy(),
+            'new_units': [],
+            'modified_units': []
+        }
         
-        # Set up task context
+        # Execute slot function if it exists
+        if slot and slot.get_prop('function'):
+            try:
+                slot_func = slot.get_prop('function')
+                if self.verbosity > 10:
+                    print(f"Executing {task.slot_name} function on {unit.name}")
+                    
+                result = slot_func(unit)
+                if result:
+                    # Track created/modified units
+                    if isinstance(result, list):
+                        task.results['new_units'].extend(result)
+                    elif isinstance(result, dict):
+                        task.results.update(result)
+                        
+                    if self.verbosity > 10:
+                        print(f"Slot function created units: {result}")
+            except Exception as e:
+                if self.verbosity > 0:
+                    print(f"Error executing slot function: {e}")
+
+        # Get current slot value - critical for heuristics to compare before/after
+        current_value = unit.get_prop(task.slot_name)
+
+        # Set up initial context
         context = {
-            'priority': task.priority,
             'unit': unit,
             'slot': task.slot_name,
+            'priority': task.priority,
             'reasons': task.reasons,
             'task_num': self.task_num,
             'task_type': task.task_type,
             'supplemental': task.supplemental,
             'task_manager': self,
+            'current_unit': unit,
+            'current_slot': task.slot_name,
+            'old_value': current_value,
+            'current_value': current_value,
+            'new_values': [],
+            'task_results': task.results
         }
-        
-        # Get and filter heuristics
+
+        if self.verbosity > 10:
+            print(f"\nTask {self.task_num}: Working on {unit.name}:{task.slot_name}")
+
+        # Get heuristics that could apply (analogous to (heuristics) in Lisp)
         heuristics = self._get_heuristics()
-        relevant_heuristics = []
-        
+
+        # Try each heuristic (like the LOOP in work-on-task Lisp)
         for heuristic in heuristics:
-            if self._is_heuristic_relevant(heuristic, context):
-                relevant_heuristics.append(heuristic)
-                
-        # Apply each relevant heuristic
-        for heuristic in relevant_heuristics:
             if self.abort_current_task:
                 task.results['status'] = 'aborted'
                 return task.results
-                
+
+            # Only apply if relevant (via if-parts)
+            if not self._is_heuristic_relevant(heuristic, context):
+                continue
+
+            # Apply heuristic's then-parts
             success = self._apply_heuristic(heuristic, context)
-            if not success and self.verbosity > 10:
-                print(f"Heuristic {heuristic.name} failed")
             self.track_heuristic_result(heuristic.name, success)
 
-                
-        task.results['status'] = 'completed'
+            if success and self.verbosity > 39:
+                print(f"  The ThenParts of {heuristic.name} have been executed")
+
+        # Update task results
+        task.results.update({
+            'status': 'completed',
+            'old_value': current_value,
+            'new_values': context['new_values'],
+            'modified_unit': unit.properties  # Final state
+        })
+
         return task.results
 
     def print_stats(self):

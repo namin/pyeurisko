@@ -158,4 +158,6 @@ class SlotRegistry:
                 if not slot.is_criterial]  # Use the constructor param
 
 def initialize_all_slots(registry) -> None:
-    pass
+    """Initialize the slot system."""
+    from .function_slots import initialize_slot_functions
+    initialize_slot_functions(registry)
