@@ -9,7 +9,20 @@ def parse_unit_def(e) -> Dict[str, Any]:
         return None
     name = str(e[1])
     prope = e[2:]
-    props = dict([(prope[i], prope[i+1]) for i in range(0, len(prope) - 1, 2)])
+    props = {}
+    for i in range(0, len(prope) - 1, 2):
+        k = prope[i].value()
+        v = prope[i+1]
+        if k.startswith('fast'):
+            continue
+        elif k.endswith('defn'):
+            continue
+        elif k.endswith('alg'):
+            continue
+        elif k in ['data-type', 'each-element-is-a']:
+            continue
+        else:
+            props[k] = v
     return {
         'name': name,
         'properties': props
