@@ -1,39 +1,55 @@
 """Core concept definitions for PyEurisko."""
 
 from typing import Dict, Any
+import os
+import importlib
+import inspect
 from .unit import Unit, UnitRegistry
 from .heuristics import Heuristic
 from .heuristics.h1 import setup_h1
 
-def initialize_heuristics(registry: UnitRegistry) -> None:
-    """Initialize core heuristic rules."""
-    descriptions = {
-        'H1': "Specialize sometimes-useful actions",
-        'H2': "Try to find examples of concepts with no known examples",
-        'H3': "Try combining two concepts that have worked well together before",
-        'H4': "Look for patterns in successful applications",
-        'H5': "Choose multiple slots to specialize",
-        'H6': "Look for common features in failed applications",
-        'H7': "Instantiate concepts with no known instances",
-        'H8': "Modify concepts that have both successes and failures",
-        'H9': "Try to find alternative algorithms for concepts",
-        'H10': "Look for ways to combine successful modifications",
-        'H11': "Check applicability by running algorithms",
-        'H12': "Try to find more efficient algorithms",
-        'H13': "Look for opportunities to create new concepts",
-        'H14': "Analyze relationships between concepts",
-        'H15': "Monitor and improve heuristic performance"
-    }
+def discover_heuristics():
+    """Discover all available heuristics and their documentation."""
+    heuristics = []
+    directory = os.path.join(os.path.dirname(__file__), 'heuristics')
     
-    # Create and configure heuristics
-    for name, desc in descriptions.items():
-        h = Heuristic(name, desc, registry=registry)
-        registry.register(h)
+    files = [f for f in os.listdir(directory) 
+             if f.endswith('.py') 
+             and f not in ['__init__.py', 'base.py', 'registry.py']]
+    
+    for file in sorted(files):
+        module_name = file[:-3]  # Remove .py extension
         
-        # Configure specific heuristics
-        if name == 'H1':
-            setup_h1(h)
-        # Add more configuration calls as they're implemented
+        # Import the module
+        module = importlib.import_module(f'eurisko.heuristics.{module_name}')
+        
+        # Look for setup function (they follow pattern setup_h*)
+        setup_func = None
+        for name, obj in inspect.getmembers(module):
+            if name.startswith('setup_') and inspect.isfunction(obj):
+                setup_func = obj
+                break
+        
+        if setup_func:
+            docstring = inspect.getdoc(setup_func) or "No documentation available"
+            description = docstring.split('\n')[0]  # Get first line of docstring
+            
+            heuristics.append({
+                'name': module_name,
+                'description': description,
+                'setup_func': setup_func
+            })
+    
+    return heuristics
+
+def initialize_heuristics(registry: UnitRegistry) -> None:
+    heuristics = discover_heuristics()
+    for h in heuristics:
+        unit = registry.create_unit(h['name'])
+        if not unit.get_prop('english'):
+            unit.set_prop('english', h['description'])
+        setup_func = h['setup_func']
+        setup_func(unit)
 
 def initialize_math_operations(registry: UnitRegistry) -> None:
     """Initialize core mathematical operations."""
