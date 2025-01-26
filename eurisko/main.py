@@ -3,6 +3,7 @@
 import argparse
 import logging
 from typing import Optional
+from .heuristics import initialize_all_heuristics
 from .units import Unit, UnitRegistry, initialize_all_units
 from .slots import SlotRegistry, initialize_all_slots
 from .tasks import Task, TaskManager
@@ -26,6 +27,7 @@ class Eurisko:
 
     def initialize(self) -> None:
         """Initialize the core concepts and slots."""
+        initialize_all_heuristics(self.unit_registry)
         initialize_all_units(self.unit_registry)
         initialize_all_slots(self.slot_registry)
 
