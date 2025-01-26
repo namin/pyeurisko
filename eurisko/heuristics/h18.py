@@ -160,8 +160,15 @@ def setup_h18(heuristic) -> None:
         # Create new generalized unit
         new_unit = system.create_unit(f"{unit.name}_gen", unit.name)
         
-        # Copy all slots except the one being generalized
-        slot = task['supplemental']['slot_to_change']
+        # Get slot same way as compute_action
+        supplemental = task.get('supplemental') or {}
+        slot = (
+            supplemental.get('slot_to_change') or
+            task.get('slot_to_change') or
+            (task.get('slots_to_change') or [None])[0]
+        )
+        if not slot:
+            return False
         for old_slot in unit.get_prop('slots', []):
             if old_slot != slot:
                 new_unit.set_prop(old_slot, unit.get_prop(old_slot))
