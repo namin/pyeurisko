@@ -83,7 +83,8 @@ class Unit(EuriskoObject):
 
     def is_a(self, category: str) -> bool:
         """Check if unit belongs to category."""
-        return category in self.isa()
+        this_isa = self.isa()
+        return category in this_isa or category.lower() in this_isa
 
     def examples(self) -> List[str]:
         """Get examples of this unit."""

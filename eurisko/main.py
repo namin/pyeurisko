@@ -25,9 +25,7 @@ class Eurisko:
         
     def initialize(self) -> None:
         """Initialize the core concepts and slots."""
-        # Register core units
         self._register_core_units()
-        # Initialize core slots
         self._initialize_slots()
         self.logger.info("Eurisko system initialized")
         

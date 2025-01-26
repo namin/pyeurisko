@@ -13,6 +13,7 @@ from eurisko.unit import Unit
 from eurisko.heuristics import Heuristic, HeuristicRegistry
 from eurisko.concepts import initialize_core_concepts
 from eurisko.init_heuristics import initialize_all_heuristics
+from eurisko.units import initialize_all_units
 from eurisko.tasks import Task
 
 class EnhancedEurisko(Eurisko):
@@ -64,6 +65,7 @@ class EnhancedEurisko(Eurisko):
         
         # Initialize core concepts
         initialize_core_concepts(self.unit_registry)
+        initialize_all_units(self.unit_registry)
         initialize_all_heuristics(self.unit_registry)
         
         self._generate_initial_tasks()
