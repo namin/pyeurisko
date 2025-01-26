@@ -4,6 +4,18 @@ import re
 from typing import Dict, List, Any, Tuple, Optional
 import sexpdata
 
+def problematic(k):
+    if k.startswith('fast'):
+        return True
+    elif k.endswith('defn'):
+        return True
+    elif k.endswith('alg'):
+        return True
+    elif k in ['data-type', 'each-element-is-a']:
+        return True
+    else:
+        return False
+
 def parse_unit_def(e) -> Dict[str, Any]:
     if isinstance(e[0], sexpdata.Symbol) and e[0].value() != 'defunit':
         return None
@@ -13,14 +25,8 @@ def parse_unit_def(e) -> Dict[str, Any]:
     for i in range(0, len(prope) - 1, 2):
         k = prope[i].value()
         v = prope[i+1]
-        if k.startswith('fast'):
-            continue
-        elif k.endswith('defn'):
-            continue
-        elif k.endswith('alg'):
-            continue
-        elif k in ['data-type', 'each-element-is-a']:
-            continue
+        if problematic(k):
+            props[k] = 'TODO'
         else:
             props[k] = v
     return {
@@ -75,6 +81,9 @@ def convert_lisp_file(input_file: str, output_file: str, module_name: str) -> No
         '',
         'from typing import Dict, Any',
         'from ..units import Unit, UnitRegistry',
+        'TODO = None # hack',
+        'def Quoted(x): return x # hack',
+        'def Symbol(x): return x # hack',
         '',
         f'def initialize_{module_name}_units(registry: UnitRegistry) -> None:',
         f'    """Initialize {module_name} units."""',
