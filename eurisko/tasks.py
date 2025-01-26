@@ -12,6 +12,18 @@ class Task:
     supplemental: Dict[str, Any] = field(default_factory=dict)
     results: Dict[str, Any] = field(default_factory=dict)
     
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a task property, checking supplemental and results."""
+        if key in self.supplemental:
+            return self.supplemental[key]
+        if key in self.results:
+            return self.results[key]
+        return default
+
+    def __getitem__(self, key: str) -> Any:
+        """Make task subscriptable for supplemental data."""
+        return self.supplemental[key]
+    
     def __lt__(self, other: 'Task') -> bool:
         """Tasks are ordered by priority, higher priority first."""
         return self.priority > other.priority  # Reversed for priority queue

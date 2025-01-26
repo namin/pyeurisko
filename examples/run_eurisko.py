@@ -12,6 +12,7 @@ from eurisko.main import Eurisko
 from eurisko.unit import Unit
 from eurisko.heuristics import Heuristic
 from eurisko.concepts import initialize_core_concepts
+from eurisko.init_heuristics import initialize_all_heuristics
 from eurisko.tasks import Task
 
 class EnhancedEurisko(Eurisko):
@@ -21,11 +22,21 @@ class EnhancedEurisko(Eurisko):
         super().__init__(verbosity=verbosity)
         self.heuristic_stats = defaultdict(lambda: {'tries': 0, 'successes': 0})
         self.synthesized_units = set()
+        self.task_results = {}
+        
+    def get_task_result(self, key: str, default=None):
+        """Get a task result by key."""
+        return self.task_results.get(key, default)
+        
+    def add_task_result(self, key: str, value: Any):
+        """Add a task result."""
+        self.task_results[key] = value
 
     def initialize(self):
         """Initialize system with core units and concepts."""
         super().initialize()
         initialize_core_concepts(self.unit_registry)
+        initialize_all_heuristics(self.unit_registry)
         self._generate_initial_tasks()
 
     def _generate_initial_tasks(self):
