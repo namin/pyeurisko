@@ -1,6 +1,7 @@
 """Task classes for managing unit operations."""
 
 import logging
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple, Callable
 from ..units import Unit, UnitRegistry
@@ -55,6 +56,7 @@ class TaskManager:
         self.abort_current_task: bool = False
         self.current_task: Optional[Task] = None
         self.verbosity: int = 1
+        self.heuristic_stats = defaultdict(lambda: {'tries': 0, 'successes': 0})
         
     def _merge_task_priorities(self, existing: Task, new: Task) -> int:
         """Calculate merged task priority based on existing and new tasks."""
@@ -166,9 +168,16 @@ class TaskManager:
             #    if self.verbosity > 1:
             #        print(f"Error applying heuristic {heuristic.name}: {e}")
             #    success = False
-                
+
         return success
-        
+
+    def track_heuristic_result(self, heuristic_name: str, success: bool):
+        """Track success/failure statistics for heuristics."""
+        stats = self.heuristic_stats[heuristic_name]
+        stats['tries'] += 1
+        if success:
+            stats['successes'] += 1
+
     def work_on_task(self, task: Task) -> Dict[str, Any]:
         """Execute a task using available heuristics."""
         self.task_num += 1
@@ -209,11 +218,20 @@ class TaskManager:
                 return task.results
                 
             success = self._apply_heuristic(heuristic, context)
-            if not success and self.verbosity > 0:
+            if not success and self.verbosity > 10:
                 print(f"Heuristic {heuristic.name} failed")
+            self.track_heuristic_result(heuristic.name, success)
+
                 
         task.results['status'] = 'completed'
         return task.results
+
+    def print_stats(self):
+        if self.heuristic_stats:
+            print("\nHeuristic Performance:")
+            for h_name, stats in sorted(self.heuristic_stats.items()):
+                success_rate = (stats['successes'] / stats['tries'] * 100) if stats['tries'] > 0 else 0
+                print(f"{h_name} -> {success_rate:.0f}% ({stats['tries']} tries, {stats['successes']} successes)")
 
     def _execute_task_phase(self, unit: Unit, phase: str, context: Dict[str, Any]) -> bool:
         """Execute a specific phase of task processing."""

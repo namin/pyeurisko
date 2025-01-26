@@ -161,6 +161,7 @@ def main():
     eurisko = Eurisko(verbosity=args.verbosity)
     eurisko.initialize()
     eurisko.run(eternal_mode=args.eternal, max_cycles=args.max_cycles)
+    eurisko.task_manager.print_stats()
 
 if __name__ == '__main__':
     main()
