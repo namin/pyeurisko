@@ -1,214 +1,160 @@
-"""H14 heuristic implementation: Create type-based prevention rules."""
-from typing import Any, Dict, List, Optional
+"""H14 heuristic implementation: Prevent specific types of replacements."""
+from typing import Any, Dict
 import logging
-import inspect
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h14(heuristic) -> None:
-    """Configure H14: Create type-based prevention rules.
-    
-    This heuristic examines failing concepts to understand type changes that
-    led to failure. It creates prevention rules that block problematic type
-    transitions (e.g., simple to complex) while still allowing safe changes.
-    """
+    """Configure H14: Form rules to prevent specific replacements."""
     heuristic.set_prop('worth', 700)
-    heuristic.set_prop('english',
-        "IF C is about to die, THEN try to form prevention rules based on "
-        "problematic type transformations that led to failure.")
-    heuristic.set_prop('abbrev', "Form type-based prevention rules")
-
-    def get_type_category(value: Any) -> str:
-        """Determine high-level type category."""
-        if callable(value):
-            return 'function'
-        elif isinstance(value, (list, tuple, set)):
-            return 'sequence'
-        elif isinstance(value, dict):
-            return 'mapping'
-        elif isinstance(value, (int, float)):
-            return 'numeric'
-        elif isinstance(value, str):
-            return 'text'
-        else:
-            return type(value).__name__
-
-    def measure_complexity(value: Any) -> int:
-        """Estimate structural complexity of a value."""
-        if callable(value):
-            try:
-                source = inspect.getsource(value)
-                return len(source.split('\n'))
-            except:
-                return 5  # Default for functions
-        elif isinstance(value, (list, tuple, set)):
-            return sum(measure_complexity(x) for x in value) + 1
-        elif isinstance(value, dict):
-            return sum(
-                measure_complexity(k) + measure_complexity(v)
-                for k, v in value.items()
-            ) + 1
-        elif isinstance(value, str):
-            return len(value)
-        else:
-            return 1
+    heuristic.set_prop('english', 
+        "IF C is about to die, then try to form a new heuristic that would have prevented "
+        "the same losing sort of entity being the replacer")
+    heuristic.set_prop('abbrev', "Form a rule that would have prevented this type of replacement")
+    heuristic.set_prop('arity', 1)
+    
+    def record_func(rule, context):
+        return True
+    for record_type in ['then_compute', 'then_define_new_concepts', 'then_print_to_user', 'overall']:
+        heuristic.set_prop(f'{record_type}_record', record_func)
 
     @rule_factory
     def if_potentially_relevant(rule, context):
-        """Check if unit is being deleted."""
+        """Check if unit is about to be deleted."""
         unit = context.get('unit')
-        deleted_units = context.get('deleted_units', [])
-        
-        if not unit or unit.name not in deleted_units:
+        if not unit:
+            return False
+        deleted_units = context.get('task_results', {}).get('deleted_units', {}).get('units', [])
+        return unit in deleted_units
+
+    @rule_factory
+    def then_print_to_user(rule, context):
+        """Print explanation of preventative rule."""
+        unit = context.get('unit')
+        c_to = context.get('c_to')
+        c_slot = context.get('c_slot')
+        c_slot_sibs = context.get('c_slot_sibs', [])
+        g_slot = context.get('g_slot')
+        if not all([unit, c_to, c_slot, g_slot]):
             return False
             
-        # Need to know what created this unit
-        creditors = unit.get_prop('creditors', [])
-        if not creditors:
-            return False
-            
-        # Store creator info for later
-        creator = creditors[0]
-        context['creator'] = creator
+        logger.info(f"\n\nJust before destroying a losing concept, Eurisko generalized "
+                   f"from that bad experience, in the following way: Eurisko will no "
+                   f"longer change something into {c_to} inside any of these "
+                   f"{c_slot_sibs if len(c_slot_sibs) > 1 else c_slot} slots of a unit when trying "
+                   f"to find {g_slot} of that unit. We learned our lesson from {unit.name}\n")
         return True
 
     @rule_factory
     def then_compute(rule, context):
-        """Create type-based prevention rules."""
+        """Extract task and replacement information."""
         unit = context.get('unit')
-        creator = context.get('creator')
-        if not unit or not creator:
+        if not unit:
             return False
-
-        # Find creation task and analyze type changes
-        unit_apps = unit.get_prop('applications') or []
-        creator_unit = unit.get_prop('creditors_applications') or []
-        all_apps = unit_apps + creator_unit
-        
-        creation_task = None
-        for app in all_apps:
-            task_info = app.get('task_info', {})
-            old_value = task_info.get('old_value')
-            new_value = task_info.get('new_value')
             
-            if old_value is not None and new_value is not None:
-                # Analyze type changes
-                old_type = type(old_value).__name__
-                new_type = type(new_value).__name__
-                old_category = get_type_category(old_value)
-                new_category = get_type_category(new_value)
-                
-                old_complexity = measure_complexity(old_value)
-                new_complexity = measure_complexity(new_value)
-                
-                type_analysis = {
-                    'from_type': old_type,
-                    'to_type': new_type,
-                    'from_category': old_category,
-                    'to_category': new_category,
-                    'type_changed': old_type != new_type,
-                    'category_changed': old_category != new_category,
-                    'complexity_increased': new_complexity > old_complexity,
-                    'complexity_ratio': new_complexity / old_complexity if old_complexity > 0 else float('inf')
-                }
-                
-                if type_analysis['type_changed'] or type_analysis['complexity_increased']:
-                    task_info['type_analysis'] = type_analysis
-                    creation_task = app
-                    break
-
-        if not creation_task:
+        creditors = unit.get_prop('creditors', [])
+        if not creditors:
             return False
-
-        task_info = creation_task.get('task_info', {})
-        changed_slot = task_info.get('slot_to_change')
-        type_analysis = task_info.get('type_analysis')
-        
-        if not all([changed_slot, type_analysis]):
+            
+        creator = rule.unit_registry.get_unit(creditors[0])
+        if not creator:
             return False
-
-        # Create and register prevention rules
-        new_rules = []
+            
+        creator_apps = creator.get_prop('applications', [])
+        app = None
+        for a in creator_apps:
+            if a.get('results') and unit in a['results']:
+                app = a
+                break
+                
+        if not app:
+            return False
+            
+        task = app.get('task', {})
+        transformations = app.get('description', [])
+        if not task or not transformations:
+            return False
+            
+        c_slot = task.get('supplemental', {}).get('slot_to_change')
+        g_slot = task.get('slot')
         
-        # Rule for type changes if relevant
-        if type_analysis['type_changed']:
-            type_rule_name = (
-                f"prevent_{type_analysis['from_type']}_to_"
-                f"{type_analysis['to_type']}_changes"
-            )
-            type_rule = rule.unit_registry.create_unit(type_rule_name)
-            if type_rule:
-                type_rule.set_prop('type', 'type-prevention-rule')
-                type_rule.set_prop('english',
-                    f"Prevent changes in {changed_slot} slot that convert "
-                    f"{type_analysis['from_type']} values to "
-                    f"{type_analysis['to_type']} values")
-                type_rule.set_prop('slot_to_avoid', changed_slot)
-                type_rule.set_prop('from_type', type_analysis['from_type'])
-                type_rule.set_prop('to_type', type_analysis['to_type'])
-                type_rule.set_prop('learned_from', unit.name)
-                type_rule.set_prop('source_creditor', creator)
-                rule.unit_registry.register(type_rule)
-                new_rules.append(type_rule)
-
-        # Rule for complexity increases if relevant
-        if type_analysis['complexity_increased']:
-            complexity_rule_name = f"prevent_complexity_increase_in_{changed_slot}"
-            complexity_rule = rule.unit_registry.create_unit(complexity_rule_name)
-            if complexity_rule:
-                complexity_rule.set_prop('type', 'complexity-prevention-rule')
-                complexity_rule.set_prop('english',
-                    f"Prevent changes to {changed_slot} slot that significantly "
-                    f"increase structural complexity")
-                complexity_rule.set_prop('slot_to_avoid', changed_slot)
-                complexity_rule.set_prop('check', 'complexity_increase')
-                complexity_rule.set_prop('learned_from', unit.name)
-                complexity_rule.set_prop('source_creditor', creator)
-                complexity_rule.set_prop('complexity_threshold', 
-                    type_analysis['complexity_ratio'])
-                rule.unit_registry.register(complexity_rule)
-                new_rules.append(complexity_rule)
-
-        if new_rules:
-            context['task_results'] = context.get('task_results', {})
-            context['task_results'].update({
-                'new_units': new_rules,
-                'type_analysis': type_analysis
-            })
-            return True
-
-        return False
+        c_to = None
+        for trans in transformations:
+            if isinstance(trans, dict) and '->' in trans:
+                c_to = trans.get('to')
+                break
+                
+        if not all([c_slot, g_slot, c_to]):
+            return False
+            
+        context.update({
+            'c_slot': c_slot,
+            'g_slot': g_slot,
+            'c_to': c_to
+        })
+        return True
 
     @rule_factory
-    def then_print_to_user(rule, context):
-        """Report on prevention rules created."""
+    def then_define_new_concepts(rule, context):
+        """Create preventative rule unit."""
         unit = context.get('unit')
+        c_slot = context.get('c_slot')
+        g_slot = context.get('g_slot')
+        c_to = context.get('c_to')
+        if not all([unit, c_slot, g_slot, c_to]):
+            return False
+            
+        new_unit = rule.unit_registry.create_unit('h-avoid-3')
+        if not new_unit:
+            return False
+            
+        sibling_slots = []
+        for slot in unit.get_prop('slots', []):
+            if slot.startswith(c_slot) or c_slot.startswith(slot):
+                sibling_slots.append(slot)
+                
+        props = {
+            'g_slot': g_slot,
+            'c_slot': c_slot,
+            'c_slot_sibs': sibling_slots,
+            'not_for_real': True,
+            'c_to': c_to
+        }
+        for k, v in props.items():
+            new_unit.set_prop(k, v)
+            
         task_results = context.get('task_results', {})
-        
-        if not unit or not task_results:
-            return False
-            
         new_units = task_results.get('new_units', [])
-        if not new_units:
-            return False
-
-        type_analysis = task_results.get('type_analysis', {})
+        new_units.append(new_unit)
+        task_results['new_units'] = new_units
+        context['task_results'] = task_results
         
-        logger.info(
-            f"\nCreated prevention rules from {unit.name} failure:")
+        h14 = rule.unit_registry.get_unit('h14')
+        if h14:
+            task = context.get('task', {})
+            app = {
+                'args': [task],
+                'results': [new_unit],
+                'credit': {'initial': 1.0},
+                'description': [
+                    "Will avoid changing anything into a",
+                    c_to,
+                    "inside the",
+                    c_slot,
+                    f"{', actually all of these: ' if len(sibling_slots) > 1 else ','}", 
+                    sibling_slots if len(sibling_slots) > 1 else '',
+                    "of units whenever finding",
+                    g_slot,
+                    "of them"
+                ]
+            }
+            h14.add_to_prop('applications', app)
             
-        for rule_unit in new_units:
-            if rule_unit.get_prop('type') == 'type-prevention-rule':
-                logger.info(
-                    f"- Type rule: prevent {rule_unit.get_prop('from_type')} to "
-                    f"{rule_unit.get_prop('to_type')} conversions in "
-                    f"{rule_unit.get_prop('slot_to_avoid')}"
-                )
-            else:
-                logger.info(
-                    f"- Complexity rule: prevent large increases "
-                    f"(>{type_analysis['complexity_ratio']:.1f}x) in "
-                    f"{rule_unit.get_prop('slot_to_avoid')}"
-                )
+        creditors = ['h14']
+        if task := context.get('task'):
+            task_creditors = task.get('supplemental', {}).get('credit_to', [])
+            creditors.extend(task_creditors) 
+        new_unit.set_prop('creditors', creditors)
+            
         return True
