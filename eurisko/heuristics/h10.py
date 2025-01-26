@@ -1,6 +1,7 @@
 """H10 heuristic implementation: Find examples from operation outputs."""
 from typing import Any, Dict, List
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,8 @@ def setup_h10(heuristic) -> None:
         "I/O pairs stored on applications of f.")
     heuristic.set_prop('abbrev', "Find examples from operation outputs")
 
-    def check_task_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_potentially_relevant(rule, context):
         """Verify task is for finding examples."""
         task = context.get('task')
         unit = context.get('unit')
@@ -37,15 +39,19 @@ def setup_h10(heuristic) -> None:
         context['source_ops'] = operations
         return True
 
-    def get_examples_from_operations(
-        operations: List[str],
-        registry: Any
-    ) -> List[Dict[str, Any]]:
-        """Get outputs from operations that produce this type."""
-        examples = []
+    @rule_factory
+    def then_compute(rule, context):
+        """Find examples from operation outputs."""
+        unit = context.get('unit')
+        source_ops = context.get('source_ops', [])
         
-        for op_name in operations:
-            op = registry.unit_registry.get_unit(op_name)
+        if not all([unit, source_ops]):
+            return False
+
+        # Get examples from operations
+        examples = []
+        for op_name in source_ops:
+            op = rule.unit_registry.get_unit(op_name)
             if not op:
                 continue
                 
@@ -58,20 +64,7 @@ def setup_h10(heuristic) -> None:
                         'source': op_name,
                         'from_application': app
                     })
-                    
-        return examples
 
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Find examples from operation outputs."""
-        unit = context.get('unit')
-        source_ops = context.get('source_ops', [])
-        registry = context.get('registry')
-        
-        if not all([unit, source_ops, registry]):
-            return False
-
-        # Get examples from operations
-        examples = get_examples_from_operations(source_ops, registry)
         if not examples:
             return False
 
@@ -95,7 +88,8 @@ def setup_h10(heuristic) -> None:
 
         return False
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Report on examples found."""
         unit = context.get('unit')
         task_results = context.get('task_results', {})
@@ -113,8 +107,3 @@ def setup_h10(heuristic) -> None:
         )
         
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_potentially_relevant', check_task_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)

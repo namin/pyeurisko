@@ -59,7 +59,7 @@ def discover_heuristics():
 def initialize_all_heuristics(unit_registry) -> None:
     heuristics = discover_heuristics()
     for h in heuristics:
-        if h['name'] not in ['h1', 'h2', 'h3', 'h4', 'h5']:
+        if h['name'] not in ['h'+str(i) for i in range(1, 11)]:
             continue
         unit = unit_registry.create_unit(h['name'])
         unit.set_prop('isa', ['heuristic', 'anything'])

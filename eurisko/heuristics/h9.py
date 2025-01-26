@@ -1,6 +1,7 @@
 """H9 heuristic implementation: Find examples through generalizations."""
 from typing import Any, Dict, List
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,8 @@ def setup_h9(heuristic) -> None:
         "and see if any of them are valid examples of this as well.")
     heuristic.set_prop('abbrev', "Examples from generalization examples")
 
-    def check_task_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_potentially_relevant(rule, context):
         """Verify task is for finding examples."""
         task = context.get('task')
         unit = context.get('unit')
@@ -37,16 +39,21 @@ def setup_h9(heuristic) -> None:
         context['definition'] = definition
         return True
 
-    def get_examples_from_generalizations(
-        unit: Any,
-        registry: Any
-    ) -> List[Dict[str, Any]]:
-        """Get examples from unit's generalizations."""
+    @rule_factory
+    def then_compute(rule, context):
+        """Find and validate examples from generalizations."""
+        unit = context.get('unit')
+        definition = context.get('definition')
+        
+        if not all([unit, definition]):
+            return False
+
+        # Get candidate examples from generalizations
         candidate_examples = []
         generalizations = unit.get_prop('generalizations', [])
         
         for gen_name in generalizations:
-            gen = registry.unit_registry.get_unit(gen_name)
+            gen = rule.unit_registry.get_unit(gen_name)
             if not gen:
                 continue
                 
@@ -57,21 +64,8 @@ def setup_h9(heuristic) -> None:
                         'value': example,
                         'source': gen_name
                     })
-                    
-        return candidate_examples
 
-    def compute_action(context: Dict[str, Any]) -> bool:
-        """Find and validate examples from generalizations."""
-        unit = context.get('unit')
-        definition = context.get('definition')
-        registry = context.get('registry')
-        
-        if not all([unit, definition, registry]):
-            return False
-
-        # Get candidate examples
-        candidates = get_examples_from_generalizations(unit, registry)
-        if not candidates:
+        if not candidate_examples:
             return False
 
         # Track valid examples
@@ -79,7 +73,7 @@ def setup_h9(heuristic) -> None:
         new_examples = []
 
         # Validate candidates
-        for candidate in candidates:
+        for candidate in candidate_examples:
             value = candidate['value']
             if value not in current_examples:
                 try:
@@ -103,7 +97,8 @@ def setup_h9(heuristic) -> None:
 
         return False
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Report on examples found."""
         unit = context.get('unit')
         task_results = context.get('task_results', {})
@@ -121,8 +116,3 @@ def setup_h9(heuristic) -> None:
         )
         
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_potentially_relevant', check_task_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)

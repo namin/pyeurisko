@@ -2,6 +2,8 @@
 from typing import Any, Dict
 from ..units import Unit
 import logging
+from ..heuristics import rule_factory
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,8 @@ def setup_h6(heuristic) -> None:
     heuristic.set_prop('overall_record', (188387, 73))
     heuristic.set_prop('then_compute_failed_record', (24908, 56))
 
-    def check_task(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_working_on_task(rule, context):
         """Check if we have a slot selected for specialization."""
         unit = context.get('unit')
         task = context.get('task')
@@ -32,7 +35,8 @@ def setup_h6(heuristic) -> None:
         return (task.get('task_type') == 'specialization' and
                 'slot_to_change' in task)
 
-    def print_results(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Print the specialization results."""
         unit = context.get('unit')
         task = context.get('task')
@@ -50,7 +54,8 @@ def setup_h6(heuristic) -> None:
                    f"({old_value}) by {new_value}.\n")
         return True
 
-    def compute_action(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_compute(rule, context):
         """Perform the slot specialization."""
         unit = context.get('unit')
         task = context.get('task')
@@ -69,7 +74,12 @@ def setup_h6(heuristic) -> None:
             
         # Get data type and specialize
         data_type = unit.get_prop('data_type')
-        new_value = specialize_value(old_value, data_type)
+        
+        # Specialize based on data type
+        new_value = old_value
+        if data_type == 'list' and isinstance(old_value, list):
+            if len(old_value) > 1:
+                new_value = random.sample(old_value, random.randint(1, len(old_value)))
         
         if new_value == old_value:
             logger.info(f"\nCouldn't find meaningful specialization of the {slot} "
@@ -80,8 +90,9 @@ def setup_h6(heuristic) -> None:
         context['new_value'] = new_value
         context['slot'] = slot
         
-        # Create new specialized unit
-        new_unit = Unit(f"{unit.name}-spec", unit.worth_value())
+        # Create new specialized unit with unit registry from rule
+        new_unit = rule.unit_registry.create_unit(f"{unit.name}-spec")
+        new_unit.set_prop('worth', unit.worth_value())
         new_unit.copy_slots_from(unit)
             
         # Set specialized value
@@ -96,6 +107,9 @@ def setup_h6(heuristic) -> None:
         if creditors:
             new_unit.add_to_prop('creditors', ['h6'] + list(creditors))
         
+        # Add to unit registry
+        rule.unit_registry.register(new_unit)
+        
         # Add to results
         task_results = context.get('task_results', {})
         new_units = task_results.get('new_units', [])
@@ -104,20 +118,3 @@ def setup_h6(heuristic) -> None:
         context['task_results'] = task_results
         
         return True
-
-    def specialize_value(value: Any, data_type: str) -> Any:
-        """Specialize a value based on its data type."""
-        if data_type == 'list' and isinstance(value, list):
-            import random
-            if len(value) <= 1:
-                return value
-            return random.sample(value, random.randint(1, len(value)))
-            
-        # For now, other types return unchanged
-        # TODO: Implement other specialization types
-        return value
-
-    # Configure the heuristic
-    heuristic.set_prop('if_working_on_task', check_task)
-    heuristic.set_prop('then_print_to_user', print_results)
-    heuristic.set_prop('then_compute', compute_action)

@@ -1,6 +1,7 @@
 """H8 heuristic implementation: Find applications through generalizations."""
 from typing import Any, Dict, List
 import logging
+from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,8 @@ def setup_h8(heuristic) -> None:
         "and see if any of them are valid application-instances of this as well.")
     heuristic.set_prop('abbrev', "Applications (u) may be found against Applications (genl (u))")
 
-    def check_task_relevance(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def if_potentially_relevant(rule, context):
         """Verify task is for finding applications."""
         task = context.get('task')
         unit = context.get('unit')
@@ -31,61 +33,44 @@ def setup_h8(heuristic) -> None:
         context['algorithm'] = algorithm
         return True
 
-    def get_applications_from_generalizations(
-        unit: Any,
-        registry: Any
-    ) -> List[Dict[str, Any]]:
-        """Get applications from unit's generalizations."""
-        applications = []
-        generalizations = unit.get_prop('generalizations', [])
-        
-        for gen_name in generalizations:
-            gen = registry.unit_registry.get_unit(gen_name)
-            if gen:
-                gen_apps = gen.get_prop('applications', [])
-                if gen_apps:
-                    for app in gen_apps:
-                        applications.append({
-                            'args': app.get('args', []),
-                            'source': gen_name,
-                            'from_unit': gen_name
-                        })
-                        
-        return applications
-
-    def compute_action(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_compute(rule, context):
         """Find and verify applications from generalizations."""
         unit = context.get('unit')
         algorithm = context.get('algorithm')
-        registry = context.get('registry')
         
-        if not all([unit, algorithm, registry]):
+        if not all([unit, algorithm]):
             return False
 
         # Get applications from generalizations
-        gen_applications = get_applications_from_generalizations(unit, registry)
-        if not gen_applications:
-            return False
-
-        # Track successful new applications 
         new_applications = []
-
-        # Try each application
-        for app in gen_applications:
-            args = app.get('args', [])
-            if not unit.has_application(args):
-                try:
-                    result = algorithm(*args)
-                    new_applications.append({
-                        'args': args,
-                        'result': result,
-                        'from_unit': app['from_unit']
-                    })
-                except Exception as e:
-                    logger.debug(
-                        f"Failed to apply {unit.name} to args from "
-                        f"{app['source']}: {e}"
-                    )
+        generalizations = unit.get_prop('generalizations', [])
+        
+        for gen_name in generalizations:
+            gen = rule.unit_registry.get_unit(gen_name)
+            if not gen:
+                continue
+                
+            gen_apps = gen.get_prop('applications', [])
+            if not gen_apps:
+                continue
+                
+            # Try each application from this generalization
+            for app in gen_apps:
+                args = app.get('args', [])
+                if not unit.has_application(args):
+                    try:
+                        result = algorithm(*args)
+                        new_applications.append({
+                            'args': args,
+                            'result': result,
+                            'from_unit': gen_name
+                        })
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to apply {unit.name} to args from "
+                            f"{gen_name}: {e}"
+                        )
 
         if new_applications:
             context['task_results'] = context.get('task_results', {})
@@ -94,7 +79,8 @@ def setup_h8(heuristic) -> None:
 
         return False
 
-    def print_to_user(context: Dict[str, Any]) -> bool:
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Report on applications found."""
         unit = context.get('unit')
         task_results = context.get('task_results', {})
@@ -125,8 +111,3 @@ def setup_h8(heuristic) -> None:
                 )
 
         return True
-
-    # Configure heuristic slots
-    heuristic.set_prop('if_potentially_relevant', check_task_relevance)
-    heuristic.set_prop('then_compute', compute_action)
-    heuristic.set_prop('then_print_to_user', print_to_user)
