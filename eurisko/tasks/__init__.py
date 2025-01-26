@@ -133,53 +133,51 @@ class TaskManager:
         """Get all heuristic units."""
         return [self.unit_registry.get_unit(name) 
                 for name in self.unit_registry.get_units_by_category('heuristic')]
-                
+
     def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Check if a heuristic's if-parts are satisfied."""
-        def check_conditions(conditions):
-            if callable(conditions):
-                return conditions(context)
-            elif isinstance(conditions, list):
-                return all(c(context) for c in conditions if callable(c))
-            return True
+        def check_factory_func(factory):
+            """Handle function that returns another function."""
+            if not factory:
+                return True
+            test_func = factory(heuristic)  # Get actual test function 
+            return test_func(context)
+
         # Check if_potentially_relevant first
-        check = heuristic.get_prop('if_potentially_relevant')
-        if check and not check_conditions(check):
+        if_factory = heuristic.get_prop('if_potentially_relevant')
+        if if_factory and not check_factory_func(if_factory):
             return False
-                
+
         # Then check if_truly_relevant 
-        check = heuristic.get_prop('if_truly_relevant')
-        if check and not check_conditions(check):
+        if_factory = heuristic.get_prop('if_truly_relevant')
+        if if_factory and not check_factory_func(if_factory):
             return False
-                
+
         return True
-        
+    
     def _apply_heuristic(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Apply a heuristic's then-parts."""
-        then_parts = []
-        
-        # Get all the then_ slots
-        for prop_name in heuristic.properties:
-            if prop_name.startswith('then_'):
-                action = heuristic.get_prop(prop_name)
-                if action:
-                    if callable(action):
-                        then_parts.append(action)
-                    elif isinstance(action, list):
-                        then_parts.extend(a for a in action if callable(a))
-                    
-        # Execute them
         success = True
-        for action in then_parts:
+
+        for prop_name in heuristic.properties:
+            if not prop_name.startswith('then_'):
+                continue
+
+            action_factory = heuristic.get_prop(prop_name)
+            if not action_factory:
+                continue
+
             try:
+                # Get actual action function from factory
+                action = action_factory(heuristic)
                 if not action(context):
                     if self.verbosity > 1:
-                        print(f"Action {action.__name__} failed in {heuristic.name}")
+                        print(f"Action from {prop_name} failed for {heuristic.name}")
                         success = False
             except Exception as e:
                 if self.verbosity > 1:
                     print(f"Error applying heuristic {heuristic.name}: {e}")
-                success = False
+                    success = False
 
         return success
 

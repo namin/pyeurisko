@@ -20,20 +20,21 @@ class Unit(EuriskoObject):
                 return alg
         return None
 
-    def apply_algorithm(self, args) -> Any:
-        """Apply unit's algorithm to arguments."""
+    def apply_algorithm(self, args: List[Any]) -> Any:
+        """Apply unit's algorithm to arguments and track results."""
         alg = self.get_algorithm()  # Get best available algorithm
-        if alg:
-            try:
-                result = alg(*args)
-                # Record successful application
-                self.add_application(args, result)
-                return result
-            except Exception as e:
-                # Record failed application
-                self.add_application(args, None, success=False)
-                return None
-        return None
+        if not alg:
+            return None
+            
+        try:
+            result = alg(*args)
+            # Record application with inferred success
+            self.add_application(args, result)
+            return result
+        except Exception as e:
+            # Record explicit failure
+            self.add_application(args, None, success=False)
+            return None
 
     def add_application(self, args, result, success=True):
         """Record an application of this unit."""
@@ -140,14 +141,52 @@ class Unit(EuriskoObject):
                     return True
         return False
 
-    def add_application(self, args: List[Any], result: Any, worth: int = 500) -> None:
-        """Record a new application of this unit."""
-        app = {'args': args, 'result': result, 'worth': worth}
+    def add_application(self, args: List[Any], result: Any, success: bool = None) -> None:
+        """Record an application of this unit.
+        
+        Args:
+            args: Arguments passed to the algorithm
+            result: Result of the application
+            success: Override success determination (otherwise inferred from result)
+        """
+        # Determine success if not explicitly specified
+        if success is None:
+            success = result is not None and result not in ['failed', None, False]
+            
+        # Calculate worth based on success and previous applications
+        base_worth = 500 if success else 100
+        prev_apps = self.get_prop('applications', [])
+        similar_apps = [app for app in prev_apps 
+                       if app.get('args') == args 
+                       and app.get('success') == success]
+        if similar_apps:
+            # Reduce worth for repeated results
+            base_worth = base_worth // (len(similar_apps) + 1)
+            
+        # Create application record
+        app = {
+            'args': args,
+            'result': result,
+            'success': success,
+            'worth': base_worth
+        }
+        
+        # Update applications
         applications = self.get_prop('applications', [])
         if not isinstance(applications, list):
             applications = []
         applications.append(app)
         self.set_prop('applications', applications)
+        
+        # Update rarity statistics
+        rarity = self.get_prop('rarity', [0, 0, 0])  # [ratio, successes, failures]
+        if success:
+            rarity[1] += 1
+        else:
+            rarity[2] += 1
+        total = rarity[1] + rarity[2]
+        rarity[0] = rarity[1] / total if total > 0 else 0
+        self.set_prop('rarity', rarity)
 
     def add_to_prop(self, prop_name: str, value: Any) -> None:
         """Add a value to a property, creating a list if needed."""
