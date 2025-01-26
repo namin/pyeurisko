@@ -140,7 +140,8 @@ class TaskManager:
 
     def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Check if a heuristic's if-parts are satisfied."""
-        logger.debug(f"Checking relevance of {heuristic.name}")
+        logger.debug(f"\nChecking relevance of {heuristic.name}")
+        logger.debug(f"Context: task_type={context.get('task_type')}, supplemental={context.get('supplemental')}")
         def check_factory_func(factory):
             """Handle function that returns another function."""
             if not factory:
@@ -287,7 +288,7 @@ class TaskManager:
                 return task.results
 
             # Only apply if relevant (via if-parts)
-            logger.debug(f"Checking if {heuristic.name} is relevant")
+            logger.debug(f"Checking if {heuristic.name} relevant for task type {context.get('task_type')}")
             if not self._is_heuristic_relevant(heuristic, context):
                 logger.debug(f"{heuristic.name} not relevant")
                 continue

@@ -31,9 +31,11 @@ def setup_h5(heuristic) -> None:
             
         # Check task type and missing slot selection
         is_specialization = task.task_type == 'specialization'
+        logger.debug(f"H5 task type is {task.task_type}, checking specialization")
         no_slots_chosen = 'slot_to_change' not in task.supplemental
+        logger.debug(f"H5 no slots chosen: {no_slots_chosen}, supplemental: {task.supplemental}")
         
-        logger.debug(f"H5 checking specialization {is_specialization} and no slots {no_slots_chosen}")
+        logger.debug(f"H5 checking specialization {is_specialization} and no slots {no_slots_chosen} for task {task.task_type}")
         
         # Check agenda count as in LISP
         task_manager = rule.task_manager
@@ -67,10 +69,10 @@ def setup_h5(heuristic) -> None:
         if not unit or not task:
             return False
 
-        # Get all non-fixed properties
+        # Focus on non-function slots that can be specialized
+        slot_keys = ['domain', 'range', 'isa', 'applics', 'applications']
         logger.debug(f"Getting slots for {unit.name}")
-        slot_keys = ['domain', 'range', 'applics', 'applications', 'alg', 'fast_alg', 'iterative_alg', 'recursive_alg', 'unitized_alg']
-        valid_slots = [k for k in slot_keys if k in unit.properties]
+        valid_slots = [k for k in slot_keys if k in unit.properties and unit.properties[k] is not None]
         logger.debug(f"Valid slots after filtering: {valid_slots}")
         slots = valid_slots
 
@@ -82,17 +84,15 @@ def setup_h5(heuristic) -> None:
         selected_slots = random.sample(slots, num_slots)
         
         # Update context and task
-        context['slots_to_change'] = selected_slots
         task.supplemental['slots_to_change'] = selected_slots
         task.supplemental['credit_to'] = task.supplemental.get('credit_to', []) + ['h5']
-        
         return True
 
     @rule_factory
     def then_add_to_agenda(rule, context):
         """Add specialization tasks for chosen slots."""
         unit = context.get('unit')
-        selected_slots = context.get('slots_to_change', [])
+        selected_slots = task.supplemental.get('slots_to_change', [])
         task = context.get('current_task')
         task_manager = rule.task_manager
         
