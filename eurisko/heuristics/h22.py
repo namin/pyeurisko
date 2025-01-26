@@ -1,158 +1,98 @@
-"""H22 heuristic implementation: Evaluate instance interestingness."""
-from typing import Any, Dict, List, Optional
-from ..units import Unit
+"""H22 heuristic implementation: Look for interesting instances."""
+from typing import Any, Dict
 import logging
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h22(heuristic) -> None:
-    """Configure H22: Assess interestingness of discovered instances.
-    
-    This heuristic examines newly discovered instances of concepts to identify
-    those that are particularly interesting or noteworthy. It helps guide
-    the system's exploration toward promising areas by identifying instances
-    that merit further investigation.
-    """
+    """Configure H22: Find interesting unit instances."""
     heuristic.set_prop('worth', 500)
-    heuristic.set_prop('english',
-        "IF instances of a unit have been found, THEN evaluate which ones are "
-        "unusually interesting to guide further exploration.")
-    heuristic.set_prop('abbrev', "Check instances for interesting cases")
-    
-    # Initialize record keeping
-    heuristic.set_prop('then_add_to_agenda_record', (14, 1))
-    heuristic.set_prop('then_print_to_user_record', (38, 1))
-    heuristic.set_prop('overall_record', (75, 1))
+    heuristic.set_prop('english', 
+        "IF instances of a unit have been found, THEN place a task on the Agenda to "
+        "see if any of them are unusually interesting")
+    heuristic.set_prop('abbrev', "Check instances of a unit for gems")
     heuristic.set_prop('arity', 1)
+    
+    def record_func(rule, context):
+        return True
+    for record_type in ['then_add_to_agenda', 'then_print_to_user', 'overall']:
+        heuristic.set_prop(f'{record_type}_record', record_func)
 
-    def get_interestingness_criteria(unit: Unit) -> List[Dict[str, Any]]:
-        """Get criteria for evaluating instance interestingness."""
-        base_criteria = [
-            {
-                'test': lambda x: len(str(x)) > 100,
-                'weight': 0.3,
-                'description': "Unusually complex structure"
-            },
-            {
-                'test': lambda x: bool(getattr(x, 'worth', 0) > 700),
-                'weight': 0.4,
-                'description': "High worth"
-            }
-        ]
-        
-        # Add any unit-specific criteria
-        custom_criteria = unit.get_prop('interestingness', [])
-        if custom_criteria:
-            base_criteria.extend(custom_criteria)
-            
-        return base_criteria
-
-    @rule_factory
+    @rule_factory 
     def if_finished_working_on_task(rule, context):
-        """Check if we've just found new instances that need evaluation."""
+        """Check if we should evaluate instance interestingness."""
         unit = context.get('unit')
         task = context.get('task')
-        if not unit or not task:
+        if not all([unit, task]):
             return False
             
-        # Determine appropriate instance slot
-        instance_types = unit.get_prop('instances', ['examples'])
-        if not instance_types:
+        unit_instances = unit.get_prop('instances', {})
+        cur_slot = task.get('slot')
+        
+        if not unit_instances or not cur_slot:
             return False
             
-        # Get most specific instance type with content
-        instance_slot = None
-        for slot in instance_types:
-            if unit.get_prop(slot):
-                instance_slot = slot
-                break
+        # Check if interestingness metric exists
+        if not unit.get_prop('interestingness'):
+            return False
+            
+        # Get more interesting slot
+        more_interesting = unit.get_prop('more_interesting_slots', [])
+        if not more_interesting:
+            return False
+            
+        more_interesting_slot = more_interesting[0]
+        context['more_interesting_slot'] = more_interesting_slot
+        
+        # Avoid infinite loops
+        if more_interesting_slot == cur_slot:
+            new_values = task_results.get('new_values')
+            if not new_values:
+                return False
                 
-        if not instance_slot:
-            instance_slot = instance_types[0]
-            
-        context['instance_slot'] = instance_slot
-        
-        # Get interestingness criteria
-        criteria = get_interestingness_criteria(unit)
-        if not criteria:
-            return False
-            
-        context['criteria'] = criteria
-        
-        # Verify we have new instances to evaluate
-        new_values = context.get('task_results', {}).get('new_values')
-        return bool(new_values)
+        return True
 
     @rule_factory
     def then_print_to_user(rule, context):
-        """Report plan to evaluate instance interestingness."""
+        """Print task description."""
         unit = context.get('unit')
-        instance_slot = context.get('instance_slot')
-        criteria = context.get('criteria', [])
-        
-        if not all([unit, instance_slot]):
+        if not unit:
             return False
             
-        num_instances = len(unit.get_prop(instance_slot, []))
-        
-        logger.info(
-            f"\nWill evaluate the interestingness of {num_instances} instances "
-            f"of {unit.name} using {len(criteria)} criteria:"
-        )
-        
-        for criterion in criteria:
-            logger.info(f"- {criterion['description']} (weight: {criterion['weight']})")
-        
+        examples = len(unit.get_prop('examples', []))
+        logger.info(f"A new task was added to the agenda, to see which of the "
+                   f"{examples} are interesting ones.")
         return True
 
     @rule_factory
     def then_add_to_agenda(rule, context):
-        """Add task to evaluate instance interestingness."""
+        """Add task to check instance interestingness."""
         unit = context.get('unit')
-        instance_slot = context.get('instance_slot')
-        criteria = context.get('criteria', [])
-        
-        if not all([unit, instance_slot, criteria]):
-            return False
-            
-        # Determine target slot for interesting instances
-        slot_ranking = {
-            'examples': 1,
-            'int_examples': 2,
-            'very_int_examples': 3
-        }
-        
-        available_slots = [
-            instance_slot,
-            'int_examples',
-            'very_int_examples'
-        ]
-        
-        target_slot = max(available_slots, key=lambda s: slot_ranking.get(s, 0))
-        
-        if target_slot == instance_slot:
+        more_interesting_slot = context.get('more_interesting_slot')
+        if not all([unit, more_interesting_slot]):
             return False
             
         task = {
-            'priority': unit.get_prop('worth', 500),
-            'unit': unit.name,
-            'slot': target_slot,
+            'priority': (unit.worth_value() + rule.worth_value()) // 2,
+            'unit': unit,
+            'slot': more_interesting_slot,
             'reasons': [
-                f"Evaluate which instances of {unit.name} are particularly "
-                f"interesting to guide further exploration"
+                "Now that instances of a unit have been found, see if any are "
+                "unusually interesting"
             ],
             'supplemental': {
-                'credit_to': ['h22'],
-                'source_slot': instance_slot,
-                'criteria': criteria
+                'credit_to': ['h22']
             }
         }
         
         if not rule.task_manager.add_task(task):
             return False
             
-        context['task_results'] = {
-            'new_tasks': f"Will evaluate interestingness of {unit.name} instances"
-        }
+        task_results = context.get('task_results', {})
+        task_results['new_tasks'] = [
+            "1 unit's instances must be evaluated for Interestingness"
+        ]
+        context['task_results'] = task_results
+        
         return True

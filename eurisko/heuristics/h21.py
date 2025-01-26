@@ -1,170 +1,116 @@
-"""H21 heuristic implementation: Identify extension relationships between operations."""
-from typing import Any, Dict, List, Set
-from ..units import Unit
+"""H21 heuristic implementation: Find extensions of operations."""
+from typing import Any, Dict
 import logging
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h21(heuristic) -> None:
-    """Configure H21: Detect when one operation extends another.
-    
-    This heuristic examines operation pairs to identify when one operation's
-    behavior completely encompasses another's, indicating a potential extension
-    relationship. These relationships help build the hierarchical understanding
-    of operations in the system.
-    """
+    """Configure H21: Identify operation extensions."""
     heuristic.set_prop('worth', 400)
-    heuristic.set_prop('english',
-        "IF an operation U duplicates all the results of U2, THEN conjecture "
-        "that U is an extension of U2.")
-    heuristic.set_prop('abbrev', "See if U is an extension of U2")
-    
-    # Initialize record keeping
-    heuristic.set_prop('then_compute_failed_record', (805, 18))
-    heuristic.set_prop('then_compute_record', (3584, 2))
-    heuristic.set_prop('then_conjecture_record', (3055, 2))
-    heuristic.set_prop('then_print_to_user_record', (287, 2))
-    heuristic.set_prop('overall_record', (11576, 2))
+    heuristic.set_prop('english', "IF an op u duplicates all the results of u2, THEN conjecture that u is an extension of u2")
+    heuristic.set_prop('abbrev', "See if u is an extension of u2")
     heuristic.set_prop('arity', 1)
+    
+    def record_func(rule, context):
+        return True
+    for record_type in ['then_compute', 'then_conjecture', 'then_print_to_user', 'overall']:
+        heuristic.set_prop(f'{record_type}_record', record_func)
 
     @rule_factory
     def if_working_on_task(rule, context):
-        """Verify task is examining conjectures with involved units."""
+        """Check if we're looking for conjectures."""
+        unit = context.get('unit')
         task = context.get('task')
-        if not task:
-            return False
-            
-        slot = task.get('slot')
-        if slot != 'conjectures':
+        if not all([unit, task]) or task.get('slot') != 'conjectures':
             return False
             
         involved_units = task.get('supplemental', {}).get('involved_units', [])
-        if not involved_units:
+        context['involved_units'] = involved_units
+        return bool(involved_units)
+
+    @rule_factory
+    def then_print_to_user(rule, context):
+        """Print extension discovery."""
+        unit = context.get('unit')
+        result_units = context.get('result_units', [])
+        if not all([unit, result_units]):
             return False
             
-        context['involved_units'] = involved_units
+        logger.info(f"\nApparently {unit.name} is an extension of {result_units}")
         return True
 
     @rule_factory
     def then_compute(rule, context):
-        """Identify potential extension relationships."""
+        """Find potential extensions."""
         unit = context.get('unit')
-        involved_units = context.get('involved_units', [])
-        
+        involved_units = context.get('involved_units')
         if not all([unit, involved_units]):
             return False
             
-        extensions = []
+        result_units = []
         for other_name in involved_units:
             other = rule.unit_registry.get_unit(other_name)
-            if not other:
+            if not other or not other.get_prop('applications'):
                 continue
                 
-            # Compare applications between units
-            unit_apps = unit.get_prop('applications', [])
             other_apps = other.get_prop('applications', [])
+            unit_apps = unit.get_prop('applications', [])
             
-            # Convert to result mappings for comparison
-            unit_results = {
-                tuple(app['args']): app['result']
-                for app in unit_apps
-            }
-            other_results = {
-                tuple(app['args']): app['result']
-                for app in other_apps
-            }
-            
-            # Find overlapping applications
-            shared_args = set(unit_results.keys()) & set(other_results.keys())
-            matching_results = sum(
-                1 for args in shared_args
-                if unit_results[args] == other_results[args]
-            )
-            
-            # Check for extension relationship
-            if (matching_results == len(other_results) and
-                len(unit_results) > len(other_results)):
-                    
-                extensions.append({
-                    'unit': other,
-                    'overlap_ratio': matching_results / len(other_results),
-                    'unique_results': len(unit_results) - matching_results
-                })
+            if all(any(o_app.get('args') == u_app.get('args') 
+                      for u_app in unit_apps)
+                   for o_app in other_apps):
+                result_units.append(other_name)
                 
-        if extensions:
-            context['extensions'] = extensions
-            return True
-            
-        return False
-
-    @rule_factory
-    def then_print_to_user(rule, context):
-        """Report discovered extension relationships."""
-        unit = context.get('unit')
-        extensions = context.get('extensions', [])
-        
-        if not unit or not extensions:
-            return False
-            
-        for ext in extensions:
-            logger.info(
-                f"\n{unit.name} appears to be an extension of {ext['unit'].name} "
-                f"(contains all results plus {ext['unique_results']} unique results)"
-            )
-        return True
+        context['result_units'] = result_units
+        return bool(result_units)
 
     @rule_factory
     def then_conjecture(rule, context):
-        """Create conjectures about extension relationships."""
+        """Create conjectures about extensions."""
         unit = context.get('unit')
-        extensions = context.get('extensions', [])
-        
-        if not unit or not extensions:
+        result_units = context.get('result_units')
+        if not all([unit, result_units]):
             return False
             
-        for ext in extensions:
-            other = ext['unit']
-            
-            # Create the conjecture
-            conjec_name = f"extend_{unit.name}_{other.name}"
-            conjec = rule.unit_registry.create_unit(conjec_name)
+        system = rule.unit_registry
+        
+        for other_name in result_units:
+            other = system.get_unit(other_name)
+            if not other:
+                continue
+                
+            # Create conjecture
+            conjec_name = system.new_name('conjec')
+            conjec = system.create_unit(conjec_name, 'proto-conjec')
             if not conjec:
                 continue
                 
-            conjec.set_prop('isa', ['proto-conjec'])
-            
-            english = (
-                f"All applications of {other.name} are also applications of "
-                f"{unit.name}, suggesting that {unit.name} is an extension of "
-                f"{other.name}. {unit.name} also has {ext['unique_results']} unique "
-                f"applications not covered by {other.name}."
-            )
-            
-            conjec.set_prop('english', english)
+            # Set properties
+            conjec.set_prop('english', 
+                f"All applications of {other_name} are also applications of "
+                f"{unit.name}, so we presume that {unit.name} is an extension "
+                f"of {other_name}")
             conjec.set_prop('abbrev', 
-                f"{unit.name} appears to be an extension of {other.name}")
+                f"{unit.name} appears to be an extension of {other_name}")
+                
+            # Calculate worth
+            base_worth = (unit.worth_value() + other.worth_value() + 
+                        rule.worth_value()) // 3
+            app_count = len(other.get_prop('applications', []))
+            conjec.set_prop('worth', min(1000, base_worth + min(app_count * 100, 500)))
             
-            # Worth based on overlap and uniqueness
-            worth = int(min(1000, (
-                400 * ext['overlap_ratio'] +  # Reward completeness of overlap
-                200 * (ext['unique_results'] / len(unit.get_prop('applications', []))) +  # Reward uniqueness
-                200  # Base worth
-            )))
-            conjec.set_prop('worth', worth)
+            # Set relationships
+            conjec.set_prop('conjecture_about', [unit.name, other_name])
             
-            # Record the relationship
-            conjec.set_prop('conjecture_about', [unit.name, other.name])
-            
-            # Register the conjecture
-            rule.unit_registry.register(conjec)
-            
-            # Add conjecture to both units
-            unit.add_to_prop('conjectures', conjec.name)
-            other.add_to_prop('conjectures', conjec.name)
-            
-            # Update relationship tracking
-            unit.add_to_prop('restrictions', other.name)
+            # Add to collections
+            if not system.add_conjecture(conjec):
+                continue
+                
+            # Update unit relationships
+            other.add_to_prop('conjectures', conjec_name)
+            unit.add_to_prop('conjectures', conjec_name)
+            unit.add_to_prop('restrictions', other_name)
             other.add_to_prop('extensions', unit.name)
             
         return True
