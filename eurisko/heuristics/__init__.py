@@ -1,12 +1,25 @@
 """Core heuristic implementation for PyEurisko."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 import random
 import time
 import os
 import importlib
 import inspect
 from ..units import Unit, UnitRegistry
+
+def rule_factory(property_name: str):
+    """Create a factory decorator for rule functions."""
+    def decorator(func: Callable):
+        def make_factory(heuristic):
+            # Store the factory on the heuristic
+            def factory(rule):
+                def wrapper(context):
+                    return func(rule, context)
+                return wrapper
+            heuristic.set_prop(property_name, factory)
+        return make_factory
+    return decorator
 
 # TODO: is there a better way
 def discover_heuristics():
@@ -46,7 +59,7 @@ def discover_heuristics():
 def initialize_all_heuristics(unit_registry) -> None:
     heuristics = discover_heuristics()
     for h in heuristics:
-        if h['name'] not in ['h2', 'h3']:
+        if h['name'] not in ['h2']:
             continue
         unit = unit_registry.create_unit(h['name'])
         unit.set_prop('isa', ['heuristic', 'anything'])
