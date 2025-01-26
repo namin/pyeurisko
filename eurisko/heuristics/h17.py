@@ -124,11 +124,12 @@ def setup_h17(heuristic) -> None:
         if not unit or not task:
             return False
             
+        # Just select slots and store in context for add_to_agenda to use
         selected_slots = select_slots_to_generalize(unit)
         if not selected_slots:
             return False
             
-        task['slots_to_change'] = selected_slots
+        # Store in context for add_to_agenda but don't modify task
         context['selected_slots'] = selected_slots
         return True
 
@@ -145,6 +146,7 @@ def setup_h17(heuristic) -> None:
         base_priority = task.get('priority', 500)
         worth_stats = task.get('supplemental', {}).get('worth_stats', {})
         
+        new_tasks = []
         for slot in selected_slots:
             slot_worth = assess_slot_worth(slot, unit)
             
@@ -172,20 +174,12 @@ def setup_h17(heuristic) -> None:
                 }
             }
             
-            system.task_manager.add_task(new_task)
+            new_tasks.append(new_task)
             
-        # Create task result
-        task_result = {
-            'new_tasks': [
-                    {
-                        'priority': 500,
-                        'unit': unit.name,
-                        'task_type': 'generalization',
-                        'supplemental': {'slot_to_change': slot}
-                    } for slot in selected_slots
-                ]
-            }
-        context['task_results'] = task_result
+        # Store results in context
+        context['task_results'] = {
+            'new_tasks': new_tasks
+        }
         return True
 
     # Configure heuristic slots

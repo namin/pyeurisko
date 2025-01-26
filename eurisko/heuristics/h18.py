@@ -35,10 +35,14 @@ def setup_h18(heuristic) -> None:
         if not task:
             return False
             
-        return (
-            task.get('task_type') == 'generalization' and
-            'slot_to_change' in (task.get('supplemental') or {})
+        # Check both supplemental and direct task slots for flexibility
+        supplemental = task.get('supplemental') or {}
+        slot_to_change = (
+            'slot_to_change' in supplemental or
+            'slot_to_change' in task or
+            bool(task.get('slots_to_change'))
         )
+        return task.get('task_type') == 'generalization' and slot_to_change
 
     def get_slot_generalizer(slot_type: str) -> Optional[str]:
         """Determine appropriate generalization function for slot type."""
@@ -111,8 +115,16 @@ def setup_h18(heuristic) -> None:
         
         if not unit or not task:
             return False
+            # Try to get slot_to_change from various places
+        supplemental = task.get('supplemental') or {}
+        slot = (
+            supplemental.get('slot_to_change') or
+            task.get('slot_to_change') or
+            (task.get('slots_to_change') or [None])[0]
+        )
+        if not slot:
+            return False
             
-        slot = task['supplemental']['slot_to_change']
         old_value = unit.get_prop(slot)
         
         # Store old value in context
