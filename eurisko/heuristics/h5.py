@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 def setup_h5(heuristic) -> None:
     """Configure H5: Choose multiple slots to randomly specialize."""
+    logger.debug("Setting up H5")
     heuristic.set_prop('worth', 151)
     heuristic.set_prop('english', 
         "IF the current task is to specialize a unit, and no specific slot has been "
@@ -16,18 +17,23 @@ def setup_h5(heuristic) -> None:
     heuristic.set_prop('arity', 1)
     heuristic.set_prop('subsumes', ['h3'])
     heuristic.set_prop('subsumed_by', ['h5-criterial', 'h5-good'])
+    logger.debug("H5 setup complete")
 
     @rule_factory
     def if_working_on_task(rule, context):
         """Check if we need to choose slots to specialize."""
+        logger.debug(f"H5 if_working_on_task called")
         unit = context.get('unit')
         task = context.get('current_task')
         if not unit or not task:
+            logger.debug("No unit or task")
             return False
             
         # Check task type and missing slot selection
         is_specialization = task.task_type == 'specialization'
         no_slots_chosen = 'slot_to_change' not in task.supplemental
+        
+        logger.debug(f"H5 checking specialization {is_specialization} and no slots {no_slots_chosen}")
         
         # Check agenda count as in LISP
         task_manager = rule.task_manager
@@ -36,6 +42,7 @@ def setup_h5(heuristic) -> None:
                               if (t.unit_name == unit.name and 
                                   t.task_type == 'specialization'))
             if similar_tasks >= 7:  # LISP used 7 as threshold
+                logger.debug("Too many similar tasks")
                 return False
                 
         return is_specialization and no_slots_chosen
@@ -60,15 +67,12 @@ def setup_h5(heuristic) -> None:
         if not unit or not task:
             return False
 
-        # Get all slots - this was wrong!
+        # Get all non-fixed properties
         logger.debug(f"Getting slots for {unit.name}")
-        all_slots = list(unit.properties.keys())
-        slot_types = rule.unit_registry.get_units_by_category('slot')
-        logger.debug(f"Unit properties: {all_slots}")
-        logger.debug(f"Known slot types: {slot_types}")
-        valid_slots = list(set(all_slots) & set(slot_types))
-        logger.debug(f"Valid slots after intersection: {valid_slots}")
-        slots = valid_slots if valid_slots else all_slots
+        slot_keys = ['domain', 'range', 'applics', 'applications', 'alg', 'fast_alg', 'iterative_alg', 'recursive_alg', 'unitized_alg']
+        valid_slots = [k for k in slot_keys if k in unit.properties]
+        logger.debug(f"Valid slots after filtering: {valid_slots}")
+        slots = valid_slots
 
         if not slots:
             return False

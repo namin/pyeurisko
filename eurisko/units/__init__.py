@@ -252,7 +252,11 @@ class UnitRegistry:
 
     def get_units_by_category(self, category: str) -> Set[str]:
         """Get all units in a category."""
-        return self._units_by_category.get(category, set())
+        logger.debug(f"Getting units in category {category}")
+        logger.debug(f"Units by category contains categories: {list(self._units_by_category.keys())}")
+        units = self._units_by_category.get(category, set())
+        logger.debug(f"Found units: {units}")
+        return units
 
     def all_units(self) -> Dict[str, Unit]:
         """Get all registered units."""

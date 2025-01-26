@@ -133,8 +133,10 @@ class TaskManager:
 
     def _get_heuristics(self) -> List[Unit]:
         """Get all heuristic units."""
-        return [self.unit_registry.get_unit(name) 
+        heuristics = [self.unit_registry.get_unit(name) 
                 for name in self.unit_registry.get_units_by_category('heuristic')]
+        logger.debug(f"Got heuristics: {[h.name for h in heuristics]}")
+        return heuristics
 
     def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Check if a heuristic's if-parts are satisfied."""
@@ -266,10 +268,11 @@ class TaskManager:
         }
 
         if self.verbosity > 1:
-                logger.debug(f"Task Number {self.task_num}:")
-                logger.debug(f"  Unit: {unit.name}")
-                logger.debug(f"  Task type: {task.task_type}")
-                logger.debug(f"  Supplemental: {task.supplemental}")
+            logger.debug(f"Task Number {self.task_num}:")
+            logger.debug(f"  Unit: {unit.name}")
+            logger.debug(f"  Task type: {task.task_type}")
+            logger.debug(f"  Supplemental: {task.supplemental}")
+            logger.debug(f"  Unit properties: {unit.properties}")
 
         # Get heuristics that could apply (analogous to (heuristics) in Lisp)
         heuristics = self._get_heuristics()
