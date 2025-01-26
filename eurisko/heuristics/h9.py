@@ -1,118 +1,122 @@
-"""H9 heuristic implementation: Find examples through generalizations."""
-from typing import Any, Dict, List
+"""H9 heuristic implementation: Find examples from generalizations."""
+from typing import Any, Dict
 import logging
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
 def setup_h9(heuristic) -> None:
-    """Configure H9: Find examples by examining generalizations.
-    
-    This heuristic examines the examples of more general concepts to find
-    examples that satisfy the current unit's definition, enabling efficient
-    example discovery by leveraging the generalization hierarchy.
-    """
+    """Configure H9: Find examples by checking generalizations."""
     heuristic.set_prop('worth', 700)
-    heuristic.set_prop('english',
-        "IF the current task is to find examples of a unit, and it has a "
-        "definition, THEN look over instances of generalizations of the unit, "
-        "and see if any of them are valid examples of this as well.")
-    heuristic.set_prop('abbrev', "Examples from generalization examples")
-
-    @rule_factory
-    def if_potentially_relevant(rule, context):
-        """Verify task is for finding examples."""
-        task = context.get('task')
-        unit = context.get('unit')
-        
-        if not task or not unit:
-            return False
-            
-        if task.get('task_type') != 'find_examples':
-            return False
-            
-        # Need definition to validate examples
-        definition = unit.get_prop('definition')
-        if not definition:
-            return False
-            
-        context['definition'] = definition
+    heuristic.set_prop('english', 
+        "IF the current task is to find examples of a unit, and it has a definition, "
+        "THEN look over instances of generalizations of the unit, and see if any of "
+        "them are valid examples of this as well")
+    heuristic.set_prop('abbrev', "Find examples by checking generalizations")
+    heuristic.set_prop('arity', 1)
+    
+    def record_func(rule, context):
         return True
+    heuristic.set_prop('then_compute_record', record_func)
+    heuristic.set_prop('then_print_to_user_record', record_func)
+    heuristic.set_prop('overall_record', record_func)
+    heuristic.set_prop('then_compute_failed_record', record_func)
 
     @rule_factory
-    def then_compute(rule, context):
-        """Find and validate examples from generalizations."""
+    def if_working_on_task(rule, context):
+        """Check if we can find examples from generalizations."""
         unit = context.get('unit')
-        definition = context.get('definition')
-        
-        if not all([unit, definition]):
+        task = context.get('task')
+        if not unit or not task:
             return False
-
-        # Get candidate examples from generalizations
-        candidate_examples = []
+            
+        if task.get('slot') != 'examples':
+            return False
+            
+        # Get definition and generalizations
+        definition = unit.get_prop('definition')
         generalizations = unit.get_prop('generalizations', [])
-        
-        for gen_name in generalizations:
-            gen = rule.unit_registry.get_unit(gen_name)
-            if not gen:
-                continue
-                
-            examples = gen.get_prop('examples', [])
-            if examples:
-                for example in examples:
-                    candidate_examples.append({
-                        'value': example,
-                        'source': gen_name
-                    })
-
-        if not candidate_examples:
+        if not definition or not generalizations:
             return False
-
-        # Track valid examples
-        current_examples = set(unit.get_prop('examples', []))
-        new_examples = []
-
-        # Validate candidates
-        for candidate in candidate_examples:
-            value = candidate['value']
-            if value not in current_examples:
-                try:
-                    if definition(value):
-                        new_examples.append({
-                            'value': value,
-                            'from_unit': candidate['source']
-                        })
-                except Exception as e:
-                    logger.debug(
-                        f"Failed to validate {value} from "
-                        f"{candidate['source']}: {e}"
-                    )
-
-        if new_examples:
-            context['task_results'] = context.get('task_results', {})
-            context['task_results']['new_values'] = [
-                example['value'] for example in new_examples
-            ]
-            return True
-
-        return False
+            
+        # Get non-specialized generalizations
+        specializations = unit.get_prop('specializations', [])
+        space_to_use = [g for g in generalizations if g not in specializations]
+                
+        context['definition'] = definition
+        context['space_to_use'] = space_to_use
+        return bool(space_to_use)
 
     @rule_factory
     def then_print_to_user(rule, context):
-        """Report on examples found."""
+        """Print found examples."""
         unit = context.get('unit')
-        task_results = context.get('task_results', {})
-        
-        if not unit or not task_results:
+        new_values = context.get('new_values', [])
+        if not unit or not new_values:
             return False
-        
-        new_examples = task_results.get('new_values', [])
-        if not new_examples:
-            return False
-
-        logger.info(
-            f"\nFound {len(new_examples)} valid examples for {unit.name} "
-            f"from generalizations"
-        )
-        
+            
+        logger.info(f"\nInstantiated {unit.name}; found {len(new_values)} examples")
+        logger.info(f"    Namely: {new_values}")
         return True
+
+    @rule_factory 
+    def then_compute(rule, context):
+        """Try definition on examples from generalizations."""
+        unit = context.get('unit')
+        definition = context.get('definition')
+        space_to_use = context.get('space_to_use')
+        if not all([unit, definition, space_to_use]):
+            return False
+            
+        current_examples = unit.get_prop('examples', [])
+        non_examples = unit.get_prop('non_examples', [])
+        new_examples = []
+        max_examples = 400  # From original LISP code
+        count = 0
+        
+        # Check examples from each generalization
+        for gen_name in space_to_use:
+            if count >= max_examples:
+                break
+                
+            gen_unit = rule.unit_registry.get_unit(gen_name)
+            if not gen_unit:
+                continue
+                
+            for example in gen_unit.get_prop('examples', []):
+                if count >= max_examples:
+                    break
+                    
+                # Skip if already processed
+                if example in current_examples or example in non_examples:
+                    continue
+                    
+                count += 1
+                try:
+                    # Test definition and update lists
+                    if definition(example):
+                        new_examples.append(example)
+                        current_examples.append(example)
+                    else:
+                        non_examples.append(example)
+                except Exception as e:
+                    logger.warning(f"Failed to test {example} with {unit.name}'s definition: {e}")
+                    
+        if new_examples:
+            # Update unit properties
+            unit.set_prop('examples', current_examples)
+            unit.set_prop('non_examples', non_examples)
+            context['new_values'] = new_examples
+            
+            # Update task results
+            task_results = context.get('task_results', {})
+            task_results['new_values'] = {
+                'unit': unit.name,
+                'slot': 'examples',
+                'values': new_examples,
+                'description': f"Found {len(new_examples)} examples by examining "
+                             f"examples of {len(space_to_use)} generalizations"
+            }
+            context['task_results'] = task_results
+            
+        return bool(new_examples)
