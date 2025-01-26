@@ -11,8 +11,8 @@ def setup_h2(heuristic) -> None:
     heuristic.set_prop('abbrev', "Kill concepts that produce garbage")
     heuristic.set_prop('arity', 1)
     
-    @rule_factory('if_finished_working_on_task')
-    def check_task(rule, context):
+    @rule_factory
+    def if_finished_working_on_task(rule, context):
         """Check if this is the end of a task that created units."""
         task_results = context.get('task_results', {})
         if 'new_units' not in task_results:
@@ -44,8 +44,8 @@ def setup_h2(heuristic) -> None:
         context['killed_units'] = doomed_units
         return bool(doomed_units)
 
-    @rule_factory('then_print_to_user')
-    def print_action(rule, context):
+    @rule_factory
+    def then_print_to_user(rule, context):
         """Print message about killed units."""
         units = context.get('killed_units', [])
         if units:

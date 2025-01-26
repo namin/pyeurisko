@@ -8,18 +8,37 @@ import importlib
 import inspect
 from ..units import Unit, UnitRegistry
 
-def rule_factory(property_name: str):
-    """Create a factory decorator for rule functions."""
-    def decorator(func: Callable):
-        def make_factory(heuristic):
-            # Store the factory on the heuristic
-            def factory(rule):
-                def wrapper(context):
-                    return func(rule, context)
-                return wrapper
-            heuristic.set_prop(property_name, factory)
-        return make_factory
-    return decorator
+def rule_factory(func: Callable):
+    """Create a factory decorator for rule functions.
+    Infers property name from function name:
+        check_* -> if_finished_working_on_task
+        print_* -> then_print_to_user
+        compute_* -> then_compute
+        etc.
+    """
+    def make_factory(heuristic):
+        # Map function prefix to property name
+        prefix_map = {
+            'check': 'if_finished_working_on_task',
+            'print': 'then_print_to_user',
+            'compute': 'then_compute',
+            'define': 'then_define_new_concepts',
+            'delete': 'then_delete_old_concepts'
+        }
+        
+        # Get the prefix from function name before underscore
+        prefix = func.__name__.split('_')[0]
+        property_name = prefix_map.get(prefix)
+        if not property_name:
+            raise ValueError(f"Unknown function prefix: {prefix}")
+            
+        def factory(rule):
+            def wrapper(context):
+                return func(rule, context)
+            return wrapper
+            
+        heuristic.set_prop(property_name, factory)
+    return make_factory
 
 # TODO: is there a better way
 def discover_heuristics():

@@ -17,7 +17,7 @@ def setup_h3(heuristic) -> None:
     heuristic.set_prop('abbrev', "Randomly choose a slot to specialize")
     heuristic.set_prop('arity', 1)
 
-    @rule_factory('if_working_on_task')
+    @rule_factory
     def if_working_on_task_factory(rule, context):
         """Check if we need to choose a slot to specialize."""
         unit = context.get('unit')
@@ -41,7 +41,7 @@ def setup_h3(heuristic) -> None:
 
         return is_specialization and no_slot_chosen
 
-    @rule_factory('then_print_to_user')
+    @rule_factory
     def then_print_to_user(rule, context):
         """Print explanation of slot choice."""
         unit = context.get('unit')
@@ -54,7 +54,7 @@ def setup_h3(heuristic) -> None:
         logger.info(f"\n{reason}")
         return True
 
-    @rule_factory('then_compute')
+    @rule_factory
     def then_compute(rule, context):
         """Randomly select a slot for specialization."""
         unit = context.get('unit')
@@ -87,7 +87,7 @@ def setup_h3(heuristic) -> None:
 
         return True
 
-    @rule_factory('then_add_to_agenda')
+    @rule_factory
     def then_add_to_agenda(rule, context):
         """Add specialized task to agenda."""
         unit = context.get('unit')
