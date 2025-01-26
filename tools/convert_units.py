@@ -60,40 +60,9 @@ def parse_unit_def(text: str) -> Dict[str, Any]:
         raise ValueError("Could not find unit name")
     name = name_match.group(1)
     
-    # Split into properties
-    lines = text.split('\n')
-    props = {}
-    current_prop = None
-    current_value = []
-    
-    for line in lines[1:]:  # Skip defunit line
-        line = line.strip()
-        if not line or line.startswith(';'):
-            continue
-            
-        # Check if this is a new property
-        if not line.startswith('(') and not line.startswith(')'):
-            # Save previous property if exists
-            if current_prop and current_value:
-                value = ' '.join(current_value)
-                try:
-                    props[current_prop] = parse_lisp_expression(value)
-                except Exception as e:
-                    print(f"Warning: Could not parse value for {current_prop}: {e}")
-            
-            current_prop = line
-            current_value = []
-        else:
-            current_value.append(line)
-    
-    # Handle final property
-    if current_prop and current_value:
-        value = ' '.join(current_value)
-        try:
-            props[current_prop] = parse_lisp_expression(value)
-        except Exception as e:
-            print(f"Warning: Could not parse value for {current_prop}: {e}")
-    
+    e = parse_lisp_expression(text)
+    prope = e[2:]
+    props = dict([(prope[i], prope[i+1]) for i in range(0, len(prope) - 1, 2)])
     return {
         'name': name,
         'properties': props
