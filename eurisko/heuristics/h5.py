@@ -5,94 +5,78 @@ from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
-def write_debug(msg):
-    with open('/tmp/h5_debug.log', 'a') as f:
-        f.write(msg + '\n')
-        f.flush()
-
 def setup_h5(heuristic):
     """Configure H5 to select slots for specialization."""
-    write_debug("[H5] Setting up")
     heuristic.set_prop('worth', 151)
     heuristic.set_prop('english', 
         "IF the current task is to specialize a unit, and no specific slot has been "
         "chosen to be the one changed, THEN randomly select which slots to specialize")
+    heuristic.set_prop('abbrev', "Choose some particular slots of u to specialize")
     heuristic.set_prop('arity', 1)
 
+    # Add record functions that return True to indicate success
+    def then_compute_record(rule, context):
+        return True
+        
+    def then_add_to_agenda_record(rule, context):
+        return True
+        
+    def overall_record(rule, context):
+        return True
+        
+    heuristic.set_prop('then_compute_record', then_compute_record)
+    heuristic.set_prop('then_add_to_agenda_record', then_add_to_agenda_record)
+    heuristic.set_prop('overall_record', overall_record)
+
     @rule_factory 
-    def if_working_on_task(rule, context):
-        write_debug("\n[H5] CHECKING TASK")
-        unit = context.get('unit')
+    def if_potentially_relevant(rule, context):
+        """Check if we're working on specialization."""
         task = context.get('task')
-        
-        if not all([unit, task]):
-            write_debug("[H5] Missing unit or task")
+        if not task:
             return False
             
-        write_debug(f"[H5] Unit: {unit.name}")
-        write_debug(f"[H5] Task type: {task.task_type}")
-        write_debug(f"[H5] Supplemental: {task.supplemental}")
-        
-        # Find slots we could specialize
-        specializable_slots = []
-        for slot in ['domain', 'range', 'isa', 'applics']:
-            if unit.has_prop(slot) and unit.get_prop(slot):
-                value = unit.get_prop(slot)
-                specializable_slots.append(slot)
-                write_debug(f"[H5] Found slot {slot} = {value}")
-        
-        if not specializable_slots:
-            write_debug("[H5] No specializable slots")
+        if task.task_type != 'specialization':
             return False
             
-        context['specializable_slots'] = specializable_slots
-        write_debug(f"[H5] Will try to specialize: {specializable_slots}")
+        if 'slot_to_change' in task.supplemental:
+            return False
+            
         return True
 
     @rule_factory 
     def then_compute(rule, context):
-        write_debug("\n[H5] COMPUTING")
-        slots = context.get('specializable_slots', [])
-        if not slots:
-            write_debug("[H5] No slots to pick from")
+        """Pick a slot to specialize."""
+        unit = context.get('unit')
+        if not unit:
             return False
-
-        # Select one slot randomly
-        slot = random.choice(slots)
-        write_debug(f"[H5] Selected {slot} to specialize")
             
-        # Store results
+        # Find important slots that have values
+        slots = []
+        for slot in ['domain', 'range', 'isa', 'applics']:
+            if unit.has_prop(slot) and unit.get_prop(slot):
+                slots.append(slot)
+                
+        if not slots:
+            return False
+            
+        # Pick one randomly
+        slot = random.choice(slots)
         context['slot_to_change'] = slot
         return True
 
     @rule_factory
-    def then_print_to_user(rule, context):
-        slot = context.get('slot_to_change')
-        if not slot:
-            return False
-            
-        unit = context.get('unit')
-        write_debug(f"[H5] Will specialize {unit.name}.{slot}")
-        return True
-
-    @rule_factory
     def then_add_to_agenda(rule, context):
-        write_debug("\n[H5] ADDING TO AGENDA")
+        """Create task to specialize chosen slot."""
         unit = context.get('unit')
-        slot = context.get('slot_to_change')
+        slot = context.get('slot_to_change') 
         task_manager = rule.task_manager
         
         if not all([unit, slot, task_manager]):
-            missing = []
-            if not unit: missing.append('unit')
-            if not slot: missing.append('slot')
-            if not task_manager: missing.append('task_manager')
-            write_debug(f"[H5] Missing required values: {missing}")
             return False
 
-        # Create specialization task
+        # Create task with chosen slot
         new_task = {
-            'priority': 600,  # Higher than current task
+            'priority': 600,
             'unit': unit.name,
             'slot': slot,
             'task_type': 'specialization',
@@ -103,17 +87,12 @@ def setup_h5(heuristic):
             }
         }
         
-        write_debug("[H5] Creating new task:")
-        for k, v in new_task.items():
-            write_debug(f"  {k}: {v}")
-            
         task_manager.add_task(new_task)
 
         # Mark success
-        context['task_results'] = {
-            'status': 'completed',
-            'success': True,
-            'new_tasks': [f"Added specialization task for {slot}"]
-        }
-        write_debug("[H5] Added task and marked success")
+        task_results = context.get('task_results', {})
+        task_results['new_tasks'] = [f"Added specialization task for {slot}"]
+        task_results['status'] = 'completed'
+        task_results['success'] = True
+        context['task_results'] = task_results
         return True
