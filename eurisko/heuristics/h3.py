@@ -83,9 +83,9 @@ def check_then_add_to_agenda(rule, context):
     new_tasks = []
     for slot in candidate_slots:
         new_task = Task(
-            priority=task.priority - 50,  # Slightly lower priority
+            priority=task.priority - 10,  # Slightly lower priority but not too much
             unit_name=unit.name,
-            slot_name='specializations',
+            slot_name=slot,  # Use the actual slot we want to specialize
             task_type='specialization',
             reasons=[f'H3 selected {slot} for specialization'],
             supplemental={
