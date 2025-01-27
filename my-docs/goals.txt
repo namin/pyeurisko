@@ -7,6 +7,7 @@ Do NOT enable eternal mode, this runs forever so you won't get any output from t
 
 Some possible next steps:
 - extract a principled design pattern from the experiment with the enabled heuristics h4, h5, h6 working in concert
+- then look at the original heuristics.lisp from eurisclo and faithfully re-implement h4, h5, h6 to be fully-fledged
 - have a better logging infrastructure, that allows focusing depending on debugging task
 - have an eternal mode that also supports fixed iterations for testing in the sandbox
 
