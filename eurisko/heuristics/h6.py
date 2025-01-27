@@ -16,15 +16,6 @@ def setup_h6(heuristic) -> None:
         "to be the one changed, THEN randomly select a part of it and specialize that part")
     heuristic.set_prop('abbrev', "Specialize a given slot of a given unit")
     heuristic.set_prop('arity', 1)
-    
-    # Initialize record properties as functions (not tuples)
-    def record_func(rule, context):
-        return True
-    heuristic.set_prop('then_compute_record', record_func)
-    heuristic.set_prop('then_define_new_concepts_record', record_func)
-    heuristic.set_prop('then_print_to_user_record', record_func)
-    heuristic.set_prop('overall_record', record_func)
-    heuristic.set_prop('then_compute_failed_record', record_func)
 
     @rule_factory
     def if_working_on_task(rule, context):
@@ -34,8 +25,17 @@ def setup_h6(heuristic) -> None:
         if not unit or not task:
             return False
             
-        return (task.get('task_type') == 'specialization' and
-                'slot_to_change' in task)
+        if not task.get('task_type') == 'specialization':
+            return False
+            
+        if 'slot_to_change' not in task:
+            return False
+            
+        slot_to_change = task.get('slot_to_change')
+        if not slot_to_change or not unit.has_prop(slot_to_change):
+            return False
+            
+        return True
 
     @rule_factory
     def then_print_to_user(rule, context):
@@ -50,6 +50,9 @@ def setup_h6(heuristic) -> None:
         new_value = context.get('new_value')
         
         if not all([slot, old_value is not None, new_value is not None]):
+            return False
+            
+        if old_value == new_value:
             return False
             
         logger.info(f"\nSpecialized the {slot} slot of {unit.name}, replacing its old value "
@@ -74,16 +77,20 @@ def setup_h6(heuristic) -> None:
             logger.warning(f"No value found for slot {slot} in unit {unit.name}")
             return False
             
-        # Get data type and specialize
-        data_type = unit.get_prop('data_type')
+        # Specialize based on data type and value
+        new_value = None
+        if isinstance(old_value, list) and old_value:
+            # Take a subset for lists
+            new_size = random.randint(1, len(old_value))
+            new_value = random.sample(old_value, new_size)
+        elif isinstance(old_value, str):
+            # For strings, we could specialize by making more specific
+            new_value = old_value + "_specialized"
+        elif isinstance(old_value, (int, float)):
+            # For numbers, we could restrict the range
+            new_value = old_value * random.uniform(0.5, 0.9) 
         
-        # Specialize based on data type
-        new_value = old_value
-        if data_type == 'list' and isinstance(old_value, list):
-            if len(old_value) > 1:
-                new_value = random.sample(old_value, random.randint(1, len(old_value)))
-        
-        if new_value == old_value:
+        if new_value is None or new_value == old_value:
             logger.info(f"\nCouldn't find meaningful specialization of the {slot} "
                        f"slot of {unit.name}")
             return False
@@ -91,9 +98,24 @@ def setup_h6(heuristic) -> None:
         context['old_value'] = old_value
         context['new_value'] = new_value
         context['slot'] = slot
+        return True
+
+    @rule_factory
+    def then_define_new_concepts(rule, context):
+        """Create the new specialized unit."""
+        unit = context.get('unit')
+        task = context.get('task')
+        new_value = context.get('new_value')
+        slot = context.get('slot')
         
-        # Create new specialized unit with unit registry from rule
+        if not all([unit, task, new_value is not None, slot]):
+            return False
+        
+        # Create new specialized unit 
         new_unit = rule.unit_registry.create_unit(f"{unit.name}-spec")
+        if not new_unit:
+            return False
+            
         new_unit.set_prop('worth', unit.worth_value())
         new_unit.copy_slots_from(unit)
             
@@ -110,7 +132,8 @@ def setup_h6(heuristic) -> None:
             new_unit.add_to_prop('creditors', ['h6'] + list(creditors))
         
         # Add to unit registry
-        rule.unit_registry.register(new_unit)
+        if not rule.unit_registry.register(new_unit):
+            return False
         
         # Add to results
         task_results = context.get('task_results', {})

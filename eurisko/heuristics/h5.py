@@ -16,13 +16,6 @@ def setup_h5(heuristic) -> None:
     heuristic.set_prop('arity', 1)
     heuristic.set_prop('subsumes', ['h3'])
     heuristic.set_prop('subsumed_by', ['h5-criterial', 'h5-good'])
-    
-    def record_func(rule, context):
-        return True
-    heuristic.set_prop('then_compute_record', record_func)
-    heuristic.set_prop('then_define_new_concepts_record', record_func)
-    heuristic.set_prop('then_print_to_user_record', record_func)
-    heuristic.set_prop('overall_record', record_func)
 
     @rule_factory
     def if_working_on_task(rule, context):
@@ -39,6 +32,9 @@ def setup_h5(heuristic) -> None:
         no_slots_chosen = 'slot_to_change' not in task
         logger.debug(f"H5 no slots chosen: {no_slots_chosen}")
         
+        if not (is_specialization and no_slots_chosen):
+            return False
+        
         # Check agenda count as in LISP
         task_manager = rule.task_manager
         if task_manager:
@@ -49,7 +45,7 @@ def setup_h5(heuristic) -> None:
                 logger.debug("Too many similar tasks")
                 return False
                 
-        return is_specialization and no_slots_chosen
+        return True
 
     @rule_factory
     def then_print_to_user(rule, context):
@@ -92,6 +88,9 @@ def setup_h5(heuristic) -> None:
         num_slots = min(random.randint(1, 3), len(valid_slots))
         selected_slots = random.sample(valid_slots, num_slots)
         
+        if not selected_slots:
+            return False
+            
         # Update task
         task['slots_to_change'] = selected_slots 
         task['credit_to'] = task.get('credit_to', []) + ['h5']
@@ -113,6 +112,7 @@ def setup_h5(heuristic) -> None:
 
         base_priority = task.get('priority', 500)
         
+        tasks_added = 0
         for slot in selected_slots:
             # Create specialized task
             new_task = {
@@ -129,6 +129,10 @@ def setup_h5(heuristic) -> None:
                 }
             }
             task_manager.add_task(new_task)
+            tasks_added += 1
+            
+        if tasks_added == 0:
+            return False
             
         # Record task creation
         task_results = context.get('task_results', {})
