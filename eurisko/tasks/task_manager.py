@@ -261,6 +261,7 @@ class TaskManager:
             'status': 'in_progress',
             'initial_unit_state': unit.properties.copy(),
             'new_units': [],
+            'new_tasks': [],
             'modified_units': []
         }
         
