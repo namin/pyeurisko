@@ -6,7 +6,7 @@ from ..tasks import Task
 logger = logging.getLogger(__name__)
 
 def check_if_potentially_relevant(rule, context):
-    """Check if this is a specialization task."""
+    """Check if this is a specialization task without slot chosen."""
     logger.debug("H3 checking if_potentially_relevant")
         
     task = context.get('task')
@@ -29,51 +29,61 @@ def check_then_compute(rule, context):
     # Check for task limit in agenda
     task_manager = context.get('task_manager')
     if task_manager:
-        unit_name = unit.name
-        existing_specialization_tasks = [
-            t for t in task_manager.agenda 
-            if t.unit_name == unit_name and t.task_type == 'specialization'
-        ]
-        if len(existing_specialization_tasks) >= 11:
-            logger.debug(f"Too many specialization tasks for unit {unit_name}")
+        existing_tasks = [t for t in task_manager.agenda 
+                         if t.unit_name == unit.name and 
+                            t.task_type == 'specialization']
+        if len(existing_tasks) >= 11:
+            logger.debug(f"Too many specialization tasks for unit {unit.name}")
             return False
-
-    # First check if unit has criterial slots
-    candidate_slots = []
+            
+    # Initialize slot tracking
     used_slots = getattr(unit, 'specialized_slots', set())
-
+    all_slots = set()
+    candidate_slots = []
+    
+    # First check criterial slots
     if unit.has_prop('criterial-slots'):
-        criterial_slots = unit.get_prop('criterial-slots')
-        for slot in criterial_slots:
-            if (unit.name, slot) not in used_slots:
-                if unit.has_prop(slot):
-                    value = unit.get_prop(slot)
-                    logger.debug(f"Found value for {slot}: {value}")
-                    if value is not None and value != []:
-                        candidate_slots.append(slot)
-                        logger.debug(f"Added criterial slot {slot}")
-    else:
-        # Look at all slots with values except specialization tracking
-        for slot in unit.properties.keys():
-            if (unit.name, slot) not in used_slots:
-                if slot not in ['specializations', 'generalizations', 'specialized_slots']:
-                    value = unit.get_prop(slot)
-                    logger.debug(f"Found value for {slot}: {value}")
-                    if value is not None and value != []:
-                        candidate_slots.append(slot)
-                        logger.debug(f"Added slot {slot}")
-                    else:
-                        logger.debug(f"Rejected {slot} - empty value")
-                        
+        criterial = unit.get_prop('criterial-slots')
+        logger.debug(f"Found criterial slots: {criterial}")
+        for slot in criterial:
+            all_slots.add(slot)
+            if slot not in used_slots:
+                value = unit.get_prop(slot)
+                if value is not None and value != []:
+                    candidate_slots.append(slot)
+                    logger.debug(f"Added criterial slot {slot}")
+    
+    # Then check other slots
+    for slot in unit.properties:
+        all_slots.add(slot)
+        if (slot not in used_slots and
+            slot not in candidate_slots and
+            slot not in ['specializations', 'generalizations', 'worth', 'fast-alg', 'iterative-alg', 'recursive-alg', 'unitized-alg']):
+            value = unit.get_prop(slot) 
+            if value is not None and value != []:
+                candidate_slots.append(slot)
+                logger.debug(f"Added slot {slot}")
+                
     if not candidate_slots:
         logger.debug("No candidate slots found")
         return False
 
-    # Store candidate slots for then_add_to_agenda  
+    # Track used slots
+    if not hasattr(unit, 'specialized_slots'):
+        unit.specialized_slots = set()
+    for slot in candidate_slots:
+        unit.specialized_slots.add(slot)
+        
+    # Lower priority for each specialization level
+    task = context.get('task')
+    if task:
+        priority = task.priority * 0.8  # More aggressive priority decay
+        context['priority'] = max(100, int(priority))
+        
     context['candidate_slots'] = candidate_slots
     logger.debug(f"Found candidate slots: {candidate_slots}")
     
-    # Create or initialize task_results
+    # Initialize task results
     task_results = context.get('task_results', {})
     if not task_results:
         task_results = {
@@ -89,31 +99,19 @@ def check_then_compute(rule, context):
 def check_then_add_to_agenda(rule, context):
     """Create specialization tasks for chosen slots."""
     logger.debug("H3 then_add_to_agenda starting")
-    logger.debug(f"Context: {context}")
-
-    # Get needed context items
+    
     unit = context.get('unit')
-    task = context.get('task')
+    task = context.get('task') 
     candidate_slots = context.get('candidate_slots')
+    priority = context.get('priority', 450)  # Default priority if not set
     
     if not all([unit, task, candidate_slots]):
         logger.debug(f"Missing required context: unit={unit}, task={task}, candidate_slots={candidate_slots}")
         return False
         
-    # Initialize task tracking if needed
-    if not hasattr(unit, 'specialized_slots'):
-        unit.specialized_slots = set()
-        
     # Create a specialization task for each candidate slot
     new_tasks = []
-    base_priority = task.priority if task else 1000
-    
     for slot in candidate_slots:
-        # Track that we're specializing this slot
-        unit.specialized_slots.add((unit.name, slot))
-        
-        # Create task with degrading priority 
-        priority = max(100, int(base_priority * 0.9))
         new_task = Task(
             priority=priority,
             unit_name=unit.name,
@@ -128,7 +126,7 @@ def check_then_add_to_agenda(rule, context):
         new_tasks.append(new_task)
         logger.debug(f"Created new task for slot {slot} with supplemental {new_task.supplemental}")
            
-    # Store results directly in context
+    # Store results
     context['task_results'] = {
         'status': 'completed',
         'success': True,
