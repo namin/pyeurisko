@@ -21,6 +21,12 @@ class TaskManager:
         self.current_task: Optional[Task] = None
         self.verbosity: int = 1
         self.heuristic_stats = defaultdict(lambda: {'tries_for_success': 0, 'success': 0, 'tries_for_relevant': 0, 'relevant': 0})
+        # Enhanced stats tracking
+        self.cycle_stats = defaultdict(int)  # Stats for current cycle
+        self.total_stats = defaultdict(int)  # Cumulative stats
+        self.task_type_stats = defaultdict(int)  # Stats by task type
+        self.unit_creation_stats = defaultdict(list)  # Track unit creation details
+        self.unit_modification_stats = defaultdict(list)  # Track unit modifications
         from ..system import System
         self.system = System(self)
 
@@ -191,7 +197,23 @@ class TaskManager:
             stats[mark] += 1
 
     def print_stats(self):
-        """Print heuristic performance stats."""
+        """Print comprehensive system stats."""
+        print("\nSystem Statistics:")
+        print(f"Total tasks executed: {self.total_stats['tasks_executed']}")
+        print(f"Total units created: {self.total_stats['units_created']}")
+        print(f"Total units modified: {self.total_stats['units_modified']}")
+        
+        print("\nTask Type Distribution:")
+        for task_type, count in sorted(self.task_type_stats.items()):
+            print(f"{task_type}: {count} tasks")
+        
+        print("\nUnit Creation by Heuristic:")
+        for h_name, creations in sorted(self.unit_creation_stats.items()):
+            if creations:
+                print(f"{h_name}: {len(creations)} units created")
+                for unit_name, task_type in creations[-3:]:  # Show last 3 examples
+                    print(f"  - {unit_name} (from {task_type} task)")
+        
         print("\nHeuristic Performance:")
         for h_name, stats in sorted(self.heuristic_stats.items()):
             relevant_rate = (stats['relevant'] / stats['tries_for_relevant'] * 100) if stats['tries_for_relevant'] > 0 else 0
@@ -202,6 +224,9 @@ class TaskManager:
         """Execute a task using heuristics."""
         self.task_num += 1
         self.current_task = task
+        self.cycle_stats['tasks_executed'] += 1
+        self.total_stats['tasks_executed'] += 1
+        self.task_type_stats[task.task_type] += 1
         unit = self.unit_registry.get_unit(task.unit_name)
 
         if not unit:
@@ -287,6 +312,23 @@ class TaskManager:
             logger.debug(f"Applying {heuristic.name}")
             success = self._apply_heuristic(heuristic, context)
             self.track_heuristic_result(heuristic.name, "success", success)
+            
+            # Track unit creation and modification
+            if success:
+                new_units = context['task_results'].get('new_units', [])
+                if new_units:
+                    self.cycle_stats['units_created'] += len(new_units)
+                    self.total_stats['units_created'] += len(new_units)
+                    self.unit_creation_stats[heuristic.name].extend(
+                        [(unit.name, task.task_type) for unit in new_units]
+                    )
+                
+                if context['task_results'].get('modified_units', []):
+                    self.cycle_stats['units_modified'] += 1
+                    self.total_stats['units_modified'] += 1
+                    self.unit_modification_stats[heuristic.name].append(
+                        (unit.name, task.task_type)
+                    )
 
             if success and self.verbosity > 39:
                 print(f"  The ThenParts of {heuristic.name} have been executed")

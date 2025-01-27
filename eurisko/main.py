@@ -56,6 +56,7 @@ class Eurisko:
         cycle_count = 0
         while True:
             cycle_count += 1
+            self.task_manager.cycle_stats.clear()  # Reset cycle stats
             self.logger.info(f"Starting cycle {cycle_count}")
 
             # Check cycle limit
@@ -72,6 +73,13 @@ class Eurisko:
                         f"(Priority: {task.priority})")
                     result = self.task_manager.work_on_task(task)
                     self.logger.info(f"Task completed with status: {result.get('status')}")
+                
+            # Print cycle stats
+            self.logger.info(f"Cycle {cycle_count} stats:")
+            self.logger.info(f"  Tasks executed: {self.task_manager.cycle_stats['tasks_executed']}")
+            self.logger.info(f"  Units created: {self.task_manager.cycle_stats['units_created']}")
+            self.logger.info(f"  Units modified: {self.task_manager.cycle_stats['units_modified']}")
+
 
             if not eternal_mode:
                 self.logger.info("Agenda empty, ending run")
