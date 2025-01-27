@@ -1,33 +1,56 @@
-# Working Fix Changes
+# Current Status of Heuristics Debugging
 
-## Changes Made
+## Enabled Heuristics (h4, h5, h6)
+Currently only h4, h5, and h6 are enabled in the system. These heuristics handle:
 
-1. Removed record functions that always returned True
-2. Made `if_working_on_task` checks strict
-3. Added validation stages for specialization attempts
+- h4: Gathers empirical data about newly synthesized units
+- h5: Chooses slots for specialization when none specified 
+- h6: Performs the actual specialization on chosen slots
 
-## Success Rates Match LISP
+## Current Issues
 
-H5 & H6 show 0% success with 100% relevance, matching LISP's design:
+The main issue is that the heuristics are being marked as 100% relevant but 0% successful. Investigation revealed:
 
-```lisp
-# H6 LISP stats
-then-compute-failed-record (24908 . 56)  # Many failures
-then-compute-record (58183 . 73)         # Some successes
-```
+1. Relevance checking is too permissive:
+   - Heuristics are being triggered for wrong task types
+   - Added explicit task type checks in if_potentially_relevant 
 
-Interpretation: Both should fail often but be potentially applicable (relevant) to many tasks.
+2. Success tracking needs proper task completion:
+   - Added task_results['success'] = True
+   - Added task_results['status'] = 'completed'
 
-## Next Port: H4
+## Debugging Strategy
 
-Looking at LISP stats:
-```lisp
-then-add-to-agenda-record (30653 . 87)  # ~35% success
-then-print-to-user-record (18543 . 87)  # ~21% success
-overall-record (68827 . 72)             # Mixed success rate
-```
+1. Fix relevance checking:
+   - Added explicit task type checks in if_potentially_relevant
+   - h4: Only relevant for 'specialization' and 'define_concept'  
+   - h5: Only relevant for 'specialization' without chosen slots
+   - h6: Only relevant for 'specialization' with chosen slots
 
-H4 would be good to port next since it shows varied success rates. It:
-1. Triggers on new unit creation
-2. Adds empirical data gathering tasks
-3. Has documented success/failure patterns
+2. Proper task completion:
+   - Each heuristic needs to set both success and status in task_results
+   - Task manager looks for these flags to track success
+
+3. Logging enhancements:
+   - Added detailed debug logging for tracking:
+     - Task types and processing
+     - Slot selection and modification 
+     - Unit creation and updates
+
+## Next Steps
+
+1. Complete implementation of proper task completion monitoring
+2. Test each heuristic individually with controlled tasks
+3. Verify task flow between heuristics:
+   - h5 choosing slots
+   - h6 specializing chosen slots
+   - h4 gathering data about new units
+
+## Special Considerations
+
+The enabled heuristics form a chain:
+1. h5 initiates specialization by choosing slots
+2. h6 performs the specialization on those slots
+3. h4 gathers data about resulting new units
+
+This chain requires careful coordination of task types and supplemental data between heuristics.
