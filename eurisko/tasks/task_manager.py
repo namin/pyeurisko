@@ -196,7 +196,11 @@ class TaskManager:
                     print(f"Error applying heuristic {heuristic.name}: {e}")
                 all_actions_succeeded = False
 
-        success = any_action_executed and all_actions_succeeded
+        success = any_action_executed and all_actions_succeeded and (
+            len(context['task_results'].get('new_units', [])) > 0 or
+            len(context['task_results'].get('new_tasks', [])) > 0 or
+            len(context['task_results'].get('modified_units', [])) > 0
+        )
         return success
 
     def track_heuristic_result(self, heuristic_name: str, mark: str, outcome: bool):
