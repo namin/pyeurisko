@@ -134,8 +134,11 @@ class TaskManager:
 
     def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Check if a heuristic is relevant for the current task."""
+        task = context.get('task')
         logger.debug(f"\nChecking relevance of {heuristic.name}")
         logger.debug(f"Context: task_type={context.get('task_type')}, supplemental={context.get('supplemental')}")
+        logger.debug(f"Task info: {task.task_type if task else 'No task'}, {task.supplemental if task else 'No supplemental'}")
+
 
         def check_factory_func(factory):
             if not factory:

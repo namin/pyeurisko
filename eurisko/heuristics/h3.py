@@ -62,23 +62,38 @@ def check_then_compute(rule, context):
     if not candidate_slots:
         logger.info("No candidate slots found")
         return False
-            
-    # Store results
+
+    # Store candidate slots for then_add_to_agenda  
     context['candidate_slots'] = candidate_slots
     logger.info(f"Found candidate slots: {candidate_slots}")
-    return bool(candidate_slots)  # Return True only if we found slots
+    
+    # Create or initialize task_results
+    task_results = context.get('task_results', {})
+    if not task_results:
+        task_results = {
+            'status': 'in_progress',
+            'new_tasks': [],
+            'success': True
+        }
+        context['task_results'] = task_results
+
+    logger.info(f"Task results after compute: {task_results}")
+    return True
 
 def check_then_add_to_agenda(rule, context):
     """Create specialization tasks for chosen slots."""
     logger.info("H3 then_add_to_agenda starting")
+    logger.info(f"Context: {context}")
+
+    # Get needed context items
     unit = context.get('unit')
     task = context.get('task')
     candidate_slots = context.get('candidate_slots')
-        
+    
     if not all([unit, task, candidate_slots]):
         logger.info(f"Missing required context: unit={unit}, task={task}, candidate_slots={candidate_slots}")
         return False
-            
+        
     # Create a specialization task for each candidate slot
     new_tasks = []
     for slot in candidate_slots:
@@ -95,14 +110,14 @@ def check_then_add_to_agenda(rule, context):
         )
         new_tasks.append(new_task)
         logger.info(f"Created new task for slot {slot} with supplemental {new_task.supplemental}")
-            
-    # Mark success and store new tasks
+           
+    # Store results directly in context
     context['task_results'] = {
         'status': 'completed',
         'success': True,
         'new_tasks': new_tasks
     }
-    logger.info(f"Added {len(new_tasks)} new tasks to context results")
+    logger.info(f"Final task results with {len(new_tasks)} new tasks: {context['task_results']}")
     return True
 
 def setup_h3(heuristic):
