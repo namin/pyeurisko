@@ -8,14 +8,22 @@ def setup_h19(heuristic):
     """Configure H19 to detect and eliminate redundant units."""
     heuristic.set_prop('worth', 150)
     heuristic.set_prop('english',
-        "IF we just created some new units, THEN eliminate any whose slots "
+        "IF new units have been synthesized, THEN eliminate any whose slots "
         "are equivalent to already-extant units")
     heuristic.set_prop('abbrev', "Kill any new unit that's the same as an existing one")
     heuristic.set_prop('arity', 1)
 
+    # Add success record functions
+    def then_compute_record(rule, context):
+        return True
+    def then_delete_old_concepts_record(rule, context):
+        return True 
+    heuristic.set_prop('then_compute_record', then_compute_record)
+    heuristic.set_prop('then_delete_old_concepts_record', then_delete_old_concepts_record)
+
     @rule_factory
-    def if_finished_working_on_task(rule, context):
-        """Check if we have created new units."""
+    def if_potentially_relevant(rule, context):
+        """Check for new units to potentially delete."""
         task_results = context.get('task_results', {})
         new_units = task_results.get('new_units', [])
         return bool(new_units)
@@ -63,9 +71,10 @@ def setup_h19(heuristic):
             context['doomed_units'] = doomed_units
             new_units = [u for u in new_units if u not in doomed_units]
             task_results['new_units'] = new_units
+            context['task_results'] = task_results
             return True
             
-        return False
+        return True  # Still return True even if no units to delete
 
     @rule_factory
     def then_delete_old_concepts(rule, context):
@@ -73,15 +82,20 @@ def setup_h19(heuristic):
         doomed_units = context.get('doomed_units', [])
         unit_registry = rule.unit_registry
         
-        if not doomed_units:
-            return False
-
-        # Delete each unit
-        for unit in doomed_units:
-            unit_registry.delete_unit(unit)
-
-        # Update task results
+        # Update task results either way
         task_results = context.get('task_results', {})
-        task_results['deleted_units'] = doomed_units
+        task_results['status'] = 'completed'
+        task_results['success'] = True
+            
+        if doomed_units:
+            # Delete each unit
+            for unit in doomed_units:
+                unit_registry.delete_unit(unit)
+            task_results['deleted_units'] = doomed_units
+            logger.info(f"Deleted redundant units: {doomed_units}")
+        else:
+            task_results['deleted_units'] = []
+            logger.info("No redundant units found")
+            
         context['task_results'] = task_results
-        return True
+        return True # Return True even with no units to delete
