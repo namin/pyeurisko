@@ -125,14 +125,17 @@ class TaskManager:
         def check_factory_func(factory):
             """Handle function that returns another function."""
             if not factory:
-                return True
-                
+                return False
+
             if not isinstance(factory, Callable):
-                return True
-                
-            result = factory(heuristic, context)
-            logger.debug(f"Factory result for {heuristic.name}: {result}")
-            return result
+                return False
+
+            try:
+                result = factory(heuristic, context)
+                return result is True  # Must explicitly return True
+            except Exception as e:
+                logger.debug(f"Factory error for {heuristic.name}: {e}")
+                return False
 
         # Check if_potentially_relevant first
         if_factory = heuristic.get_prop('if_potentially_relevant')
@@ -145,7 +148,7 @@ class TaskManager:
             return False
 
         return True
-    
+
     def _apply_heuristic(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
         """Apply a heuristic's then-parts, assumes if_parts showed relevance."""
 
@@ -164,7 +167,7 @@ class TaskManager:
             action_factory = heuristic.get_prop(prop_name)
             if not action_factory:
                 continue
-                
+
             if not isinstance(action_factory, Callable):
                 if self.verbosity > 1:
                     print(f"Action from {prop_name} failed for {heuristic.name}")
@@ -173,14 +176,14 @@ class TaskManager:
             any_action_executed = True
             try:
                 result = action_factory(heuristic, context)
-                if not isinstance(result, bool) or not result:
+                if result is not True:  # Must explicitly return True
                     if self.verbosity > 1:
                         print(f"Action from {prop_name} failed for {heuristic.name}")
-                        all_actions_succeeded = False
+                    all_actions_succeeded = False
             except Exception as e:
                 if self.verbosity > 1:
                     print(f"Error applying heuristic {heuristic.name}: {e}")
-                    all_actions_succeeded = False
+                all_actions_succeeded = False
 
         # Only count as success if at least one action executed and all executed actions succeeded
         success = any_action_executed and all_actions_succeeded
