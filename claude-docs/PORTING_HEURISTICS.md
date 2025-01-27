@@ -26,37 +26,21 @@ def setup_hN(heuristic):
     heuristic.set_prop('abbrev', "Short description")
     heuristic.set_prop('arity', N)  # Usually 1
 
-    # Add rule functions
+    # Add rule functions with decorators
     @rule_factory
     def if_potentially_relevant(rule, context):
-        """First gate - quick check if rule might apply."""
+        """Quick relevance check."""
         pass
 
     @rule_factory 
     def then_compute(rule, context):
-        """Main computation of the rule."""
+        """Main computation."""
         pass
-
-    # Additional behaviors as needed
 ```
 
-## 2. Context Access Pattern
+## 2. Rule Function Patterns
 
-IMPORTANT: Always access context through dictionary pattern for consistency:
-
-DO:
-```python
-task_type = context.get('task', {}).get('task_type')
-supplemental = context.get('task', {}).get('supplemental', {})
-task_results = context.get('task_results', {})
-```
-
-DON'T:
-```python
-task_type = context['task'].task_type  # Don't access attributes directly
-```
-
-## 3. Rule Functions
+### Basic Rules
 
 Every heuristic needs at least:
 
@@ -64,45 +48,95 @@ Every heuristic needs at least:
 2. One or more action functions (e.g., `then_compute`, `then_add_to_agenda`)
 
 Rules should:
-- Take `rule` and `context` parameters
+- Take `rule` and `context` parameters 
 - Return boolean indicating success/failure
 - Use rule.unit_registry and rule.task_manager for system access
-- Modify context['task_results'] to communicate results
+- Update task_results in context appropriately
 
-## 4. Task Result Pattern
+### Relevance Checking
 
-When modifying task results:
+Two common patterns for checking relevance:
+
+1. Single-stage check (most common):
 ```python
-task_results = context.get('task_results', {})
-task_results['new_key'] = value
-context['task_results'] = task_results  # Always put back in context
-```
-
-## 5. Unit Properties Pattern
-
-When working with unit properties:
-```python
-# Getting properties
-value = unit.get_prop('property_name', default_value)
-types = unit.get_prop('isa', [])
-
-# Setting properties
-unit.set_prop('property_name', value)
-unit.add_to_prop('list_property', new_item)
-```
-
-## 6. Common Patterns
-
-1. Checking task type:
-```python
+@rule_factory
 def if_potentially_relevant(rule, context):
-    task = context.get('task')
-    if not task:
-        return False
-    return task.get('task_type') == 'expected_type'
+    """Check task_results for needed data."""
+    task_results = context.get('task_results', {})
+    needed_data = task_results.get('key', [])
+    return bool(needed_data)
 ```
 
-2. Creating new tasks:
+2. Two-stage check:
+```python
+@rule_factory
+def if_potentially_relevant(rule, context):
+    """First gate - check task type."""
+    task = context.get('task')
+    return task.get('task_type') == 'expected_type'
+
+@rule_factory
+def if_truly_relevant(rule, context):
+    """Second gate - detailed check."""
+    # More specific checks
+    return True
+```
+
+Choose based on:
+- Single-stage for processing task results 
+- Two-stage for task type filtering + detailed checks
+
+## 3. Context Access Pattern
+
+Always access context through dictionary pattern for consistency:
+
+```python
+# Get task info
+task = context.get('task', {})
+task_type = task.get('task_type')
+supplemental = task.get('supplemental', {})
+
+# Get/update results
+task_results = context.get('task_results', {})
+task_results['new_key'] = value  
+task_results['status'] = 'completed'
+task_results['success'] = True
+context['task_results'] = task_results
+```
+
+## 4. Common Task Result Patterns
+
+1. Success with new tasks:
+```python
+context['task_results'] = {
+    'status': 'completed',
+    'success': True,
+    'new_tasks': ['Description of tasks added']
+}
+```
+
+2. Success with modified units:
+```python
+context['task_results'] = {
+    'status': 'completed', 
+    'success': True,
+    'new_units': [...],
+    'modified_units': [...]
+}
+```
+
+3. Failed operation:
+```python
+return False  # Function return
+# Or explicit results:
+context['task_results'] = {
+    'status': 'failed',
+    'reason': 'Explanation'
+}
+```
+
+## 5. Creating New Tasks
+
 ```python
 def then_add_to_agenda(rule, context):
     task_manager = rule.task_manager
@@ -110,7 +144,7 @@ def then_add_to_agenda(rule, context):
         return False
         
     new_task = {
-        'priority': VALUE,
+        'priority': min(800, int(rule.worth_value() * 1.1)),
         'unit': unit_name,
         'slot': slot_name,
         'task_type': 'task_type',
@@ -120,42 +154,39 @@ def then_add_to_agenda(rule, context):
         }
     }
     task_manager.add_task(new_task)
-    return True
-```
-
-3. Working with new units:
-```python
-def then_compute(rule, context):
-    task_results = context.get('task_results', {})
-    new_units = task_results.get('new_units', [])
-    
-    # Do work with new units
     
     # Update results
-    task_results['new_units'] = new_units
-    context['task_results'] = task_results
+    context['task_results'] = {
+        'status': 'completed',
+        'success': True,
+        'new_tasks': ['Description of tasks added']
+    }
     return True
 ```
 
-## 7. Testing
+## 6. Testing
 
 After porting a heuristic:
 
 1. Add it to eurisko/heuristics/enabled.py
 2. Run the system with -v 2 flag
-3. Verify task interactions in logs
-4. Check it achieves 100% success rate
+3. Watch task interactions in logs:
+   - Check if_potentially_relevant triggers appropriately
+   - Verify context access and updates
+   - Confirm task result patterns
+4. Verify it achieves 100% success rate
 
-## 8. Port Verification Checklist
+## 7. Port Verification Checklist
 
 - [ ] File properly named and located
 - [ ] Docstrings present and descriptive
 - [ ] Properties correctly set in setup
 - [ ] Context accessed via dictionary pattern
-- [ ] Task results properly updated
-- [ ] Unit properties accessed via get_prop/set_prop
+- [ ] Task results properly structured and updated
 - [ ] Rule functions properly decorated
+- [ ] Uses appropriate relevance checking pattern
 - [ ] Added to enabled heuristics
 - [ ] Tested and verified working
+- [ ] Success rate above 0%
 
 Following these guidelines ensures consistent, maintainable heuristic implementations that properly interact with the Eurisko system.
