@@ -224,7 +224,7 @@ class TaskManager:
         print(f"Total units modified: {self.total_stats['units_modified']}")
         
         print("\nTask Type Distribution:")
-        for task_type, count in sorted(self.task_type_stats.items()):
+        for task_type, count in sorted(self.task_type_stats.items(), key=lambda x: x[1]):
             print(f"{task_type}: {count} tasks")
         
         print("\nUnit Creation by Heuristic:")
