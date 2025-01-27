@@ -116,12 +116,25 @@ def setup_h6(heuristic):
         slot = context.get('slot_to_change')
         new_value = context.get('new_value')
         
+        logger.info(f"H6: Checking requirements - unit: {unit}, slot: {slot}, new_value: {new_value}")
         if not all([unit, slot, new_value is not None]):
             logger.info("H6: Missing requirements for new unit")
             return False
+        logger.info("H6: All requirements present")
 
         # Create specialized unit
-        unit_registry = rule.unit_registry
+        task_manager = context.get('task_manager')
+        logger.info(f"H6: Got task manager: {task_manager}")
+        if not task_manager:
+            logger.info("H6: No task manager in context")
+            return False
+            
+        unit_registry = task_manager.unit_registry
+        logger.info(f"H6: Got unit registry: {unit_registry}")
+        if not unit_registry:
+            logger.info("H6: No unit registry from task manager")
+            return False
+            
         new_name = f"{unit.name}-{slot}-spec"
         logger.info(f"H6: Creating new unit {new_name}")
         
@@ -177,3 +190,8 @@ def setup_h6(heuristic):
         
         logger.info(f"H6: Final task results with new unit: {task_results}")
         return True
+
+    # Set the functions as properties on the heuristic
+    heuristic.set_prop('if_potentially_relevant', if_potentially_relevant)
+    heuristic.set_prop('then_compute', then_compute)
+    heuristic.set_prop('then_define_new_concepts', then_define_new_concepts)

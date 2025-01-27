@@ -9,16 +9,7 @@ import inspect
 import logging
 from ..units import Unit, UnitRegistry
 from .enabled import enabled_heuristics
-
-def rule_factory(func: Callable):
-    """Create a factory decorator for rule functions.
-    The property name is exactly the function name.
-    """
-    def decorator(heuristic):
-        # Set the function directly in properties
-        heuristic.set_prop(func.__name__, func)
-        return heuristic
-    return decorator
+from .rule_factory import rule_factory
 
 def discover_heuristics():
     logger = logging.getLogger(__name__)

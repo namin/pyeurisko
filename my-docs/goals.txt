@@ -5,9 +5,8 @@ We expect the cycle in main, as new units and tasks are created.
 Why is this not happening?
 Do NOT enable eternal mode, this runs forever so you won't get any output from that, and it's not currently interesting.
 
-Next steps (in some order):
-- provide stats at the end of run of newly created units, and debug if it's 0 or low.
-- pick a heuristic to port and enable. Look at claude-docs/PORTING_HEURISTICS.md. Remember to be faithful to the original heuristics in the sibling project eurisclo/src/heuristics.lisp.
+Next step: Debug the test cases, run `pytest tests`.
+
 
 Ignore *~ files. They are emacs backup files.
 
