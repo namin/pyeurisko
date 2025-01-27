@@ -36,7 +36,7 @@ class TaskManager:
             logger.info("No results to process")
             return
 
-        logger.info(f"Processing task results: {results}")
+        logger.info(f"Processing task results")
         new_tasks = results.get('new_tasks', [])
         if isinstance(new_tasks, list):
             for task_info in new_tasks:

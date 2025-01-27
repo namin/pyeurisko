@@ -3,17 +3,7 @@ import random
 import logging
 from ..heuristics import rule_factory
 
-# Configure logger for h6
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Set up a console handler if none exists
-if not logger.handlers:
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
 
 def specialize_value(value):
     """Create a specialized version of a value."""

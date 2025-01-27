@@ -3,17 +3,7 @@ import logging
 from ..heuristics import rule_factory
 from ..tasks import Task
 
-# Configure logger for h3
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Set up a console handler if none exists
-if not logger.handlers:
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
 
 SPECIALIZABLE_SLOTS = [
     'domain', 'range', 'isa', 'generalizations', 'worth', 
@@ -23,7 +13,7 @@ SPECIALIZABLE_SLOTS = [
 def check_if_potentially_relevant(rule, context):
     """Check if this is a specialization task."""
     logger.info("H3 checking if_potentially_relevant")
-    logger.info(f"Rule: {rule}, Context: {context}")
+    #logger.info(f"Rule: {rule}, Context: {context}")
         
     task = context.get('task')
     if not task:
@@ -36,7 +26,7 @@ def check_if_potentially_relevant(rule, context):
 def check_then_compute(rule, context):
     """Choose slots that could be specialized."""
     logger.info("Starting h3 then_compute")
-    logger.info(f"Rule: {rule}, Context: {context}")
+    #logger.info(f"Rule: {rule}, Context: {context}")
     logger.info(f"Rule properties: {rule.properties if hasattr(rule, 'properties') else 'No properties'}")
         
     unit = context.get('unit')
