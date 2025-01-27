@@ -33,7 +33,8 @@ class Eurisko:
     """Main Eurisko system class."""
     def __init__(self, verbosity):
         self.verbosity = verbosity
-        self.unit_registry = UnitRegistry()
+        UnitRegistry.reset_instance()
+        self.unit_registry = UnitRegistry.get_instance()
         self.slot_registry = SlotRegistry()
         self.task_manager = TaskManager()
         self.task_manager.verbosity = verbosity

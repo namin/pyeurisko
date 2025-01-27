@@ -15,7 +15,7 @@ class TaskManager:
         self.agenda: List[Task] = []
         self.task_num: int = 0
         self.min_priority: int = 150
-        self.unit_registry = UnitRegistry()
+        self.unit_registry = UnitRegistry.get_instance()
         self.slot_registry = SlotRegistry()
         self.abort_current_task: bool = False
         self.current_task: Optional[Task] = None

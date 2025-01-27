@@ -211,22 +211,39 @@ class Unit(EuriskoObject):
 
 class UnitRegistry:
     """Global registry of all units in the system."""
-    _instance = None
-    _units: Dict[str, Unit] = {}
-    _units_by_category: Dict[str, Set[str]] = {}
-    _deleted_units: Set[str] = set()
+    def __init__(self):
+        """Initialize an empty registry."""
+        self._units: Dict[str, Unit] = {}
+        self._units_by_category: Dict[str, Set[str]] = {}
+        self._deleted_units: Set[str] = set()
 
-    def __new__(cls):
-        """Singleton pattern."""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
+    @classmethod
+    def get_instance(cls):
+        """Get the singleton instance."""
+        if not hasattr(cls, '_instance'):
+            cls._instance = cls()
         return cls._instance
+
+    @classmethod
+    def reset_instance(cls):
+        """Reset the singleton instance."""
+        if hasattr(cls, '_instance'):
+            instance = cls._instance
+            instance._units.clear()
+            instance._units_by_category.clear()
+            instance._deleted_units.clear()
+            delattr(cls, '_instance')
+
+    @classmethod
+    def create_clean_registry(cls):
+        """Create a new clean registry."""
+        return cls()
     
-    def register(self, unit: Unit) -> None:
+    def register(self, unit: Unit) -> bool:
         """Register a unit in the system."""
         if unit.name in self._deleted_units:
             logger.warning(f"Attempting to register previously deleted unit: {unit.name}")
-            return
+            return False
             
         self._units[unit.name] = unit
         # Update category index
@@ -234,6 +251,7 @@ class UnitRegistry:
             if category not in self._units_by_category:
                 self._units_by_category[category] = set()
             self._units_by_category[category].add(unit.name)
+        return True
 
     def unregister(self, unit_name: str) -> None:
         """Remove a unit from the system."""
@@ -264,9 +282,16 @@ class UnitRegistry:
 
     def create_unit(self, name: str, worth: int = 500, isa: List[str] = None) -> Unit:
         """Create and register a new unit."""
+        # If unit exists, return it
         if name in self._units:
-            logger.warning(f"Unit {name} already exists")
-            return self._units[name]
+            logger.debug(f"Unit {name} already exists, returning existing unit")
+            existing_unit = self._units[name]
+            if isa:
+                current_isa = existing_unit.get_prop('isa', [])
+                for category in isa:
+                    if category not in current_isa:
+                        existing_unit.add_to_prop('isa', category)
+            return existing_unit
             
         unit = Unit(name, worth)
         if isa:

@@ -144,20 +144,31 @@ def setup_h6(heuristic):
             return False
             
         # Copy properties
+        logger.info(f"H6: Copying properties from {unit.name} to {new_name}")
         for key, value in unit.properties.items():
             if key != slot and key not in ['specializations', 'generalizations']:
+                logger.info(f"H6: Copying property {key} = {value}")
                 new_unit.set_prop(key, value)
                 
         # Set specialized value
+        logger.info(f"H6: Setting specialized value {slot} = {new_value}")
         new_unit.set_prop(slot, new_value)
-        new_unit.set_prop('worth', int(unit.worth_value() * 0.9))
+        
+        # Set worth
+        worth = unit.worth_value()
+        logger.info(f"H6: Original worth: {worth}")
+        new_worth = int(worth * 0.9)
+        logger.info(f"H6: Setting new worth: {new_worth}")
+        new_unit.set_prop('worth', new_worth)
         
         # Update relationships
+        logger.info(f"H6: Setting up specialization/generalization relationships")
         unit.add_to_prop('specializations', new_unit.name)
         new_unit.add_to_prop('generalizations', unit.name)
         
         # Register unit
-        if not unit_registry.register(new_unit):
+        logger.info(f"H6: Registering new unit {new_name}")
+        if not new_unit or not unit_registry.register(new_unit):
             logger.info("H6: Failed to register new unit")
             return False
             
