@@ -33,14 +33,24 @@ class TaskManager:
     def _process_task_results(self, results: Dict[str, Any]) -> None:
         """Process task results to add new tasks."""
         if not results:
+            logger.info("No results to process")
             return
 
+        logger.info(f"Processing task results: {results}")
         new_tasks = results.get('new_tasks', [])
         if isinstance(new_tasks, list):
             for task_info in new_tasks:
-                if isinstance(task_info, dict):
+                if isinstance(task_info, Task):  # Already a Task object
+                    logger.info(f"Adding Task object directly: {task_info}")
+                    self.add_task(task_info)
+                elif isinstance(task_info, dict):  # Task info dict
+                    logger.info(f"Creating new Task from dict: {task_info}")
                     task = Task(**task_info)
                     self.add_task(task)
+                    
+            logger.info(f"Added {len(new_tasks)} new tasks from results")
+        else:
+            logger.info(f"No new tasks in results: {results}")
 
     def _merge_task_priorities(self, existing: Task, new: Task) -> int:
         """Calculate merged task priority."""
@@ -71,8 +81,11 @@ class TaskManager:
 
     def add_tasks(self, tasks: List[Task]) -> None:
         """Add multiple tasks to the agenda."""
+        logger.info(f"Adding {len(tasks)} tasks to agenda")
         for task in tasks:
+            logger.info(f"Task to add: {task}")
             self.add_task(task)
+        logger.info(f"Current agenda size: {len(self.agenda)}")
 
     def next_task(self) -> Optional[Task]:
         """Get the next highest priority task."""
@@ -330,17 +343,25 @@ class TaskManager:
                         (unit.name, task.task_type)
                     )
 
-            if success and self.verbosity > 39:
-                print(f"  The ThenParts of {heuristic.name} have been executed")
+            if success:
+                if self.verbosity > 39:
+                    print(f"  The ThenParts of {heuristic.name} have been executed")
+                    
+                if context.get('task_results', {}).get('new_tasks'):
+                    logger.debug(f"{heuristic.name} created {len(context['task_results']['new_tasks'])} new tasks")
+                if context.get('task_results', {}).get('new_units'):
+                    logger.debug(f"{heuristic.name} created {len(context['task_results']['new_units'])} new units")
 
-        # Update task results
+        """Update task results and process."""
         task.results.update({
             'status': 'completed',
             'old_value': current_value,
             'new_values': context['new_values'],
             'modified_unit': unit.properties  # Final state
         })
-
+        
+        # Process results
+        logger.info(f"Processing task results for task {task.unit_name}:{task.slot_name}")
         self._process_task_results(task.results)
         return task.results
 

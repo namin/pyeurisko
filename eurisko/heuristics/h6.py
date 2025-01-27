@@ -55,7 +55,10 @@ def setup_h6(heuristic):
         if task.task_type != 'specialization':
             return False
             
-        if 'slot_to_change' not in task.supplemental:
+        slot_to_change = task.supplemental.get('slot_to_change')
+        logger.debug(f"H6 checking task with supplemental: {task.supplemental}")
+        if not slot_to_change:
+            logger.debug("H6 rejecting task: no slot_to_change")
             return False
             
         return True

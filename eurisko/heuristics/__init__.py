@@ -14,15 +14,11 @@ def rule_factory(func: Callable):
     """Create a factory decorator for rule functions.
     The property name is exactly the function name.
     """
-    def make_factory(heuristic):
-        property_name = func.__name__
-        def factory(rule):
-            def wrapper(context):
-                return func(rule, context)
-            return wrapper
-        heuristic.set_prop(property_name, factory)
-        return factory # Return the factory function
-    return make_factory
+    def decorator(heuristic):
+        # Set the function directly in properties
+        heuristic.set_prop(func.__name__, func)
+        return heuristic
+    return decorator
 
 def discover_heuristics():
     logger = logging.getLogger(__name__)
