@@ -5,7 +5,10 @@ We expect the cycle in main, as new units and tasks are created.
 Why is this not happening?
 Do NOT enable eternal mode, this runs forever so you won't get any output from that, and it's not currently interesting.
 
-The immediate task is in claude-docs/WORKING_FIX.md.
+Some possible next steps:
+- extract a principled design pattern from the experiment with the enabled heuristics h4, h5, h6 working in concert
+- have a better logging infrastructure, that allows focusing depending on debugging task
+- have an eternal mode that also supports fixed iterations for testing in the sandbox
 
 Ignore *~ files. They are emacs backup files.
 
