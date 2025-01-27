@@ -5,7 +5,7 @@ We expect the cycle in main, as new units and tasks are created.
 Why is this not happening?
 Do NOT enable eternal mode, this runs forever so you won't get any output from that, and it's not currently interesting.
 
-The immediate task is to fix the stats accumulation and printing in task_manager.py
+The immediate task is in claude-docs/WORKING_FIX.md.
 
 Ignore *~ files. They are emacs backup files.
 

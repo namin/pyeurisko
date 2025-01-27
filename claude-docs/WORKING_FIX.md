@@ -1,5 +1,28 @@
-# Tasks for Debugging Heuristics
+# Debugging Progress
 
+## Task Access Pattern Issues
+1. Different ways of accessing task type:
+   - Direct attribute: task.task_type
+   - Dict access: task.get('task_type')
+   - Supplemental dict: task.supplemental.get('task_type')
+
+2. Data Flow Problems:
+   - Task context not properly passed between heuristics
+   - Task results not propagating to task manager
+   - Task type not consistently set across all code paths
+
+## Current Fixes
+1. Standardized task access:
+   - Using task.get() interface everywhere
+   - Moving supplemental data to task properties
+   - Added logging to track task context flow
+
+2. Next Steps:
+   - Verify task type flow from task creation to heuristic execution
+   - Fix task results propagation in task_manager.py
+   - Update h6 to properly consume h5's output
+
+# Original Issues
 ## Current Issues
 1. TaskManager issues:
    - Not handling task context properly - splits task info across 'task_type' and 'supplemental'  

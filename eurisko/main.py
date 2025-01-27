@@ -8,6 +8,27 @@ from .units import Unit, UnitRegistry, initialize_all_units
 from .slots import SlotRegistry, initialize_all_slots
 from .tasks import Task, TaskManager
 
+def setup_logging(verbosity: int):
+    """Configure logging based on verbosity."""
+    log_level = logging.DEBUG if verbosity > 1 else logging.INFO
+
+    # Clear existing handlers
+    root = logging.getLogger()
+    for handler in root.handlers[:]:
+        root.removeHandler(handler)
+
+    # Configure root logger
+    logging.basicConfig(
+        format='%(levelname)s - %(name)s - %(message)s',
+        level=log_level,
+        force=True
+    )
+
+    # Set levels for specific modules
+    for logger_name in ['eurisko.heuristics', 'eurisko.units', 'eurisko.tasks']:
+        module_logger = logging.getLogger(logger_name)
+        module_logger.setLevel(log_level)
+
 class Eurisko:
     """Main Eurisko system class."""
     def __init__(self, verbosity):
@@ -16,13 +37,7 @@ class Eurisko:
         self.slot_registry = SlotRegistry()
         self.task_manager = TaskManager()
         self.task_manager.verbosity = verbosity
-
-        log_level = logging.DEBUG if verbosity > 1 else logging.INFO
-        logging.basicConfig(
-            format='%(levelname)s - %(name)s - %(message)s',
-            level=log_level,
-            force=True
-        )
+        setup_logging(verbosity)
         self.logger = logging.getLogger(__name__)
 
     def initialize(self) -> None:

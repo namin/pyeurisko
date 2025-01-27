@@ -21,11 +21,10 @@ def setup_h4(heuristic) -> None:
         if not task:
             return False
             
-        task_type = task.get('task_type', '')
-        if task_type not in ['specialization', 'define_concept']:
-            return False
-            
-        return True
+        # Check any completed task for new units    
+        task_results = context.get('task_results', {})
+        new_units = task_results.get('new_units', [])
+        return bool(new_units)
 
     @rule_factory 
     def if_working_on_task(rule, context):
@@ -33,13 +32,6 @@ def setup_h4(heuristic) -> None:
         task = context.get('task')
         if not task:
             logger.debug("H4 if_working_on_task: No task")
-            return False
-            
-        task_type = task.get('task_type', '')
-        logger.debug(f"H4 task type: {task_type}")
-        
-        if task_type not in ['specialization', 'define_concept']: 
-            logger.debug("H4 if_working_on_task: Wrong task type")
             return False
 
         # New units should be defined in task results

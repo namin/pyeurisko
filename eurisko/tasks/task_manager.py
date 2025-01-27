@@ -1,5 +1,4 @@
 """Task manager."""
-
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -22,7 +21,6 @@ class TaskManager:
         self.current_task: Optional[Task] = None
         self.verbosity: int = 1
         self.heuristic_stats = defaultdict(lambda: {'tries_for_success': 0, 'success': 0, 'tries_for_relevant': 0, 'relevant': 0})
-        # Import here to avoid circular imports
         from ..system import System
         self.system = System(self)
 
@@ -39,15 +37,14 @@ class TaskManager:
                     self.add_task(task)
 
     def _merge_task_priorities(self, existing: Task, new: Task) -> int:
-        """Calculate merged task priority based on existing and new tasks."""
+        """Calculate merged task priority."""
         base_priority = max(existing.priority, new.priority)
-        # Consider task age and complexity
         reason_bonus = min(100, len(set(existing.reasons + new.reasons)) * 10)
         unit_bonus = 50 if self.unit_registry.get_unit(new.unit_name).worth_value() > 700 else 0
         return min(1000, base_priority + reason_bonus + unit_bonus)        
 
     def add_task(self, task: Task) -> None:
-        """Add a task to the agenda if priority meets minimum threshold."""
+        """Add a task to the agenda."""
         if task.priority < self.min_priority:
             return
 
@@ -117,13 +114,11 @@ class TaskManager:
         return heuristics
 
     def _is_heuristic_relevant(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
-        # Add system to context
-        context['system'] = self.system
-        """Check if a heuristic's if-parts are satisfied."""
+        """Check if a heuristic is relevant for the current task."""
         logger.debug(f"\nChecking relevance of {heuristic.name}")
         logger.debug(f"Context: task_type={context.get('task_type')}, supplemental={context.get('supplemental')}")
+
         def check_factory_func(factory):
-            """Handle function that returns another function."""
             if not factory:
                 return False
 
@@ -132,7 +127,7 @@ class TaskManager:
 
             try:
                 result = factory(heuristic, context)
-                return result is True  # Must explicitly return True
+                return result is True
             except Exception as e:
                 logger.debug(f"Factory error for {heuristic.name}: {e}")
                 return False
@@ -150,13 +145,10 @@ class TaskManager:
         return True
 
     def _apply_heuristic(self, heuristic: Unit, context: Dict[str, Any]) -> bool:
-        """Apply a heuristic's then-parts, assumes if_parts showed relevance."""
-
-        # Ensure system is in context
+        """Apply a heuristic's then-parts."""
         if 'system' not in context:
             context['system'] = self.system
 
-        # Only proceed if relevant
         any_action_executed = False
         all_actions_succeeded = True
 
@@ -176,7 +168,7 @@ class TaskManager:
             any_action_executed = True
             try:
                 result = action_factory(heuristic, context)
-                if result is not True:  # Must explicitly return True
+                if result is not True:
                     if self.verbosity > 1:
                         print(f"Action from {prop_name} failed for {heuristic.name}")
                     all_actions_succeeded = False
@@ -185,11 +177,11 @@ class TaskManager:
                     print(f"Error applying heuristic {heuristic.name}: {e}")
                 all_actions_succeeded = False
 
-        # Only count as success if at least one action executed and all executed actions succeeded
         success = any_action_executed and all_actions_succeeded
         return success
 
     def track_heuristic_result(self, heuristic_name: str, mark: str, outcome: bool):
+        """Track heuristic execution stats."""
         stats = self.heuristic_stats[heuristic_name]
         tries_mark = 'tries_for_'+mark
         stats.setdefault(tries_mark, 0)
@@ -199,6 +191,7 @@ class TaskManager:
             stats[mark] += 1
 
     def print_stats(self):
+        """Print heuristic performance stats."""
         print("\nHeuristic Performance:")
         for h_name, stats in sorted(self.heuristic_stats.items()):
             relevant_rate = (stats['relevant'] / stats['tries_for_relevant'] * 100) if stats['tries_for_relevant'] > 0 else 0
@@ -235,19 +228,16 @@ class TaskManager:
                     
                 result = slot_func(unit)
                 if result:
-                    # Track created/modified units
                     if isinstance(result, list):
                         task.results['new_units'].extend(result)
                     elif isinstance(result, dict):
                         task.results.update(result)
-                        
-                    if self.verbosity > 10:
-                        print(f"Slot function created units: {result}")
+
             except Exception as e:
                 if self.verbosity > 0:
                     print(f"Error executing slot function: {e}")
 
-        # Get current slot value - critical for heuristics to compare before/after
+        # Get current slot value 
         current_value = unit.get_prop(task.slot_name)
 
         # Set up initial context
@@ -261,6 +251,7 @@ class TaskManager:
             'supplemental': task.supplemental,
             'task_manager': self,
             'system': self.system,
+            'task': task,
             'current_unit': unit,
             'current_slot': task.slot_name,
             'old_value': current_value,
@@ -276,16 +267,15 @@ class TaskManager:
             logger.debug(f"  Supplemental: {task.supplemental}")
             logger.debug(f"  Unit properties: {unit.properties}")
 
-        # Get heuristics that could apply (analogous to (heuristics) in Lisp)
+        # Get heuristics that could apply
         heuristics = self._get_heuristics()
 
-        # Try each heuristic (like the LOOP in work-on-task Lisp)
+        # Try each heuristic
         for heuristic in heuristics:
             if self.abort_current_task:
                 task.results['status'] = 'aborted'
                 return task.results
 
-            # Only apply if relevant (via if-parts)
             logger.debug(f"Checking if {heuristic.name} relevant for task type {context.get('task_type')}")
             relevant = self._is_heuristic_relevant(heuristic, context)
             self.track_heuristic_result(heuristic.name, "relevant", relevant)
@@ -338,7 +328,6 @@ class TaskManager:
         while self.has_tasks():
             task = self.next_task()
             if task:
-                result = self.work_on_task(task, interpreter)
+                result = self.work_on_task(task)
                 results.append(result)
         return results
-

@@ -116,10 +116,12 @@ def setup_h6(heuristic) -> None:
         if not task:
             return False
             
-        if task.get('task_type') != 'specialization':
+        task_type = task.get('task_type')
+        if task_type != 'specialization':
             return False
             
-        if 'slot_to_change' not in task.get('supplemental', {}):
+        supplemental = task.get('supplemental', {})
+        if 'slot_to_change' not in supplemental:
             return False
             
         return True
@@ -133,15 +135,16 @@ def setup_h6(heuristic) -> None:
             logger.debug("H6: Missing unit or task")
             return False
             
-        if not task.get('task_type') == 'specialization':
+        if task.get('task_type') != 'specialization':
             logger.debug("H6: Not a specialization task") 
             return False
             
-        if 'slot_to_change' not in task.get('supplemental', {}):
+        supplemental = task.get('supplemental', {})
+        if 'slot_to_change' not in supplemental:
             logger.debug("H6: No slot_to_change in supplemental")
             return False
             
-        slot_to_change = task.get('supplemental', {}).get('slot_to_change')
+        slot_to_change = supplemental.get('slot_to_change')
         if not slot_to_change or not unit.has_prop(slot_to_change):
             logger.debug(f"H6: Invalid slot {slot_to_change}")
             return False
@@ -154,12 +157,11 @@ def setup_h6(heuristic) -> None:
     def then_print_to_user(rule, context):
         """Print the specialization results."""
         unit = context.get('unit')
-        task = context.get('task')
         old_value = context.get('old_value')
         new_value = context.get('new_value')
         slot = context.get('slot_to_change')
         
-        if not all([unit, task, slot, old_value is not None, new_value is not None]):
+        if not all([unit, slot, old_value is not None, new_value is not None]):
             logger.debug("H6 then_print_to_user: Missing required values")
             return False
             
@@ -214,7 +216,9 @@ def setup_h6(heuristic) -> None:
         # Create new specialized unit
         new_name = f"{unit.name}-{slot}-spec"
         logger.debug(f"H6 creating new unit: {new_name}")
-        new_unit = rule.unit_registry.create_unit(new_name)
+        
+        unit_registry = rule.unit_registry
+        new_unit = unit_registry.create_unit(new_name)
         if not new_unit:
             logger.debug("H6 failed to create new unit")
             return False
@@ -237,16 +241,23 @@ def setup_h6(heuristic) -> None:
         new_unit.add_to_prop('creditors', ['h6'] + list(creditors))
         
         # Add to unit registry
-        if not rule.unit_registry.register(new_unit):
+        if not unit_registry.register(new_unit):
             logger.debug("H6 failed to register new unit")
             return False
         
-        # Add to results
-        task_results = context.get('task_results', {})
-        task_results['new_units'] = task_results.get('new_units', []) + [new_unit]
+        # Ensure task_results exists and is a dict
+        if 'task_results' not in context:
+            context['task_results'] = {}
+        task_results = context['task_results']
+        
+        # Initialize new_units list if needed
+        if 'new_units' not in task_results:
+            task_results['new_units'] = []
+            
+        # Add the new unit and update status
+        task_results['new_units'].append(new_unit)
         task_results['status'] = 'completed'
         task_results['success'] = True
-        context['task_results'] = task_results
-        logger.debug(f"H6 successfully created specialized unit {new_name}")
         
+        logger.debug(f"H6 successfully created specialized unit {new_name}")
         return True
