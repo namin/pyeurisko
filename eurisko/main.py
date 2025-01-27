@@ -44,7 +44,7 @@ class Eurisko:
         self.initialize_test_applications(self.unit_registry)
         self._generate_initial_tasks()
 
-    def run(self, eternal_mode: bool = False, max_cycles: Optional[int] = None) -> None:
+    def run(self, eternal_mode: bool = False, max_cycles: Optional[int] = None, max_in_cycle: Optional[int] = None) -> None:
         """Run the main Eurisko loop."""
         self.logger.info("Starting Eurisko")
         self.logger.info(f"Eternal mode: {eternal_mode}")
@@ -61,7 +61,12 @@ class Eurisko:
                 break
 
             # Process agenda until empty
+            in_cycle_count = 0
             while self.task_manager.has_tasks():
+                in_cycle_count += 1
+                if max_in_cycle and in_cycle_count > max_in_cycle:
+                    self.logger.info(f"Reached maximum count in cycle ({max_in_cycle})")
+                    break
                 task = self.task_manager.next_task()
                 if task:
                     self.logger.info(
@@ -175,11 +180,13 @@ def main():
                         help='Run in eternal mode')
     parser.add_argument('-c', '--max-cycles', type=int,
                         help='Maximum number of cycles to run in eternal mode')
+    parser.add_argument('-n', '--max-in-cycle', type=int,
+                        help='Maximum number of tasks processed in one cycle')
     args = parser.parse_args()
 
     eurisko = Eurisko(verbosity=args.verbosity)
     eurisko.initialize()
-    eurisko.run(eternal_mode=args.eternal, max_cycles=args.max_cycles)
+    eurisko.run(eternal_mode=args.eternal, max_cycles=args.max_cycles, max_in_cycle=args.max_in_cycle)
     eurisko.task_manager.print_stats()
 
 if __name__ == '__main__':
