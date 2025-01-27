@@ -5,11 +5,6 @@ from ..tasks import Task
 
 logger = logging.getLogger(__name__)
 
-SPECIALIZABLE_SLOTS = [
-    'domain', 'range', 'isa', 'generalizations', 'worth', 
-    'fast-alg', 'iterative-alg', 'recursive-alg'
-]
-
 def check_if_potentially_relevant(rule, context):
     """Check if this is a specialization task."""
     logger.debug("H3 checking if_potentially_relevant")
@@ -25,29 +20,51 @@ def check_if_potentially_relevant(rule, context):
 def check_then_compute(rule, context):
     """Choose slots that could be specialized."""
     logger.debug("Starting h3 then_compute")
-    #logger.debug(f"Rule: {rule}, Context: {context}")
-    #logger.debug(f"Rule properties: {rule.properties if hasattr(rule, 'properties') else 'No properties'}")
-        
+    
     unit = context.get('unit')
     if not unit:
         logger.debug("No unit in context")
         return False
-            
-    # Find slots with non-empty values that could be specialized
+
+    # Check for task limit in agenda
+    task_manager = context.get('task_manager')
+    if task_manager:
+        unit_name = unit.name
+        existing_specialization_tasks = [
+            t for t in task_manager.agenda 
+            if t.unit_name == unit_name and t.task_type == 'specialization'
+        ]
+        if len(existing_specialization_tasks) >= 11:
+            logger.debug(f"Too many specialization tasks for unit {unit_name}")
+            return False
+
+    # First check if unit has criterial slots
     candidate_slots = []
-    for slot in SPECIALIZABLE_SLOTS:
-        logger.debug(f"Checking slot: {slot}")
-        if unit.has_prop(slot):
-            value = unit.get_prop(slot)
-            logger.debug(f"Found value for {slot}: {value}")
-            if value is not None and value != []:
-                candidate_slots.append(slot)
-                logger.debug(f"Added {slot} to candidate slots")
-            else:
-                logger.debug(f"Rejected {slot} - empty value")
-        else:
-            logger.debug(f"Unit does not have slot {slot}")
-                    
+    used_slots = getattr(unit, 'specialized_slots', set())
+
+    if unit.has_prop('criterial-slots'):
+        criterial_slots = unit.get_prop('criterial-slots')
+        for slot in criterial_slots:
+            if (unit.name, slot) not in used_slots:
+                if unit.has_prop(slot):
+                    value = unit.get_prop(slot)
+                    logger.debug(f"Found value for {slot}: {value}")
+                    if value is not None and value != []:
+                        candidate_slots.append(slot)
+                        logger.debug(f"Added criterial slot {slot}")
+    else:
+        # Look at all slots with values except specialization tracking
+        for slot in unit.properties.keys():
+            if (unit.name, slot) not in used_slots:
+                if slot not in ['specializations', 'generalizations', 'specialized_slots']:
+                    value = unit.get_prop(slot)
+                    logger.debug(f"Found value for {slot}: {value}")
+                    if value is not None and value != []:
+                        candidate_slots.append(slot)
+                        logger.debug(f"Added slot {slot}")
+                    else:
+                        logger.debug(f"Rejected {slot} - empty value")
+                        
     if not candidate_slots:
         logger.debug("No candidate slots found")
         return False
@@ -62,11 +79,11 @@ def check_then_compute(rule, context):
         task_results = {
             'status': 'in_progress',
             'new_tasks': [],
-            'success': True
+            'success': True,
+            'initial_unit_state': unit.properties.copy()
         }
         context['task_results'] = task_results
 
-    #logger.debug(f"Task results after compute: {task_results}")
     return True
 
 def check_then_add_to_agenda(rule, context):
@@ -83,13 +100,24 @@ def check_then_add_to_agenda(rule, context):
         logger.debug(f"Missing required context: unit={unit}, task={task}, candidate_slots={candidate_slots}")
         return False
         
+    # Initialize task tracking if needed
+    if not hasattr(unit, 'specialized_slots'):
+        unit.specialized_slots = set()
+        
     # Create a specialization task for each candidate slot
     new_tasks = []
+    base_priority = task.priority if task else 1000
+    
     for slot in candidate_slots:
+        # Track that we're specializing this slot
+        unit.specialized_slots.add((unit.name, slot))
+        
+        # Create task with degrading priority 
+        priority = max(100, int(base_priority * 0.9))
         new_task = Task(
-            priority=1000,  # Set priority higher than examine tasks
+            priority=priority,
             unit_name=unit.name,
-            slot_name=slot,  # Use the actual slot we want to specialize
+            slot_name=slot,
             task_type='specialization',
             reasons=[f'H3 selected {slot} for specialization'],
             supplemental={
@@ -111,11 +139,11 @@ def check_then_add_to_agenda(rule, context):
 
 def setup_h3(heuristic):
     """Configure H3 to identify slots for specialization."""
-    heuristic.set_prop('worth', 600)
+    heuristic.set_prop('worth', 101)  # From original Eurisko
     heuristic.set_prop('english',
-        "IF working on a specialization task, THEN identify slots that might "
-        "be worth specializing and create tasks for H6 to do the specialization")
-    heuristic.set_prop('abbrev', "Choose slots for specialization")
+        "IF the current task is to specialize a unit, but no specific slot to "
+        "specialize is yet known, THEN choose one")
+    heuristic.set_prop('abbrev', "Randomly choose a slot to specialize")
     heuristic.set_prop('arity', 1)
 
     # Set the check functions directly in properties
