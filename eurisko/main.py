@@ -24,11 +24,6 @@ def setup_logging(verbosity: int):
         force=True
     )
 
-    # Set levels for specific modules
-    # for logger_name in ['eurisko.heuristics', 'eurisko.units', 'eurisko.tasks']:
-    #     module_logger = logging.getLogger(logger_name)
-    #     module_logger.setLevel(log_level)
-
 class Eurisko:
     """Main Eurisko system class."""
     def __init__(self, verbosity):

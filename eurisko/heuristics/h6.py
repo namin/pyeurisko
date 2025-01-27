@@ -49,65 +49,65 @@ def setup_h6(heuristic):
     def if_potentially_relevant(rule, context):
         """Check that this is a specialization task with a chosen slot."""
         task = context.get('task')
-        logger.info(f"H6 checking relevance with context: {context}")
-        logger.info(f"H6 task: {task}")
+        #logger.debug(f"H6 checking relevance with context: {context}")
+        logger.debug(f"H6 task: {task}")
 
         if not task:
-            logger.info("H6: No task in context")
+            logger.debug("H6: No task in context")
             return False
             
-        logger.info(f"H6 task type: {task.task_type}, supplemental: {task.supplemental}")
+        logger.debug(f"H6 task type: {task.task_type}, supplemental: {task.supplemental}")
 
         # Must be a specialization task
         if task.task_type != 'specialization':
-            logger.info(f"H6: Wrong task type: {task.task_type}")
+            logger.debug(f"H6: Wrong task type: {task.task_type}")
             return False
             
         # Must have slot_to_change in supplemental data
         slot_to_change = task.supplemental.get('slot_to_change')
         if not slot_to_change:
-            logger.info("H6 rejecting task: no slot_to_change in supplemental")
+            logger.debug("H6 rejecting task: no slot_to_change in supplemental")
             return False
 
         # Task's slot_name must match slot_to_change
         if task.slot_name != slot_to_change:
-            logger.info("H6 rejecting task: slot_name doesn't match slot_to_change")
+            logger.debug("H6 rejecting task: slot_name doesn't match slot_to_change")
             return False
             
-        logger.info(f"H6 accepting task for slot: {slot_to_change}")
+        logger.debug(f"H6 accepting task for slot: {slot_to_change}")
         return True
 
     @rule_factory
     def then_compute(rule, context):
         """Create specialized value."""
-        logger.info("H6 then_compute starting")
+        logger.debug("H6 then_compute starting")
         
         unit = context.get('unit')
         task = context.get('task')
         if not all([unit, task]):
-            logger.info("H6: Missing unit or task")
+            logger.debug("H6: Missing unit or task")
             return False
             
         # Get slot to specialize from task
         slot = task.slot_name
         if not slot or not unit.has_prop(slot):
-            logger.info(f"H6: Invalid slot to change: {slot}")
+            logger.debug(f"H6: Invalid slot to change: {slot}")
             return False
             
         # Get and store old value
         old_value = unit.get_prop(slot)
         if old_value is None:
-            logger.info("H6: No value to specialize")
+            logger.debug("H6: No value to specialize")
             return False
             
         # Try specialization
         new_value = specialize_value(old_value)
         if new_value is None or new_value == old_value:
-            logger.info("H6: Could not create specialized value")
+            logger.debug("H6: Could not create specialized value")
             return False
             
         # Store results
-        logger.info(f"H6: Specialized {slot} from {old_value} to {new_value}")
+        logger.debug(f"H6: Specialized {slot} from {old_value} to {new_value}")
         context['old_value'] = old_value
         context['new_value'] = new_value
         context['slot_to_change'] = slot
@@ -116,37 +116,37 @@ def setup_h6(heuristic):
     @rule_factory
     def then_define_new_concepts(rule, context):
         """Create new specialized unit."""
-        logger.info("H6 then_define_new_concepts starting")
+        logger.debug("H6 then_define_new_concepts starting")
         
         unit = context.get('unit')
         slot = context.get('slot_to_change')
         new_value = context.get('new_value')
         
-        logger.info(f"H6: Checking requirements - unit: {unit}, slot: {slot}, new_value: {new_value}")
+        logger.debug(f"H6: Checking requirements - unit: {unit}, slot: {slot}, new_value: {new_value}")
         if not all([unit, slot, new_value is not None]):
-            logger.info("H6: Missing requirements for new unit")
+            logger.debug("H6: Missing requirements for new unit")
             return False
-        logger.info("H6: All requirements present")
+        logger.debug("H6: All requirements present")
 
         # Create specialized unit
         task_manager = context.get('task_manager')
-        logger.info(f"H6: Got task manager: {task_manager}")
+        logger.debug(f"H6: Got task manager: {task_manager}")
         if not task_manager:
-            logger.info("H6: No task manager in context")
+            logger.debug("H6: No task manager in context")
             return False
             
         unit_registry = task_manager.unit_registry
-        logger.info(f"H6: Got unit registry: {unit_registry}")
+        logger.debug(f"H6: Got unit registry: {unit_registry}")
         if not unit_registry:
-            logger.info("H6: No unit registry from task manager")
+            logger.debug("H6: No unit registry from task manager")
             return False
             
         new_name = f"{unit.name}-{slot}-spec"
-        logger.info(f"H6: Creating new unit {new_name}")
+        logger.debug(f"H6: Creating new unit {new_name}")
         
         new_unit = unit_registry.create_unit(new_name)
         if not new_unit:
-            logger.info("H6: Failed to create new unit")
+            logger.debug("H6: Failed to create new unit")
             return False
             
         # Copy properties
@@ -164,11 +164,11 @@ def setup_h6(heuristic):
         
         # Register unit
         if not unit_registry.register(new_unit):
-            logger.info("H6: Failed to register new unit")
+            logger.debug("H6: Failed to register new unit")
             return False
             
         # Mark success
-        logger.info(f"H6: Successfully created and registered unit {new_name}")
+        logger.debug(f"H6: Successfully created and registered unit {new_name}")
         
         # Get existing task results or create new ones
         task_results = context.get('task_results', {})
@@ -185,16 +185,16 @@ def setup_h6(heuristic):
             
         # Add our new unit to task results
         # Log task results before adding new unit
-        logger.info(f"H6: Task results before adding unit: {task_results}")
+        logger.debug(f"H6: Task results before adding unit: {task_results}")
         
         task_results['new_units'].append(new_unit)
         task_results['status'] = 'completed'
         task_results['success'] = True
         
         # Log final results
-        logger.info(f"H6: Final task results: {task_results}")
+        logger.debug(f"H6: Final task results: {task_results}")
         
-        logger.info(f"H6: Final task results with new unit: {task_results}")
+        logger.debug(f"H6: Final task results with new unit: {task_results}")
         return True
 
     # Set the functions as properties on the heuristic

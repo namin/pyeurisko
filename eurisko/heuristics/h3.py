@@ -12,50 +12,49 @@ SPECIALIZABLE_SLOTS = [
 
 def check_if_potentially_relevant(rule, context):
     """Check if this is a specialization task."""
-    logger.info("H3 checking if_potentially_relevant")
-    #logger.info(f"Rule: {rule}, Context: {context}")
+    logger.debug("H3 checking if_potentially_relevant")
         
     task = context.get('task')
     if not task:
-        logger.info("No task in context")
+        logger.debug("No task in context")
         return False
             
-    logger.info(f"Task type: {task.task_type}")
+    logger.debug(f"Task type: {task.task_type}")
     return task.task_type == 'specialization'
 
 def check_then_compute(rule, context):
     """Choose slots that could be specialized."""
-    logger.info("Starting h3 then_compute")
-    #logger.info(f"Rule: {rule}, Context: {context}")
-    logger.info(f"Rule properties: {rule.properties if hasattr(rule, 'properties') else 'No properties'}")
+    logger.debug("Starting h3 then_compute")
+    #logger.debug(f"Rule: {rule}, Context: {context}")
+    #logger.debug(f"Rule properties: {rule.properties if hasattr(rule, 'properties') else 'No properties'}")
         
     unit = context.get('unit')
     if not unit:
-        logger.info("No unit in context")
+        logger.debug("No unit in context")
         return False
             
     # Find slots with non-empty values that could be specialized
     candidate_slots = []
     for slot in SPECIALIZABLE_SLOTS:
-        logger.info(f"Checking slot: {slot}")
+        logger.debug(f"Checking slot: {slot}")
         if unit.has_prop(slot):
             value = unit.get_prop(slot)
-            logger.info(f"Found value for {slot}: {value}")
+            logger.debug(f"Found value for {slot}: {value}")
             if value is not None and value != []:
                 candidate_slots.append(slot)
-                logger.info(f"Added {slot} to candidate slots")
+                logger.debug(f"Added {slot} to candidate slots")
             else:
-                logger.info(f"Rejected {slot} - empty value")
+                logger.debug(f"Rejected {slot} - empty value")
         else:
-            logger.info(f"Unit does not have slot {slot}")
+            logger.debug(f"Unit does not have slot {slot}")
                     
     if not candidate_slots:
-        logger.info("No candidate slots found")
+        logger.debug("No candidate slots found")
         return False
 
     # Store candidate slots for then_add_to_agenda  
     context['candidate_slots'] = candidate_slots
-    logger.info(f"Found candidate slots: {candidate_slots}")
+    logger.debug(f"Found candidate slots: {candidate_slots}")
     
     # Create or initialize task_results
     task_results = context.get('task_results', {})
@@ -67,13 +66,13 @@ def check_then_compute(rule, context):
         }
         context['task_results'] = task_results
 
-    logger.info(f"Task results after compute: {task_results}")
+    #logger.debug(f"Task results after compute: {task_results}")
     return True
 
 def check_then_add_to_agenda(rule, context):
     """Create specialization tasks for chosen slots."""
-    logger.info("H3 then_add_to_agenda starting")
-    logger.info(f"Context: {context}")
+    logger.debug("H3 then_add_to_agenda starting")
+    logger.debug(f"Context: {context}")
 
     # Get needed context items
     unit = context.get('unit')
@@ -81,7 +80,7 @@ def check_then_add_to_agenda(rule, context):
     candidate_slots = context.get('candidate_slots')
     
     if not all([unit, task, candidate_slots]):
-        logger.info(f"Missing required context: unit={unit}, task={task}, candidate_slots={candidate_slots}")
+        logger.debug(f"Missing required context: unit={unit}, task={task}, candidate_slots={candidate_slots}")
         return False
         
     # Create a specialization task for each candidate slot
@@ -99,7 +98,7 @@ def check_then_add_to_agenda(rule, context):
             }
         )
         new_tasks.append(new_task)
-        logger.info(f"Created new task for slot {slot} with supplemental {new_task.supplemental}")
+        logger.debug(f"Created new task for slot {slot} with supplemental {new_task.supplemental}")
            
     # Store results directly in context
     context['task_results'] = {
@@ -107,7 +106,7 @@ def check_then_add_to_agenda(rule, context):
         'success': True,
         'new_tasks': new_tasks
     }
-    logger.info(f"Final task results with {len(new_tasks)} new tasks: {context['task_results']}")
+    logger.debug(f"Final task results with {len(new_tasks)} new tasks: {context['task_results']}")
     return True
 
 def setup_h3(heuristic):

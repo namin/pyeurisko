@@ -41,10 +41,10 @@ class TaskManager:
         if isinstance(new_tasks, list):
             for task_info in new_tasks:
                 if isinstance(task_info, Task):  # Already a Task object
-                    logger.info(f"Adding Task object directly: {task_info}")
+                    logger.debug(f"Adding Task object directly: {task_info}")
                     self.add_task(task_info)
                 elif isinstance(task_info, dict):  # Task info dict
-                    logger.info(f"Creating new Task from dict: {task_info}")
+                    logger.debug(f"Creating new Task from dict: {task_info}")
                     task = Task(**task_info)
                     self.add_task(task)
                     
@@ -361,13 +361,16 @@ class TaskManager:
                     logger.debug(f"{heuristic.name} created {len(context['task_results']['new_units'])} new units")
 
         """Update task results and process."""
+        context_results = context.get('task_results', {})
         task.results.update({
             'status': 'completed',
             'old_value': current_value,
             'new_values': context['new_values'],
-            'modified_unit': unit.properties  # Final state
+            'modified_unit': unit.properties,  # Final state
+            'new_tasks': context_results.get('new_tasks', []),  # Merge new tasks from context
+            'success': context_results.get('success', False)  # Merge success status
         })
-        
+
         # Process results
         logger.info(f"Processing task results for task {task.unit_name}:{task.slot_name}")
         self._process_task_results(task.results)
