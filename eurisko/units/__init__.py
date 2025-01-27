@@ -282,16 +282,9 @@ class UnitRegistry:
 
     def create_unit(self, name: str, worth: int = 500, isa: List[str] = None) -> Unit:
         """Create and register a new unit."""
-        # If unit exists, return it
         if name in self._units:
-            logger.debug(f"Unit {name} already exists, returning existing unit")
-            existing_unit = self._units[name]
-            if isa:
-                current_isa = existing_unit.get_prop('isa', [])
-                for category in isa:
-                    if category not in current_isa:
-                        existing_unit.add_to_prop('isa', category)
-            return existing_unit
+            logger.warning(f"Unit {name} already exists")
+            return self._units[name]
             
         unit = Unit(name, worth)
         if isa:
