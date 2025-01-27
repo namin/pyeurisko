@@ -2,6 +2,37 @@
 
 This document describes the process and patterns for porting heuristics from the original Lisp codebase to Python. By following these guidelines, we maintain consistency and ensure proper interaction with the Eurisko task system.
 
+## 0. Key Insights from Debugging
+
+### Task Chain Dependencies
+When porting heuristics that work together in chains (like h3->h6), pay attention to:
+
+1. Context Passing
+   - Tasks created by one heuristic must include all necessary info in their supplemental field
+   - The receiving heuristic must know how to extract this info from supplemental
+   - Never rely on heuristic context to persist between tasks
+
+2. Registry Access 
+   - Heuristics should get the unit_registry from task_manager in context, not from their rule object
+   - All unit creation must go through the shared registry in task_manager
+   - Always verify unit registration succeeded before continuing
+
+3. Task Results
+   - Initialize task_results if missing AND add required lists (new_units, modified_units) if missing
+   - Tasks expecting 'new_units' or 'modified_units' should explicitly create those lists
+   - Verify task_results updates are reflected in the context object
+
+4. Task Types vs Subtasks
+   - A heuristic may handle both main tasks (e.g., 'specialization') and subtasks (e.g., specializing a specific slot)
+   - Check task.supplemental for additional context like 'slot_to_change'
+   - Exit cleanly (return True) for task types you recognize but aren't meant to handle
+
+5. Logging Strategy
+   - Log context state at start and end of major functions
+   - Log all unit registry operations (creation, registration, verification)
+   - Log task_results modifications
+   - Include enough detail to trace value transformations
+
 ## 1. Basic Structure
 
 Each heuristic should be in its own file named `hN.py` where N is the heuristic number. The file should contain:
@@ -132,6 +163,29 @@ return False  # Function return
 context['task_results'] = {
     'status': 'failed',
     'reason': 'Explanation'
+}
+```
+
+4. Chained heuristic tasks:
+```python
+# Creating subtasks for another heuristic
+new_task = Task(
+    priority=task.priority - 10,  # Keep priority chain intact
+    unit_name=unit.name,
+    slot_name=slot,  # The slot to work on
+    task_type='specialization',  # Main task type
+    reasons=[f'H3 selected {slot} for specialization'],
+    supplemental={  # Include ALL info needed by receiving heuristic
+        'task_type': 'specialization',
+        'slot_to_change': slot
+    }
+)
+
+# Store in results
+context['task_results'] = {
+    'status': 'completed',
+    'success': True,
+    'new_tasks': [new_task]
 }
 ```
 
