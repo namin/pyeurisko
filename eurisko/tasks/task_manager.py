@@ -297,7 +297,7 @@ class TaskManager:
             'task_manager': self,
             'system': self.system,
             'task': task,
-            'current_unit': unit,
+            'unit': unit,
             'current_slot': task.slot_name,
             'old_value': current_value,
             'current_value': current_value,
