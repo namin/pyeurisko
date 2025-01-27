@@ -26,9 +26,9 @@ def setup_h6(heuristic):
     """Configure H6 to specialize chosen slots."""
     heuristic.set_prop('worth', 700)
     heuristic.set_prop('english',
-        "IF the current task is to specialize a unit, and a slot has been chosen "
-        "to be the one changed, THEN specialize that slot's value")
-    heuristic.set_prop('abbrev', "Specialize a given slot of a given unit")
+        "IF the current task is to specialize a slot that was chosen for "
+        "specialization, THEN specialize that slot's value")
+    heuristic.set_prop('abbrev', "Specialize a chosen slot")
     heuristic.set_prop('arity', 1)
 
     # Add record functions that return True for success
@@ -47,7 +47,7 @@ def setup_h6(heuristic):
 
     @rule_factory
     def if_potentially_relevant(rule, context):
-        """Check that this is a specialization task with chosen slot."""
+        """Check that this is a specialization task with a chosen slot."""
         task = context.get('task')
         logger.info(f"H6 checking relevance with context: {context}")
         logger.info(f"H6 task: {task}")
@@ -58,14 +58,20 @@ def setup_h6(heuristic):
             
         logger.info(f"H6 task type: {task.task_type}, supplemental: {task.supplemental}")
 
+        # Must be a specialization task
         if task.task_type != 'specialization':
             logger.info(f"H6: Wrong task type: {task.task_type}")
             return False
             
+        # Must have slot_to_change in supplemental data
         slot_to_change = task.supplemental.get('slot_to_change')
-        logger.info(f"H6 checking task with supplemental: {task.supplemental}")
         if not slot_to_change:
-            logger.info("H6 rejecting task: no slot_to_change")
+            logger.info("H6 rejecting task: no slot_to_change in supplemental")
+            return False
+
+        # Task's slot_name must match slot_to_change
+        if task.slot_name != slot_to_change:
+            logger.info("H6 rejecting task: slot_name doesn't match slot_to_change")
             return False
             
         logger.info(f"H6 accepting task for slot: {slot_to_change}")
@@ -82,8 +88,8 @@ def setup_h6(heuristic):
             logger.info("H6: Missing unit or task")
             return False
             
-        # Get slot to specialize
-        slot = task.supplemental.get('slot_to_change')
+        # Get slot to specialize from task
+        slot = task.slot_name
         if not slot or not unit.has_prop(slot):
             logger.info(f"H6: Invalid slot to change: {slot}")
             return False
