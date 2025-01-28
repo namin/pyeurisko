@@ -482,6 +482,21 @@ def repeat2(s, s2, f, registry):
     
     return new_unit
 
+def list_delete_1(x, s):
+    """Delete the first occurrence of x from s.
+    
+    In LISP:
+    (lambda (x s) (cond ((null s) ())
+                         ((equal x (car s)) (cdr s))
+                         (t (cons (car s)
+                                 (run-alg 'list-delete-1 x (cdr s))))))
+    """
+    if not s:
+        return []
+    if equals(x, s[0]):
+        return s[1:]
+    return [s[0]] + list_delete_1(x, s[1:])
+
 def average_worths(*units):
     """Calculate average worth of units."""
     worths = [getattr(u, 'worth', 500) for u in units]
