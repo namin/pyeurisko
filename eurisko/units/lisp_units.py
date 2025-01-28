@@ -2,7 +2,18 @@
 
 from typing import Dict, Any
 from ..units import Unit, UnitRegistry
-TODO = lambda x: None # hack
+import logging
+def TODO(original_lisp):
+    """Placeholder for unimplemented LISP functionality.
+    Args:
+        original_lisp: The original LISP code to be implemented
+    Returns:
+        A function that logs a warning and returns None
+    """
+    def todo_func(*args, **kwargs):
+        logging.warning(f'Called unimplemented function. Original LISP: {original_lisp}')
+        return None
+    return todo_func
 from .lisp_impl import *
 def Quoted(x): return x # hack
 def Symbol(x): return x # hack
@@ -606,7 +617,46 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['type-of-structure', 'unary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO('(lambda (s f) (cond ((and (memb \'structure (generalizations s)) (memb \'op (isa f)) (eq 1 (length (domain f))) (or (eq \'anything (car (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (car (domain f))))))) (let ((nam (create-unit (pack* \'perform- f \'-on- s \'s)))) (put nam \'isa (copy (isa f))) (put nam \'worth (average-worths \'parallel-replace (average-worths f s))) (put nam \'arity 1) (put nam \'domain (list s)) (put nam \'range (list (let ((mu (pack* s \'-of- (car (range f)) \'-s))) (cond ((unitp mu) mu) (t (cprin1 21 "~% It might be nice to have a unit called " mu "~%") s))))) (put nam \'unitized-alg (compile-report (subst f \'f \'(lambda (s) (mapcar (lambda (e) (run-alg \'f e)) s))))) (put nam \'elim-slots \'(applics)) (put nam \'creditors \'(parallel-replace)) (add-inv nam) nam)) (t \'failed)))'))
+    def parallel_replace(s, f, registry):
+        # Check compatibility
+        if not (memb('structure', getattr(s, 'generalizations', [])) and
+                memb('op', getattr(f, 'isa', [])) and
+                len(getattr(f, 'domain', [])) == 1):
+            return None
+            
+        # Check domain compatibility
+        f_domain = getattr(f, 'domain', [])[0]
+        if f_domain != 'anything':
+            typmem = getattr(s, 'each-element-is-a', None)
+            if not (typmem and is_a_kind_of(typmem, f_domain)):
+                return None
+                
+        # Create new unit name
+        new_name = f'perform-{f.name}-on-{s.name}s'
+        new_unit = registry.create_unit(new_name)
+        
+        # Copy properties
+        new_unit.set_prop('isa', list(getattr(f, 'isa', [])))
+        new_unit.set_prop('worth', (getattr(f, 'worth', 500) + getattr(s, 'worth', 500)) // 2)
+        new_unit.set_prop('arity', 1)
+        new_unit.set_prop('domain', [s.name])
+        
+        # Set range based on input function's range
+        f_range = getattr(f, 'range', [])[0] if getattr(f, 'range', []) else s.name
+        new_unit.set_prop('range', [f'{s.name}-of-{f_range}-s'])
+        
+        # Define the algorithm that applies f to each element
+        def apply_to_all(struct):
+            return [run_alg(f.name, e) for e in struct]
+        new_unit.set_prop('unitized-alg', apply_to_all)
+        
+        # Set administrative properties
+        new_unit.set_prop('elim-slots', ['applics'])
+        new_unit.set_prop('creditors', ['parallel-replace'])
+        
+        return new_unit
+
+    unit.set_prop('fast-alg', parallel_replace)
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['unary-op'])
     unit.set_prop('rarity', [0.2372881, 14, 45])
@@ -666,7 +716,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'set-op', 'binary-op'])
     unit.set_prop('range', ['set'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (run-alg 'set-difference (cdr s1) s2)) (t (cons (car s1) (run-alg 'set-difference (cdr s1) s2)))))"))
+    unit.set_prop('recursive-alg', lambda s1, s2: [] if not s1 else (run_alg('set-difference', s1[1:], s2) if member(s1[0], s2) else [s1[0]] + run_alg('set-difference', s1[1:], s2)))
     unit.set_prop('worth', 500)
 
     # struc-difference
@@ -699,7 +749,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-union'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) s2) (t (cons (car s1) (run-alg 'list-union (cdr s1) s2)))))"))
+    unit.set_prop('recursive-alg', lambda s1, s2: s2 if not s1 else [s1[0]] + run_alg('list-union', s1[1:], s2))
     unit.set_prop('worth', 500)
 
     # o-set-union
