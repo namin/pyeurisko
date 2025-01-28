@@ -427,18 +427,60 @@ def parallel_replace_2(s, s2, f, registry):
     return new_unit
         
 # Define the algorithm that maps and appends f over elements
-def mapappend(f, struct, param=None):
-    results = []
-    for e in struct:
-        if param is None:
-            result = run_alg(f.name, e)
-        else:
-            result = run_alg(f.name, e, param)
-        if isinstance(result, list):
-            results.extend(result)
-        else:
-            results.append(result)
-    return results
+def repeat2(s, s2, f, registry):
+    # Check compatibility
+    if not (memb('structure', getattr(s, 'generalizations', [])) and
+            memb('structure', getattr(s2, 'generalizations', [])) and
+            memb('op', getattr(f, 'isa', [])) and
+            len(getattr(f, 'domain', [])) == 3):
+        return None
+            
+    # Check domain compatibility
+    f_domains = getattr(f, 'domain', [])
+    if not is_a_kind_of(s2, f_domains[1]):  # Second argument compatibility
+        return None
+        
+    # Check third argument (element) compatibility
+    if f_domains[2] != 'anything':
+        typmem = getattr(s, 'each-element-is-a', None)
+        if not (typmem and is_a_kind_of(typmem, f_domains[2])):
+            return None
+            
+    # Check range compatibility with first argument 
+    if not is_a_kind_of(f_domains[0], f_domains[0]):
+        return None
+                
+    # Create new unit name
+    new_name = f'repeat2-{f.name}-on-s-with-a-{s2.name}-as-param'
+    new_unit = registry.create_unit(new_name)
+    
+    # Copy and modify isa
+    new_isa = list(getattr(f, 'isa', []))
+    new_isa = [('binary-op' if x == 'tertiary-op' else x) for x in new_isa]
+    new_isa = [('binary-pred' if x == 'tertiary-pred' else x) for x in new_isa]
+    new_unit.set_prop('isa', new_isa)
+    
+    # Set worth and properties
+    new_unit.set_prop('worth', average_worths('repeat2', average_worths(f, average_worths(s, s2))))
+    new_unit.set_prop('arity', 2)
+    new_unit.set_prop('domain', [s.name, s2.name])
+    new_unit.set_prop('range', list(getattr(f, 'range', [])))
+    
+    # Define algorithm that repeatedly applies f
+    def repeat_alg(struct, param):
+        if not struct:
+            return None
+        result = struct[0]
+        for e in struct[1:]:
+            result = run_alg(f.name, result, param, e)
+        return result
+    new_unit.set_prop('unitized-alg', repeat_alg)
+    
+    # Set administrative properties
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['repeat2'])
+    
+    return new_unit
 
 def average_worths(*units):
     """Calculate average worth of units."""
@@ -572,4 +614,17 @@ def repeat2(s, s2, f, registry):
     new_unit.set_prop('creditors', ['repeat2'])
         
     return new_unit
+
+def mapappend(f, struct, param=None):
+    results = []
+    for e in struct:
+        if param is None:
+            result = run_alg(f.name, e)
+        else:
+            result = run_alg(f.name, e, param)
+        if isinstance(result, list):
+            results.extend(result)
+        else:
+            results.append(result)
+    return results
 

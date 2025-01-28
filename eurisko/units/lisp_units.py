@@ -1097,7 +1097,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-delete'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (run-alg 'list-delete x (cdr s))) (t (cons (car s) (run-alg 'list-delete x (cdr s))))))"))
+    unit.set_prop('recursive-alg', lambda x, s: [] if not s else ([s[0]] + run_alg('list-delete', x, s[1:]) if not equals(x, s[0]) else run_alg('list-delete', x, s[1:])))
     unit.set_prop('worth', 500)
 
     # list
