@@ -1,5 +1,3 @@
-"""Implementation of lisp_units.py TODO items."""
-
 class DataType:
     """Data type definitions."""
     def __init__(self, name):
@@ -292,15 +290,106 @@ def is_a_kind_of(x, y):
     # Simplified implementation
     return True
 
-# Export the implemented functions
-__all__ = [
-    'UNIT', 'NUMBER', 'NEXT', 'LISP_PRED', 'LISP_FN', 'STRING', 'BIT', 'IO_PAIR',
-    'unit_type', 'LispFunction', 'cons', 'memb', 'member',
-    'car', 'cdr', 'caddr', 'cadr', 'not_', 'atom', 'null',
-    'consp', 'listp', 'set_difference', 'equal', 'append', 'length',
-    'set_union', 'set_intersect', 'no_repeats_in', 'repeats_in', 'remove_',
-    'best_choose', 'best_subset', 'good_choose', 'good_subset', 'equals',
-    'equals_num', 'greater', 'greater_equal', 'less', 'less_equal', 'eq',
-    'fixp', 'divides', 'last', 'random_choose', 'random_subset', 'random_pair',
-    'is_subset_of', 'run_defn', 'is_a_kind_of'
-]
+def parallel_join(s, f, registry):
+    # Check compatibility
+    if not (memb('structure', getattr(s, 'generalizations', [])) and
+            memb('op', getattr(f, 'isa', [])) and
+            len(getattr(f, 'domain', [])) == 1):
+        return None
+            
+    # Check domain compatibility
+    f_domain = getattr(f, 'domain', [])[0]
+    if f_domain != 'anything':
+        typmem = getattr(s, 'each-element-is-a', None)
+        if not (typmem and is_a_kind_of(typmem, f_domain)):
+            return None
+
+    # Additional check for range compatibility 
+    f_range = getattr(f, 'range', [])[0] if getattr(f, 'range', []) else None
+    if not (f_range and is_a_kind_of(f_range, 'structure')):
+        return None
+                    
+    # Create new unit name
+    new_name = f'join-{f.name}-on-{s.name}s'
+    new_unit = registry.create_unit(new_name)
+            
+    # Copy properties
+    new_unit.set_prop('isa', list(getattr(f, 'isa', [])))
+    new_unit.set_prop('worth', (getattr(f, 'worth', 500) + getattr(s, 'worth', 500)) // 2)
+    new_unit.set_prop('arity', 1)
+    new_unit.set_prop('domain', [s.name])
+    new_unit.set_prop('range', [f_range])
+            
+    # Define the algorithm that maps and appends f over elements
+    def mapappend(struct):
+        results = []
+        for e in struct:
+            result = run_alg(f.name, e)
+            if isinstance(result, list):
+                results.extend(result)
+            else:
+                results.append(result)
+        return results
+    new_unit.set_prop('unitized-alg', mapappend)
+            
+    # Set administrative properties
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['parallel-join'])
+            
+    return new_unit
+
+def parallel_join_2(s, s2, f, registry):
+    # Check compatibility
+    if not (memb('structure', getattr(s, 'generalizations', [])) and
+            memb('structure', getattr(s2, 'generalizations', [])) and
+            memb('op', getattr(f, 'isa', [])) and
+            len(getattr(f, 'domain', [])) == 2):
+        return None
+            
+    # Check domain compatibility
+    f_domains = getattr(f, 'domain', [])
+    if not is_a_kind_of(s2, f_domains[1]):  # Second argument compatibility
+        return None
+        
+    if f_domains[0] != 'anything':  # First argument elements compatibility
+        typmem = getattr(s, 'each-element-is-a', None)
+        if not (typmem and is_a_kind_of(typmem, f_domains[0])):
+            return None
+
+    # Additional check for range compatibility 
+    f_range = getattr(f, 'range', [])[0] if getattr(f, 'range', []) else None
+    if not (f_range and is_a_kind_of(f_range, 'structure')):
+        return None
+                
+    # Create new unit name
+    new_name = f'join-{f.name}-on-{s.name}s-with-a-{s2.name}-as-param'
+    new_unit = registry.create_unit(new_name)
+        
+    # Copy properties
+    new_unit.set_prop('isa', list(getattr(f, 'isa', [])))
+    avg_worth = (getattr(f, 'worth', 500) + 
+                getattr(s, 'worth', 500) + 
+                getattr(s2, 'worth', 500)) // 3
+    new_unit.set_prop('worth', avg_worth)
+    new_unit.set_prop('arity', 2)
+    new_unit.set_prop('domain', [s.name, s2.name])
+    new_unit.set_prop('range', [f_range])
+
+    new_unit.set_prop('unitized-alg', mapappend)
+        
+    # Set administrative properties
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['parallel-join-2'])
+        
+    return new_unit
+        
+# Define the algorithm that maps and appends f over elements
+def mapappend(struct, param):
+    results = []
+    for e in struct:
+        result = run_alg(f.name, e, param)
+        if isinstance(result, list):
+            results.extend(result)
+        else:
+            results.append(result)
+    return results

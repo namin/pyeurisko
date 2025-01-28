@@ -378,7 +378,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((eq x (car s)) t) (t (run-alg 'memb x (cdr s)))))"))
+    unit.set_prop('recursive-alg', lambda x, s: None if not s else True if eq(x, s[0]) else run_alg('memb', x, s[1:]))
     unit.set_prop('worth', 500)
 
     # member
@@ -391,7 +391,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'math-pred', 'pred', 'anything', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) t) (t (run-alg 'member x s))))"))
+    unit.set_prop('recursive-alg', lambda x, s: None if not s else True if equals(x, s[0]) else run_alg('member', x, s[1:]))
     unit.set_prop('worth', 500)
 
     # all-but-last
@@ -510,7 +510,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['type-of-structure', 'unary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO('(lambda (s f) (cond ((and (memb \'structure (generalizations s)) (memb \'op (isa f)) (eq 1 (length (domain f))) (or (eq \'anything (car (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (car (domain f)))))) (is-a-kind-of (car (range f)) \'structure)) (let ((nam (create-unit (pack* \'join- f \'-on- s \'s)))) (put nam \'isa (copy (isa f))) (put nam \'worth (average-worths \'parallel-join (average-worths f s))) (put nam \'arity 1) (put nam \'domain (list s)) (put nam \'range (list (let ((mu (pack* \'of (car (range f)) \'s))) (cond ((unitp mu) mu) (t (cprin1 21 "~% It might be nice to have a unit called " mu "~%") s))))) (put nam \'unitized-alg (compile-report (subst f \'f \'(lambda (s) (mapappend s (lambda (e) (run-alg \'f e))))))) (put nam \'elim-slots \'(applics)) (put nam \'creditors \'(parallel-join)) (add-inv nam) nam)) (t \'failed)))'))
+    unit.set_prop('fast-alg', parallel_join)
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['unary-op'])
     unit.set_prop('worth', 800)
@@ -520,7 +520,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['type-of-structure', 'type-of-structure', 'binary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO('(lambda (s s2 f) (cond ((and (memb \'structure (generalizations s)) (memb \'structure (generalizations s2)) (memb \'op (isa f)) (eq 2 (length (domain f))) (is-a-kind-of s2 (cadr (domain f))) (or (eq \'anything (car (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (car (domain f)))))) (is-a-kind-of (car (range f)) \'structure)) (let ((nam (create-unit (pack* \'join- f \'-on- s \'s \'-with-a- \'s2 \'-as-param)))) (put nam \'isa (isa f)) (put nam \'worth (average-worths \'parallel-replace-2 (average-worths f (average-worths s s2)))) (put nam \'arity 2) (put nam \'domain (list s s2)) (put nam \'range (list (let ((mu (pack* s \'-of- (car (range f)) \'s))) (if (unitp mu) mu (progn (cprin1 21 "~% It might be nice to have a unit called " mu "~%") s))))) (put nam \'unitized-alg (compile-report (subst f \'f \'(lambda (s s2) (mapappend s (lambda (e) (run-alg \'f e s2))))))) (put nam \'elim-slots \'(applics)) (put nam \'creditors \'parallel-replace-2) (add-inv nam) nam)) (t \'failed)))'))
+    unit.set_prop('fast-alg', parallel_join_2)
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['binary-op'])
     unit.set_prop('rarity', [0.3272727, 36, 74])
@@ -826,7 +826,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-union'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'set-op', 'binary-op'])
     unit.set_prop('range', ['set'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) s2) ((member (car s1) s2) (run-alg 'set-union (cdr s1) s2)) (t (cons (car s1) (run-alg 'set-union (cdr s1) s2)))))"))
+    unit.set_prop('recursive-alg', lambda s1, s2: s2 if not s1 else (run_alg('set-union', s1[1:], s2) if member(s1[0], s2) else [s1[0]] + run_alg('set-union', s1[1:], s2)))
     unit.set_prop('worth', 500)
 
     # set-intersect
@@ -838,7 +838,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-intersect'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'anything', 'struc-op', 'set-op', 'binary-op'])
     unit.set_prop('range', ['set'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (cons (car s1) (run-alg 'set-intersect (cdr s1) s2))) (t (run-alg 'set-intersect (cdr s1) s2))))"))
+    unit.set_prop('recursive-alg', lambda s1, s2: [] if not s1 else ([s1[0]] + run_alg('set-intersect', s1[1:], s2) if member(s1[0], s2) else run_alg('set-intersect', s1[1:], s2)))
     unit.set_prop('worth', 500)
 
     # ord-struc-op
