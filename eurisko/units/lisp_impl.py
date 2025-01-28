@@ -519,3 +519,57 @@ def coalesce(f, registry):
         
     return new_unit
 
+def repeat2(s, s2, f, registry):
+    # Check compatibility
+    if not (memb('structure', getattr(s, 'generalizations', [])) and
+            memb('structure', getattr(s2, 'generalizations', [])) and
+            memb('op', getattr(f, 'isa', [])) and
+            len(getattr(f, 'domain', [])) == 3):
+        return None
+            
+    # Check domain compatibility 
+    f_domains = getattr(f, 'domain', [])
+    if not is_a_kind_of(s2, f_domains[1]):  # Second argument compatibility
+        return None
+
+    if f_domains[2] != 'anything':  # Third argument compatibility
+        typmem = getattr(s, 'each-element-is-a', None)
+        if not (typmem and is_a_kind_of(typmem, f_domains[2])):
+            return None
+
+    # Check first argument compatibility
+    if not is_a_kind_of(car(getattr(f, 'range', [])), f_domains[0]):
+        return None
+                
+    # Create new unit name
+    new_name = f'repeat2-{f.name}-on-{s.name}-with-a-{s2.name}-as-param'
+    new_unit = registry.create_unit(new_name)
+        
+    # Copy and modify properties
+    isa = list(getattr(f, 'isa', []))
+    isa = [('binary-op' if x == 'tertiary-op' else
+            'binary-pred' if x == 'tertiary-pred' else x)
+           for x in isa]
+    new_unit.set_prop('isa', isa)
+    
+    new_unit.set_prop('worth', average_worths('repeat2', f, s, s2))
+    new_unit.set_prop('arity', 2)
+    new_unit.set_prop('domain', [s.name, s2.name])
+    new_unit.set_prop('range', list(getattr(f, 'range', [])))
+
+    # Define the algorithm that accumulates over elements
+    def repeat2_alg(struct, param):
+        if not isinstance(struct, (list, tuple)):
+            return 'failed'
+        val = struct[0]
+        for e in struct[1:]:
+            val = run_alg(f.name, val, param, e)
+        return val
+    new_unit.set_prop('unitized-alg', repeat2_alg)
+        
+    # Set administrative properties
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['repeat2'])
+        
+    return new_unit
+
