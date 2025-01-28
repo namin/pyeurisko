@@ -1,81 +1,114 @@
 """H8 heuristic implementation: Find application-instances from generalizations."""
-from typing import Any, Dict
 import logging
 from ..heuristics import rule_factory
 
 logger = logging.getLogger(__name__)
 
-def setup_h8(heuristic) -> None:
+def init_task_results(context):
+    """Initialize task results structure if needed."""
+    if 'task_results' not in context:
+        context['task_results'] = {
+            'status': 'in_progress',
+            'initial_unit_state': {},
+            'new_units': [],
+            'new_tasks': [],
+            'modified_units': []
+        }
+    else:
+        results = context['task_results']
+        if 'new_units' not in results:
+            results['new_units'] = []
+        if 'new_tasks' not in results:
+            results['new_tasks'] = []
+        if 'modified_units' not in results:
+            results['modified_units'] = []
+    return context['task_results']
+
+def get_algorithm(unit):
+    """Get the first available algorithm from a unit's algorithm slots."""
+    for alg_slot in ['fast-alg', 'iterative-alg', 'recursive-alg', 'unitized-alg']:
+        alg = unit.get_prop(alg_slot)
+        if alg:
+            return alg
+    return None
+
+def get_domain_tests(unit):
+    """Get domain test functions from unit's domain property."""
+    domain = unit.get_prop('domain', [])
+    if not domain:
+        return []
+        
+    # For now just check types - could be expanded to more complex tests
+    return [lambda x, t=t: isinstance(x, type(t)) for t in domain]
+
+def setup_h8(heuristic):
     """Configure H8: Find applications by checking generalizations."""
     heuristic.set_prop('worth', 700)
-    heuristic.set_prop('english', 
+    heuristic.set_prop('english',
         "IF the current task is to find application-instances of a unit, and it has "
         "an algorithm, THEN look over instances of generalizations of the unit, and "
         "see if any of them are valid application-instances of this as well")
     heuristic.set_prop('abbrev', "Find applics by checking generalizations")
     heuristic.set_prop('arity', 1)
-    
-    def record_func(rule, context):
-        return True
-    heuristic.set_prop('then_compute_record', record_func)
-    heuristic.set_prop('then_print_to_user_record', record_func)
-    heuristic.set_prop('overall_record', record_func)
-    heuristic.set_prop('then_compute_failed_record', record_func)
 
     @rule_factory
-    def if_working_on_task(rule, context):
+    def if_potentially_relevant(rule, context):
         """Check if we can find applications from generalizations."""
-        unit = context.get('unit')
         task = context.get('task')
-        if not unit or not task:
-            return False
-            
-        if task.get('slot') != 'applications':
-            return False
-            
-        # Get algorithm and generalizations
-        algorithm = unit.get_prop('algorithm')
-        generalizations = unit.get_prop('generalizations', [])
-        if not algorithm or not generalizations:
-            return False
-            
-        # Filter generalizations to same arity
-        unit_arity = unit.get_prop('arity')
-        space_to_use = []
-        for gen in generalizations:
-            gen_unit = rule.unit_registry.get_unit(gen)
-            if gen_unit and gen_unit.get_prop('arity') == unit_arity:
-                space_to_use.append(gen_unit)
-                
-        context['algorithm'] = algorithm
-        context['space_to_use'] = space_to_use
-        return bool(space_to_use)
+        logger.debug(f"H8 task: {task}")
 
-    @rule_factory
-    def then_print_to_user(rule, context):
-        """Print found applications."""
-        unit = context.get('unit')
-        new_values = context.get('new_values', [])
-        if not unit or not new_values:
+        if not task:
+            logger.debug("H8: No task in context")
             return False
             
-        logger.info(f"\nInstantiated {unit.name}; found {len(new_values)} applications")
-        logger.info(f"    Namely: {new_values}")
+        logger.debug(f"H8 task type: {task.task_type}, supplemental: {task.supplemental}")
+
+        # Must be a find_applications task
+        if task.task_type != 'find_applications' and task.slot_name != 'applications':
+            logger.debug(f"H8: Wrong task type or slot: {task.task_type} {task.slot_name}")
+            return False
+
+        # Initialize task results
+        init_task_results(context)
+        
+        logger.debug("H8 accepting applications task")
         return True
 
     @rule_factory
     def then_compute(rule, context):
         """Try to apply algorithm to examples from generalizations."""
+        logger.debug("H8 then_compute starting")
+        
         unit = context.get('unit')
-        algorithm = context.get('algorithm')
-        space_to_use = context.get('space_to_use')
-        if not all([unit, algorithm, space_to_use]):
+        task = context.get('task')
+        if not all([unit, task]):
+            logger.debug("H8: Missing unit or task")
+            return False
+            
+        # Get algorithm
+        algorithm = get_algorithm(unit)
+        if not algorithm:
+            logger.debug("H8: No algorithm available")
+            return False
+            
+        # Get and filter generalizations
+        generalizations = unit.get_prop('generalizations', [])
+        unit_arity = unit.get_prop('arity')
+        
+        space_to_use = []
+        for gen_name in generalizations:
+            gen_unit = rule.unit_registry.get_unit(gen_name)
+            if gen_unit and gen_unit.get_prop('arity') == unit_arity:
+                space_to_use.append(gen_unit)
+                
+        if not space_to_use:
+            logger.debug("H8: No valid generalizations found")
             return False
             
         # Track current applications
         current_apps = unit.get_prop('applications', [])
         new_apps = []
-        domain_tests = unit.get_prop('domain_tests', [])
+        domain_tests = get_domain_tests(unit)
         
         # Check applications from each generalization
         for gen_unit in space_to_use:
@@ -93,7 +126,7 @@ def setup_h8(heuristic) -> None:
                 # Check domain constraints
                 valid_args = True
                 for test, arg in zip(domain_tests, args):
-                    if not test(arg):
+                    if test and not test(arg):
                         valid_args = False
                         break
                         
@@ -105,25 +138,29 @@ def setup_h8(heuristic) -> None:
                     result = algorithm(*args)
                     new_apps.append({
                         'args': args,
-                        'result': result
+                        'result': result,
+                        'worth': app.get('worth', 500)  # Inherit worth from generalization
                     })
                 except Exception as e:
                     logger.warning(f"Failed to apply {unit.name} to {args}: {e}")
                     
-        if new_apps:
-            # Update unit applications
-            unit.set_prop('applications', current_apps + new_apps)
-            context['new_values'] = new_apps
+        if not new_apps:
+            logger.debug("H8: No new applications found")
+            return False
             
-            # Update task results 
-            task_results = context.get('task_results', {})
-            task_results['new_values'] = {
-                'unit': unit.name,
-                'slot': 'applications',
-                'values': new_apps,
-                'description': f"Found {len(new_apps)} applications by examining "
-                             f"applications of {len(space_to_use)} generalizations"
-            }
-            context['task_results'] = task_results
-            
-        return bool(new_apps)
+        # Update unit applications
+        current_apps.extend(new_apps)
+        unit.set_prop('applications', current_apps)
+        
+        # Update task results
+        task_results = init_task_results(context)
+        task_results['status'] = 'completed'
+        task_results['success'] = True
+        task_results['modified_units'].append(unit)
+        
+        logger.info(f"H8: Found {len(new_apps)} new applications from generalizations")
+        return True
+
+    # Set the functions as properties on the heuristic
+    heuristic.set_prop('if_potentially_relevant', if_potentially_relevant)
+    heuristic.set_prop('then_compute', then_compute)
