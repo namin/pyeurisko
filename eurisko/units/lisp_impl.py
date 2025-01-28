@@ -643,3 +643,93 @@ def mapappend(f, struct, param=None):
             results.append(result)
     return results
 
+def bag_difference_recursive(s1, s2):
+    """Recursive implementation of bag difference."""
+    if not s1:
+        return []
+    if member(s1[0], s2):
+        # Remove one occurrence from s2
+        return bag_difference_recursive(s1[1:], list_delete_1(s1[0], s2))
+    return [s1[0]] + bag_difference_recursive(s1[1:], s2)
+
+def o_set_difference_recursive(s1, s2):
+    """Recursive implementation of ordered set difference."""
+    if not s1:
+        return []
+    if member(s1[0], s2):
+        return o_set_difference_recursive(s1[1:], s2)
+    return [s1[0]] + o_set_difference_recursive(s1[1:], s2)
+
+def o_set_union_recursive(s1, s2):
+    """Recursive implementation of ordered set union."""
+    if not s1:
+        return s2
+    if member(s1[0], s2):
+        return o_set_union_recursive(s1[1:], s2)
+    return [s1[0]] + o_set_union_recursive(s1[1:], s2)
+
+def bag_equal_recursive(s1, s2):
+    """Recursive implementation of bag equality."""
+    if not s1 and not s2:
+        return True
+    if not s1 or not s2:
+        return False
+    if not member(s1[0], s2):
+        return False
+    return bag_equal_recursive(s1[1:], list_delete_1(s1[0], s2))
+
+def list_equal_recursive(s1, s2):
+    """Recursive implementation of list equality."""
+    if not s1 and not s2:
+        return True
+    if not s1 or not s2:
+        return False
+    return equals(s1[0], s2[0]) and list_equal_recursive(s1[1:], s2[1:])
+
+def o_set_equal_recursive(s1, s2):
+    """Recursive implementation of ordered set equality."""
+    if not s1 and not s2:
+        return True
+    if not s1 or not s2:
+        return False
+    return equals(s1[0], s2[0]) and o_set_equal_recursive(s1[1:], s2[1:])
+
+def restrict(f, registry):
+    """Restrict an operation to use a more specific type for one of its arguments."""
+    # Select random argument with specializations
+    garg = random_choose(subset(getattr(f, 'domain', []), lambda x: getattr(registry.get_unit(x), 'specializations', [])))
+    if not garg:
+        return 'failed'
+
+    # Get random specialization and substitute it
+    spec = random_choose(getattr(registry.get_unit(garg), 'specializations', []))
+    if not spec:
+        return 'failed'
+
+    newdom = random_subst(spec, garg, getattr(f, 'domain', []))
+    if newdom == getattr(f, 'domain', []):
+        return 'failed'
+
+    # Create new restricted operation
+    new_name = f'restrict-{f.name}'
+    new_unit = registry.create_unit(new_name)
+
+    # Copy and set properties
+    new_unit.set_prop('isa', list(getattr(f, 'isa', [])))
+    new_unit.set_prop('worth', average_worths('restrict', f))
+    new_unit.set_prop('arity', getattr(f, 'arity', 0))
+    new_unit.set_prop('domain', newdom)
+    new_unit.set_prop('range', list(getattr(f, 'range', [])))
+
+    # Define algorithm that just calls original operation
+    def restricted_alg(*args):
+        return run_alg(f.name, *args)
+    new_unit.set_prop('unitized-alg', restricted_alg)
+
+    # Set administrative properties
+    new_unit.set_prop('extensions', [f.name])
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['restrict'])
+
+    return new_unit
+

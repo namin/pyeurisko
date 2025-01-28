@@ -238,7 +238,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('fast-alg', lambda x, y: y if not x else True)
     unit.set_prop('isa', ['op', 'pred', 'math-op', 'math-pred', 'anything', 'binary-op', 'logic-op', 'binary-pred'])
     unit.set_prop('range', ['anything'])
-    unit.set_prop('unitized-alg', TODO("(lambda (x y) (run-alg 'or (run-alg 'not x) y))"))
+    unit.set_prop('unitized-alg', lambda x, y: not_(x) or y)
     unit.set_prop('worth', 500)
 
     # not
@@ -681,7 +681,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
     unit.set_prop('range', ['bag'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s2) s2) (run-alg 'bag-delete-1 (car s1) s2)) (t (cons (car s1) (run-alg 'bag-difference (cdr s1) (run-alg 'bag-delete-1 (car s2) s2))))))"))
+    unit.set_prop('recursive-alg', bag_difference_recursive)
     unit.set_prop('worth', 500)
 
     # o-set-difference
@@ -693,7 +693,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (run-alg 'o-set-difference (cdr s1) s2)) (t (cons (car s1) (run-alg 'o-set-difference (cdr s1) s2)))))"))
+    unit.set_prop('recursive-alg', o_set_difference_recursive)
     unit.set_prop('worth', 500)
 
     # list-difference
@@ -764,7 +764,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-union'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) s2) ((member (car s1) s2) (run-alg 'o-set-union (cdr s1) s2)) (t (cons (car s1) (run-alg 'o-set-union (cdr s1) s2)))))"))
+    unit.set_prop('recursive-alg', o_set_union_recursive)
     unit.set_prop('worth', 500)
 
     # struc-union
@@ -874,7 +874,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'struc-op', 'bag-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((and (null s1) (null s2)) t) (t (and (consp s1) (consp s2) (member (car s1) s2) (run-alg 'bag-equal (cdr s1) (run-alg 'bag-delete-1 (car s1) s2))))))"))
+    unit.set_prop('recursive-alg', bag_equal_recursive)
     unit.set_prop('specializations', ['list-equal'])
     unit.set_prop('worth', 500)
 
@@ -889,7 +889,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'struc-op', 'list-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((and (null s1) (null s2)) t) (t (and (consp s1) (consp s2) (equal (car s1) (car s2)) (run-alg 'list-equal (cdr s1) (cdr s2))))))"))
+    unit.set_prop('recursive-alg', list_equal_recursive)
     unit.set_prop('worth', 500)
 
     # o-set-equal
@@ -903,7 +903,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'struc-op', 'o-set-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((and (null s1) (null s2)) t) (t (and (consp s1) (consp s2) (equal (car s1) (car s2)) (run-alg 'o-set-equal (cdr s1) (cdr s2))))))"))
+    unit.set_prop('recursive-alg', o_set_equal_recursive)
     unit.set_prop('worth', 500)
 
     # suf-defn
