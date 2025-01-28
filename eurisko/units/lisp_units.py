@@ -784,7 +784,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('elim-slots', ['applics'])
     unit.set_prop('generalizations', ['struc-intersect'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
-    unit.set_prop('iterative-alg', TODO("(lambda (s1 s2) (dolist (x (copy-list s1)) (cond ((member x s2) (setf s2 (run-alg 'bag-delete-1 x s2))) (t (setf s1 (run-alg 'bag-delete-1 x s1))))) s1)"))
+    unit.set_prop('iterative-alg', lambda s1, s2: [x for x in s1 if member(x, s2)])
     unit.set_prop('range', ['bag'])
     unit.set_prop('worth', 500)
 
