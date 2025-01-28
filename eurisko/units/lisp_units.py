@@ -1213,8 +1213,8 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'binary-op'])
     unit.set_prop('iterative-alg', lambda x, y: sum(1 for _ in range(x)))
     unit.set_prop('range', ['nnumber'])
-    unit.set_prop('recursive-alg', TODO("(lambda (x y) (cond ((eq x 0) y) (t (run-alg 'successor (run-alg 'add (1- x) y)))))"))
-    unit.set_prop('unitized-alg', TODO("(lambda (x y) (cond ((eq x 0) y) (t (run-alg 'successor (run-alg 'add (1- x) y)))))"))
+    unit.set_prop('recursive-alg', lambda x, y: y if x == 0 else run_alg('successor', run_alg('add', x-1, y)))
+    unit.set_prop('unitized-alg', lambda x, y: y if x == 0 else run_alg('successor', run_alg('add', x-1, y)))
     unit.set_prop('worth', 500)
 
     # alg
