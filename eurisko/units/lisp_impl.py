@@ -367,29 +367,155 @@ def parallel_join_2(s, s2, f, registry):
         
     # Copy properties
     new_unit.set_prop('isa', list(getattr(f, 'isa', [])))
-    avg_worth = (getattr(f, 'worth', 500) + 
-                getattr(s, 'worth', 500) + 
-                getattr(s2, 'worth', 500)) // 3
-    new_unit.set_prop('worth', avg_worth)
+    new_unit.set_prop('worth', average_worths(f, s, s2))
     new_unit.set_prop('arity', 2)
     new_unit.set_prop('domain', [s.name, s2.name])
     new_unit.set_prop('range', [f_range])
 
-    new_unit.set_prop('unitized-alg', mapappend)
+    def map_and_append(struct, param):
+        return mapappend(f, struct, param)
+    new_unit.set_prop('unitized-alg', map_and_append)
         
     # Set administrative properties
     new_unit.set_prop('elim-slots', ['applics'])
     new_unit.set_prop('creditors', ['parallel-join-2'])
         
     return new_unit
+
+def parallel_replace_2(s, s2, f, registry):
+    # Check compatibility
+    if not (memb('structure', getattr(s, 'generalizations', [])) and
+            memb('structure', getattr(s2, 'generalizations', [])) and
+            memb('op', getattr(f, 'isa', [])) and
+            len(getattr(f, 'domain', [])) == 2):
+        return None
+
+    # Check domain compatibility
+    f_domains = getattr(f, 'domain', [])
+    if not is_a_kind_of(s2, f_domains[1]):  # Second argument compatibility
+        return None
+        
+    if f_domains[0] != 'anything':  # First argument elements compatibility
+        typmem = getattr(s, 'each-element-is-a', None)
+        if not (typmem and is_a_kind_of(typmem, f_domains[0])):
+            return None
+
+    # Create new unit name
+    new_name = f'perform-{f.name}-on-{s.name}s-with-a-{s2.name}-as-param'
+    new_unit = registry.create_unit(new_name)
+            
+    # Copy properties
+    new_unit.set_prop('isa', list(getattr(f, 'isa', [])))
+    new_unit.set_prop('worth', average_worths(f, s, s2))
+    new_unit.set_prop('arity', 2)
+    new_unit.set_prop('domain', [s.name, s2.name])
+
+    # Set range based on input structure
+    f_range = getattr(f, 'range', [])[0] if getattr(f, 'range', []) else None
+    if f_range:
+        new_unit.set_prop('range', [f'{s.name}-of-{f_range}s'])
+                
+    # Define the algorithm that maps f over elements
+    def map_and_transform(struct, param):
+        return [run_alg(f.name, e, param) for e in struct]
+    new_unit.set_prop('unitized-alg', map_and_transform)
+            
+    # Set administrative properties
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['parallel-replace-2'])
+            
+    return new_unit
         
 # Define the algorithm that maps and appends f over elements
-def mapappend(struct, param):
+def mapappend(f, struct, param=None):
     results = []
     for e in struct:
-        result = run_alg(f.name, e, param)
+        if param is None:
+            result = run_alg(f.name, e)
+        else:
+            result = run_alg(f.name, e, param)
         if isinstance(result, list):
             results.extend(result)
         else:
             results.append(result)
     return results
+
+def average_worths(*units):
+    """Calculate average worth of units."""
+    worths = [getattr(u, 'worth', 500) for u in units]
+    return sum(worths) // len(worths)
+
+def random_subst(new, old, lst):
+    """Randomly substitute some occurrences of old with new in lst."""
+    import random
+    if not isinstance(lst, list):
+        return lst
+    result = list(lst)
+    for i, x in enumerate(result):
+        if x == old and random.random() < 0.5:
+            result[i] = new
+    return result
+
+def subset(s, pred):
+    """Return subset of elements from s that satisfy pred."""
+    if not isinstance(s, (list, tuple)):
+        return []
+    return [x for x in s if pred(x)]
+
+def coalesce(f, registry):
+    # Get random compatible pair of arguments
+    coargs = random_pair(getattr(f, 'domain', []), is_a_kind_of)
+    if not coargs:
+        return None
+        
+    # Create new unit
+    new_name = f'coa-{f.name}'
+    new_unit = registry.create_unit(new_name)
+    
+    # Set isa excluding op categories
+    new_unit.set_prop('isa', list(set_difference(
+        getattr(f, 'isa', []), 
+        getattr(registry.get_unit('op-cat-by-nargs'), 'examples', [])
+    )))
+    
+    # Set worth and arity
+    new_unit.set_prop('worth', average_worths('coalesce', f))
+    new_unit.set_prop('arity', getattr(f, 'arity', 1) - 1)
+    
+    # Set up argument names and domain
+    arg_names = ['u', 'v', 'w', 'x', 'y', 'z', 'z2', 'z3', 'z4', 'z5']
+    fargs = list(zip(getattr(f, 'domain', []), arg_names))
+    newargs = fargs.copy()
+    
+    # Modify domain and arguments
+    ca1, ca2 = coargs
+    newargs[ca2] = (newargs[ca1][0], newargs[ca2][1])
+    
+    if ca2 <= 1:
+        newargs.pop(0)
+    else:
+        newargs = newargs[:ca2] + newargs[ca2+1:]
+        
+    new_unit.set_prop('domain', [a[0] for a in newargs])
+    new_unit.set_prop('range', list(getattr(f, 'range', [])))
+    
+    # Set up the algorithm
+    def coalesced_alg(*args):
+        newargs = list(args)
+        newargs.insert(ca1, args[ca2])
+        return run_alg(f.name, *newargs)
+    new_unit.set_prop('unitized-alg', coalesced_alg)
+    
+    # Set administrative properties  
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['coalesce'])
+    
+    # Update ISA based on checking op categories
+    op_cats = getattr(registry.get_unit('op-cat-by-nargs'), 'examples', [])
+    matchingcats = [pc for pc in op_cats if run_defn(pc, new_unit)]
+    new_unit.set_prop('isa', 
+        list(set(new_unit.get_prop('isa', [])) | set(matchingcats))
+    )
+        
+    return new_unit
+

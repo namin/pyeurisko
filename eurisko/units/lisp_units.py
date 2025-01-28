@@ -704,7 +704,10 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (run-alg 'list-difference (cdr s1) (run-alg 'list-delete-1 (car s1) s2))) (t (cons (car s2) (run-alg 'list-difference (cdr s1) (run-alg 'list-delete-1 (car s1) s2))))))"))
+    unit.set_prop('recursive-alg', lambda s1, s2: [] if not s1 else 
+        (run_alg('list-difference', s1[1:], run_alg('list-delete-1', s1[0], s2))
+         if member(s1[0], s2)
+         else [s2[0]] + run_alg('list-difference', s1[1:], run_alg('list-delete-1', s1[0], s2))))
     unit.set_prop('worth', 500)
 
     # set-difference
@@ -1082,7 +1085,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['mult-ele-struc-delete-1'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (cdr s)) (t (cons (car s) (run-alg 'list-delete-1 x (cdr s))))))"))
+    unit.set_prop('recursive-alg', lambda x, s: [] if not s else (s[1:] if equals(x, s[0]) else [s[0]] + run_alg('list-delete-1', x, s[1:])))
     unit.set_prop('worth', 500)
 
     # list-delete
