@@ -2,7 +2,7 @@
 
 from typing import Dict, Any
 from ..units import Unit, UnitRegistry
-TODO = None # hack
+TODO = lambda x: None # hack
 def Quoted(x): return x # hack
 def Symbol(x): return x # hack
 
@@ -11,7 +11,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # int-applics
     unit = registry.create_unit('int-applics')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -24,7 +24,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'mult-ele-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('cons'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'mult-ele-struc-op', 'binary-op'])
     unit.set_prop('range', ['mult-ele-struc'])
     unit.set_prop('specializations', ['list-insert', 'bag-insert'])
@@ -32,7 +32,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # rarity
     unit = registry.create_unit('rarity')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('number'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('format', ['frequency-true', 'number-t', 'number-f'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -40,7 +40,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # why-int
     unit = registry.create_unit('why-int')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('next'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -48,7 +48,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # is-a-int
     unit = registry.create_unit('is-a-int')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['int-examples'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -56,7 +56,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # int-examples
     unit = registry.create_unit('int-examples')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['is-a-int'])
@@ -67,14 +67,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # less-interesting
     unit = registry.create_unit('less-interesting')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('inverse', ['more-interesting'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
 
     # more-interesting
     unit = registry.create_unit('more-interesting')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('inverse', ['less-interesting'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
@@ -82,7 +82,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # interestingness
     unit = registry.create_unit('interestingness')
     unit.set_prop('abbrev', ['What would make an instance of this unit interesting?'])
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('double-check', True)
     unit.set_prop('english', ['What features or properties would an example or applic of this unit possess which would make it unusually interesting?'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -90,7 +90,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # restrictions
     unit = registry.create_unit('restrictions')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['extensions'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -99,7 +99,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # extensions
     unit = registry.create_unit('extensions')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['restrictions'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -123,7 +123,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # tertiary-pred
     unit = registry.create_unit('tertiary-pred')
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO("(lambda (f) (and (memb 'pred (isa f)) (eq 3 (arity f))))"))
     unit.set_prop('generalizations', ['tertiary-op', 'pred', 'op', 'anything'])
     unit.set_prop('isa', ['repr-concept', 'anything', 'category', 'pred-cat-by-nargs', 'op-cat-by-nargs'])
     unit.set_prop('lower-arity', ['binary-pred'])
@@ -133,7 +133,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # unary-pred
     unit = registry.create_unit('unary-pred')
     unit.set_prop('examples', ['always-t', 'always-nil', 'constant-unary-pred', 'undefined-pred', 'not'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (f) (let ((r (and (memb \'pred (isa f)) (eq 1 (arity f))))) (cprin1 99 "unary-pred called for " f " with result " r "~%") r))'))
     unit.set_prop('generalizations', ['unary-op', 'pred', 'op', 'anything'])
     unit.set_prop('higher-arity', ['binary-pred'])
     unit.set_prop('isa', ['repr-concept', 'anything', 'category', 'pred-cat-by-nargs', 'op-cat-by-nargs'])
@@ -143,7 +143,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # binary-pred
     unit = registry.create_unit('binary-pred')
     unit.set_prop('examples', ['equal', 'ieqp', 'eq', 'ileq', 'igeq', 'ilessp', 'igreaterp', 'and', 'or', 'the-second-of', 'the-first-of', 'struc-equal', 'set-equal', 'subsetp', 'constant-binary-pred', 'always-t-2', 'always-nil-2', 'o-set-equal', 'bag-equal', 'list-equal', 'member', 'memb', 'implies'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO("(lambda (f) (and (memb 'pred (isa f)) (eq 2 (arity f))))"))
     unit.set_prop('generalizations', ['binary-op', 'pred', 'op', 'anything'])
     unit.set_prop('higher-arity', ['tertiary-pred'])
     unit.set_prop('int-examples', ['ieqp', 'eq', 'struc-equal', 'set-equal', 'o-set-equal', 'bag-equal', 'list-equal', 'memb', 'member'])
@@ -154,14 +154,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # higher-arity
     unit = registry.create_unit('higher-arity')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('inverse', ['lower-arity'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
 
     # lower-arity
     unit = registry.create_unit('lower-arity')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('inverse', ['higher-arity'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
@@ -169,7 +169,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # non-empty-struc
     unit = registry.create_unit('non-empty-struc')
     unit.set_prop('examples', [])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('consp'))
     unit.set_prop('generalizations', ['structure', 'anything', 'set', 'list', 'bag', 'mult-ele-struc', 'o-set', 'no-mult-ele-struc', 'ord-struc', 'un-ord-struc', 'pair', 'o-pair'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('worth', 500)
@@ -177,42 +177,42 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # empty-struc
     unit = registry.create_unit('empty-struc')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('null'))
     unit.set_prop('generalizations', ['structure', 'anything', 'set', 'list', 'bag', 'mult-ele-struc', 'o-set', 'no-mult-ele-struc', 'ord-struc', 'un-ord-struc'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('worth', 500)
 
     # set-of-sets
     unit = registry.create_unit('set-of-sets')
-    unit.set_prop('each-element-is-a', TODO)
+    unit.set_prop('each-element-is-a', TODO('set'))
     unit.set_prop('elim-slots', ['examples'])
     unit.set_prop('generalizations', ['anything', 'structure-of-structures'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
     unit.set_prop('specializations', ['relation'])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (s) (and (run-defn 'set s) (every (lambda (n) (run-defn 'set n)) s)))"))
     unit.set_prop('worth', 500)
 
     # structure-of-structures
     unit = registry.create_unit('structure-of-structures')
-    unit.set_prop('each-element-is-a', TODO)
+    unit.set_prop('each-element-is-a', TODO('structure'))
     unit.set_prop('elim-slots', ['examples'])
     unit.set_prop('generalizations', ['anything'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
     unit.set_prop('specializations', ['set-of-o-pairs', 'set-of-sets'])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (s) (and (run-defn 'structure s) (every (lambda (n) (run-defn 'structure n)) s)))"))
     unit.set_prop('worth', 500)
 
     # truth-value
     unit = registry.create_unit('truth-value')
     unit.set_prop('examples', [True, []])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (x) (or (eq x ()) (eq x t)))'))
     unit.set_prop('generalizations', ['anything', 'atom'])
     unit.set_prop('isa', ['anything', 'category', 'math-obj'])
     unit.set_prop('worth', 500)
 
     # atom
     unit = registry.create_unit('atom')
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('atom'))
     unit.set_prop('generalizations', ['anything'])
     unit.set_prop('isa', ['anything', 'category', 'repr-concept'])
     unit.set_prop('specializations', ['truth-value'])
@@ -223,10 +223,10 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (or (null x) y))'))
     unit.set_prop('isa', ['op', 'pred', 'math-op', 'math-pred', 'anything', 'binary-op', 'logic-op', 'binary-pred'])
     unit.set_prop('range', ['anything'])
-    unit.set_prop('unitized-alg', TODO)
+    unit.set_prop('unitized-alg', TODO("(lambda (x y) (run-alg 'or (run-alg 'not x) y))"))
     unit.set_prop('worth', 500)
 
     # not
@@ -234,7 +234,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('not'))
     unit.set_prop('isa', ['op', 'pred', 'math-op', 'math-pred', 'anything', 'unary-op', 'logic-op', 'unary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('worth', 500)
@@ -250,17 +250,17 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # relation
     unit = registry.create_unit('relation')
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (s) (and (run-defn 'set s) (every (lambda (n) (run-defn 'o-pair n)) s)))"))
     unit.set_prop('worth', 500)
 
     # set-of-o-pairs
     unit = registry.create_unit('set-of-o-pairs')
-    unit.set_prop('each-element-is-a', TODO)
+    unit.set_prop('each-element-is-a', TODO('o-pair'))
     unit.set_prop('elim-slots', ['examples'])
     unit.set_prop('generalizations', ['anything', 'structure-of-structures'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
     unit.set_prop('specializations', ['relation'])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (s) (and (run-defn 'set s) (every (lambda (n) (run-defn 'o-pair n)) s)))"))
     unit.set_prop('worth', 500)
 
     # invert-op
@@ -285,7 +285,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO("(lambda (f) (let* ((garg (random-choose (subset (domain f) \\#\\'specializations))) (newdom (random-subst (random-choose (specializations garg)) garg (domain f)))) (cond ((and garg newdom (not (equal newdom (domain f)))) (let ((nam (create-unit (pack* 'restrict- f)))) (put nam 'isa (copy (isa f))) (put nam 'worth (average-worths 'restrict f)) (put nam 'arity (arity f)) (let ((fargs (mapcar \\#\\'the-second-of (domain f) '(u v w x y z z2 z3 z4 z5)))) (put nam 'domain newdom) (put nam 'range (copy (range f))) (put nam 'unitized-alg (compile-report \\` (lambda \\,fargs (run-alg '\\,f \\,@fargs))))) (put nam 'extensions (list f)) (put nam 'elim-slots '(applics)) (put nam 'creditors '(restrict)) (add-inv nam) nam)) (t 'failed))))"))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['op'])
     unit.set_prop('worth', 600)
@@ -295,7 +295,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x) x)'))
     unit.set_prop('generalizations', ['proj1', 'proj2', 'proj-1-of-3', 'proj-2-of-3', 'proj-3-of-3'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
@@ -306,7 +306,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['anything', 'anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y z) (declare (ignore x y)) z)'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('specializations', ['identity-1'])
@@ -317,7 +317,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['anything', 'anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y z) (declare (ignore x z)) y)'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('specializations', ['identity-1'])
@@ -328,7 +328,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['anything', 'anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y z) (declare (ignore y z)) x)'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('specializations', ['identity-1'])
@@ -339,7 +339,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applic'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (declare (ignore x)) y)'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('specializations', ['identity-1'])
@@ -350,7 +350,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (declare (ignore y)) x)'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('specializations', ['identity-1'])
@@ -361,12 +361,12 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'structure'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('memb'))
     unit.set_prop('is-a-int', ['binary-pred'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((eq x (car s)) t) (t (run-alg 'memb x (cdr s)))))"))
     unit.set_prop('worth', 500)
 
     # member
@@ -374,12 +374,12 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'structure'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('member'))
     unit.set_prop('is-a-int', ['binary-pred'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'math-pred', 'pred', 'anything', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) t) (t (run-alg 'member x s))))"))
     unit.set_prop('worth', 500)
 
     # all-but-last
@@ -387,7 +387,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s) (ldiff s (last s)))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('worth', 500)
@@ -397,7 +397,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s) (car (last s)))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('worth', 500)
@@ -407,7 +407,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s) (cons (car s) (cons (cadr s) (cdddr s))))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('worth', 500)
@@ -417,7 +417,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s) (cons (car s) (cddr s)))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('worth', 500)
@@ -427,7 +427,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('cdr'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('worth', 500)
@@ -437,7 +437,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('caddr'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('worth', 500)
@@ -447,7 +447,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('cadr'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('rarity', [0.85, 17, 3])
@@ -458,7 +458,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('car'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('worth', 500)
@@ -468,14 +468,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['o-pair'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (p) (list (cadr p) (car p)))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op', 'ord-struc-op', 'list-op'])
     unit.set_prop('range', ['o-pair'])
     unit.set_prop('worth', 500)
 
     # pair
     unit = registry.create_unit('pair')
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (s) (and (consp s) (eq 2 (length s))))'))
     unit.set_prop('generalizations', ['anything', 'structure', 'mult-ele-struc', 'un-ord-struc', 'bag'])
     unit.set_prop('generator', [[[]], ['get-a-o-pair'], ['old']])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
@@ -484,7 +484,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # o-pair
     unit = registry.create_unit('o-pair')
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (s) (and (consp s) (eq 2 (length s))))'))
     unit.set_prop('generalizations', ['anything', 'structure', 'mult-ele-struc', 'ord-struc', 'list'])
     unit.set_prop('generator', [[[]], ['get-a-o-pair'], ['old']])
     unit.set_prop('in-domain-of', ['reverse-o-pair'])
@@ -498,7 +498,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['type-of-structure', 'unary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s f) (cond ((and (memb \'structure (generalizations s)) (memb \'op (isa f)) (eq 1 (length (domain f))) (or (eq \'anything (car (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (car (domain f)))))) (is-a-kind-of (car (range f)) \'structure)) (let ((nam (create-unit (pack* \'join- f \'-on- s \'s)))) (put nam \'isa (copy (isa f))) (put nam \'worth (average-worths \'parallel-join (average-worths f s))) (put nam \'arity 1) (put nam \'domain (list s)) (put nam \'range (list (let ((mu (pack* \'of (car (range f)) \'s))) (cond ((unitp mu) mu) (t (cprin1 21 "~% It might be nice to have a unit called " mu "~%") s))))) (put nam \'unitized-alg (compile-report (subst f \'f \'(lambda (s) (mapappend s (lambda (e) (run-alg \'f e))))))) (put nam \'elim-slots \'(applics)) (put nam \'creditors \'(parallel-join)) (add-inv nam) nam)) (t \'failed)))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['unary-op'])
     unit.set_prop('worth', 800)
@@ -508,7 +508,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['type-of-structure', 'type-of-structure', 'binary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s s2 f) (cond ((and (memb \'structure (generalizations s)) (memb \'structure (generalizations s2)) (memb \'op (isa f)) (eq 2 (length (domain f))) (is-a-kind-of s2 (cadr (domain f))) (or (eq \'anything (car (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (car (domain f)))))) (is-a-kind-of (car (range f)) \'structure)) (let ((nam (create-unit (pack* \'join- f \'-on- s \'s \'-with-a- \'s2 \'-as-param)))) (put nam \'isa (isa f)) (put nam \'worth (average-worths \'parallel-replace-2 (average-worths f (average-worths s s2)))) (put nam \'arity 2) (put nam \'domain (list s s2)) (put nam \'range (list (let ((mu (pack* s \'-of- (car (range f)) \'s))) (if (unitp mu) mu (progn (cprin1 21 "~% It might be nice to have a unit called " mu "~%") s))))) (put nam \'unitized-alg (compile-report (subst f \'f \'(lambda (s s2) (mapappend s (lambda (e) (run-alg \'f e s2))))))) (put nam \'elim-slots \'(applics)) (put nam \'creditors \'parallel-replace-2) (add-inv nam) nam)) (t \'failed)))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['binary-op'])
     unit.set_prop('rarity', [0.3272727, 36, 74])
@@ -517,7 +517,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # tertiary-op
     unit = registry.create_unit('tertiary-op')
     unit.set_prop('examples', ['parallel-replace-2', 'repeat2', 'parallel-join-2', 'proj-1-of-3', 'proj-2-of-3', 'proj-3-of-3'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (f) (eq 3 (arity f)))'))
     unit.set_prop('generalizations', ['op', 'anything'])
     unit.set_prop('in-domain-of', ['repeat2'])
     unit.set_prop('isa', ['repr-concept', 'anything', 'category', 'op-cat-by-nargs'])
@@ -531,7 +531,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['type-of-structure', 'binary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO("(lambda (s f) (cond ((and (memb 'structure (generalizations s)) (memb 'op (isa f)) (eq 2 (length (domain f))) (or (eq 'anything (cadr (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (cadr (domain f)))))) (is-a-kind-of (car (range f)) (car (domain f)))) (let ((nam (create-unit (pack* 'repeat- f '-on- s 's)))) (put nam 'isa (let* ((r (isa f)) (r (subst 'unary-op 'binary-op r)) (r (subst 'unary-pred 'binary-pred r)) (r (subst 'constant-unary-pred 'constant-binary-pred r))) r)) (put nam 'worth (average-worths 'repeat (average-worths f s))) (put nam 'arity 1) (put nam 'domain (list s)) (put nam 'range (copy (range f))) (put nam 'unitized-alg (compile-report (subst f 'f '(lambda (s) (if (consp s) (let ((v (car s))) (mapc (lambda (e) (setf v (run-alg 'f v e))) (cdr s)) v) 'failed))))) (put nam 'elim-slots '(applics)) (put nam 'creditors 'repeat) (add-inv nam) nam)) (t 'failed)))"))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['unary-op'])
     unit.set_prop('rarity', [0.3555556, 16, 29])
@@ -542,7 +542,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['type-of-structure', 'type-of-structure', 'tertiary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO("(lambda (s s2 f) (cond ((and (memb 'structure (generalizations s)) (memb 'structure (generalizations s2)) (memb 'op (isa f)) (eq 3 (length (domain f))) (or (eq 'anything (caddr (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (caddr (domain f)))))) (is-a-kind-of (car (range f)) (car (domain f))) (is-a-kind-of s2 (cadr (domain f)))) (let ((nam (create-unit (pack* 'repeat2- f '-on- 's-with-a- s2 '-as-param)))) (put nam 'isa (let* ((r (isa f)) (r (subst 'binary-op 'tertiary-op r)) (r (subst 'binary-pred 'teritiary-pred r))) r)) (put nam 'worth (average-worths 'repeat2 (average-worths f (average-worths s s2)))) (put nam 'arity 2) (put nam 'domain (list s s2)) (put nam 'range (copy (range f))) (put nam 'unitized-alg (compile-report (subst f 'f '(lambda (s s2) (if (consp s) (let ((v (car s))) (mapc (lambda (e) (setf v (run-alg 'f v s2 e))) (cdr s)) v) 'failed))))) (put nam 'elim-slots '(applics)) (put nam 'creditors '(repeat2)) (add-inv nam) nam)) (t 'failed)))"))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['binary-op'])
     unit.set_prop('rarity', [0.2295082, 14, 47])
@@ -551,7 +551,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # binary-op
     unit = registry.create_unit('binary-op')
     unit.set_prop('examples', ['parallel-replace', 'bag-difference', 'o-set-difference', 'list-difference', 'set-difference', 'struc-difference', 'bag-union', 'list-union', 'o-set-union', 'struc-union', 'bag-intersect', 'set-union', 'set-intersect', 'ord-struc-equal', 'bag-equal', 'list-equal', 'o-set-equal', 'o-set-delete', 'o-set-insert', 'mult-ele-struc-delete-1', 'bag-delete-1', 'bag-delete', 'bag-insert', 'list-delete-1', 'list-delete', 'list-insert', 'set-delete', 'set-insert', 'struc-delete', 'struc-insert', 'and', 'add', 'always-nil-2', 'always-t-2', 'compose', 'eq', 'equal', 'ieqp', 'igeq', 'igreaterp', 'ileq', 'ilessp', 'multiply', 'or', 'set-equal', 'struc-equal', 'subsetp', 'the-first-of', 'the-second-of', 'repeat', 'parallel-join', 'member', 'memb', 'proj1', 'proj2', 'implies', 'mult-ele-struc-insert'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (f) (eq 2 (arity f)))'))
     unit.set_prop('generalizations', ['op', 'anything'])
     unit.set_prop('higher-arity', ['tertiary-op'])
     unit.set_prop('in-domain-of', ['parallel-replace-2', 'repeat', 'parallel-join-2'])
@@ -567,7 +567,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['type-of-structure', 'type-of-structure', 'binary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s s2 f) (cond ((and (memb \'structure (generalizations s)) (memb \'structure (generalizations s2)) (memb \'op (isa f)) (eq 2 (length (domain f))) (is-a-kind-of s2 (cadr (domain f))) (or (eq \'anything (car (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (car (domain f))))))) (let ((nam (create-unit (pack* \'perform- f \'-on- s \'s-with-a- s2 \'-as-param)))) (put nam \'isa (isa f)) (put nam \'worth (average-worths \'parallel-replace-2 (average-worths f (average-worths s s2)))) (put nam \'arity 2) (put nam \'domain (list s s2)) (put nam \'range (list (let ((mu (pack* s \'-of- (car (range f)) \'s))) (cond ((unitp mu) mu) (t (cprin1 21 "~% It might be nice to have a unit called " mu "~%") s))))) (put nam \'unitized-alg (compile-report (subst f \'f \'(lambda (s s2) (mapcar (lambda (e) (run-alg \'f e s2)) s))))) (put nam \'elim-slots \'(applics)) (put nam \'creditors \'(parallel-replace-2)) (add-inv nam) nam)) (t \'failed)))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['binary-op'])
     unit.set_prop('rarity', [0.375, 3, 5])
@@ -575,14 +575,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # each-element-is-a
     unit = registry.create_unit('each-element-is-a')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 600)
 
     # unary-op
     unit = registry.create_unit('unary-op')
     unit.set_prop('examples', ['coalesce', 'always-nil', 'always-t', 'best-choose', 'best-subset', 'constant-binary-pred', 'constant-unary-pred', 'divisors-of', 'good-choose', 'good-subset', 'random-choose', 'random-subset', 'square', 'successor', 'undefined-pred', 'reverse-o-pair', 'first-ele', 'second-ele', 'third-ele', 'all-but-first', 'all-but-second', 'all-but-third', 'last-ele', 'all-but-last', 'identity-1', 'restrict', 'invert-op', 'not'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (f) (eq 1 (arity f)))'))
     unit.set_prop('generalizations', ['op', 'anything'])
     unit.set_prop('higher-arity', ['binary-op'])
     unit.set_prop('in-domain-of', ['parallel-replace', 'parallel-join'])
@@ -605,7 +605,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['type-of-structure', 'unary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s f) (cond ((and (memb \'structure (generalizations s)) (memb \'op (isa f)) (eq 1 (length (domain f))) (or (eq \'anything (car (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (car (domain f))))))) (let ((nam (create-unit (pack* \'perform- f \'-on- s \'s)))) (put nam \'isa (copy (isa f))) (put nam \'worth (average-worths \'parallel-replace (average-worths f s))) (put nam \'arity 1) (put nam \'domain (list s)) (put nam \'range (list (let ((mu (pack* s \'-of- (car (range f)) \'-s))) (cond ((unitp mu) mu) (t (cprin1 21 "~% It might be nice to have a unit called " mu "~%") s))))) (put nam \'unitized-alg (compile-report (subst f \'f \'(lambda (s) (mapcar (lambda (e) (run-alg \'f e)) s))))) (put nam \'elim-slots \'(applics)) (put nam \'creditors \'(parallel-replace)) (add-inv nam) nam)) (t \'failed)))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['unary-op'])
     unit.set_prop('rarity', [0.2372881, 14, 45])
@@ -616,7 +616,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO("(lambda (f) (let ((coargs (random-pair (domain f) 'is-a-kind-of))) (cond (coargs (let ((nam (create-unit (pack* 'coa- f)))) (put nam 'isa (set-diff (isa f) (examples 'op-cat-by-nargs))) (put nam 'worth (average-worths 'coalesce f)) (put nam 'arity (1- (arity f))) (let* ((fargs (mapcar \\#\\'the-second-of (domain f) '(u v w x y z z2 z3 z4 z5))) (newargs (copy fargs))) (rplaca (nth newargs (cadr coargs)) (car (nth newargs (car coargs)))) (let ((newdom (copy (domain f)))) (rplaca (nth newdom (cadr coargs)) (car (nth newdom (car coargs)))) (if (<= (cadr coargs) 1) (pop newdom) (rplacd (nth newdom (1- (cadr coargs))) (cdr (nth newdom (cadr coargs))))) (if (<= (cadr coargs) 1) (pop fargs) (rplacd (nth fargs (1- (cadr coargs))) (cdr (nth fargs (cadr coargs))))) (put nam 'domain newdom) (put nam 'range (copy (range f))) (put nam 'unitized-alg (compile-report \\` (lambda \\,fargs (run-alg '\\,f \\,@newargs)))) (put nam 'elim-slots '(applics)) (put nam 'creditors '(coalesce)) (put nam 'isa (append (isa nam) (subset (examples 'op-cat-by-nargs) (lambda (pc) (run-defn pc nam))))) (add-inv nam) nam)))) (t 'failed))))"))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['op'])
     unit.set_prop('rarity', [0.3928571, 22, 34])
@@ -630,7 +630,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
     unit.set_prop('range', ['bag'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s2) s2) (run-alg 'bag-delete-1 (car s1) s2)) (t (cons (car s1) (run-alg 'bag-difference (cdr s1) (run-alg 'bag-delete-1 (car s2) s2))))))"))
     unit.set_prop('worth', 500)
 
     # o-set-difference
@@ -638,11 +638,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['o-set', 'o-set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('set-difference'))
     unit.set_prop('generalizations', ['struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (run-alg 'o-set-difference (cdr s1) s2)) (t (cons (car s1) (run-alg 'o-set-difference (cdr s1) s2)))))"))
     unit.set_prop('worth', 500)
 
     # list-difference
@@ -653,7 +653,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (run-alg 'list-difference (cdr s1) (run-alg 'list-delete-1 (car s1) s2))) (t (cons (car s2) (run-alg 'list-difference (cdr s1) (run-alg 'list-delete-1 (car s1) s2))))))"))
     unit.set_prop('worth', 500)
 
     # set-difference
@@ -661,11 +661,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['set', 'set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('set-difference'))
     unit.set_prop('generalizations', ['struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'set-op', 'binary-op'])
     unit.set_prop('range', ['set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (run-alg 'set-difference (cdr s1) s2)) (t (cons (car s1) (run-alg 'set-difference (cdr s1) s2)))))"))
     unit.set_prop('worth', 500)
 
     # struc-difference
@@ -686,7 +686,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-union'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'binary-op'])
     unit.set_prop('range', ['bag'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) s2) (t (run-alg 'bag-insert (car s1) (run-alg 'bag-union (cdr s1) (run-alg 'bag-delete-1 (car s1) s2))))))"))
     unit.set_prop('worth', 500)
 
     # list-union
@@ -694,11 +694,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['list', 'list'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('append'))
     unit.set_prop('generalizations', ['struc-union'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) s2) (t (cons (car s1) (run-alg 'list-union (cdr s1) s2)))))"))
     unit.set_prop('worth', 500)
 
     # o-set-union
@@ -706,11 +706,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['o-set', 'o-set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('set-union'))
     unit.set_prop('generalizations', ['struc-union'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) s2) ((member (car s1) s2) (run-alg 'o-set-union (cdr s1) s2)) (t (cons (car s1) (run-alg 'o-set-union (cdr s1) s2)))))"))
     unit.set_prop('worth', 500)
 
     # struc-union
@@ -730,7 +730,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('elim-slots', ['applics'])
     unit.set_prop('generalizations', ['struc-intersect'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
-    unit.set_prop('iterative-alg', TODO)
+    unit.set_prop('iterative-alg', TODO("(lambda (s1 s2) (dolist (x (copy-list s1)) (cond ((member x s2) (setf s2 (run-alg 'bag-delete-1 x s2))) (t (setf s1 (run-alg 'bag-delete-1 x s1))))) s1)"))
     unit.set_prop('range', ['bag'])
     unit.set_prop('worth', 500)
 
@@ -742,7 +742,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-intersect'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (cons (car s1) (run-alg 'o-set-intersect (cdr s1) s2))) (t (run-alg 'o-set-intersect (cdr s1) s2))))"))
     unit.set_prop('worth', 500)
 
     # list-intersect
@@ -753,7 +753,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-intersect'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (cons (car s1) (run-alg 'list-intersect (cdr s1) (run-alg 'list-delete-1 (car s1) s2)))) (t (run-alg 'list-intersect (cdr s1) s2))))"))
     unit.set_prop('worth', 500)
 
     # struc-intersect
@@ -771,11 +771,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['set', 'set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('set-union'))
     unit.set_prop('generalizations', ['struc-union'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'set-op', 'binary-op'])
     unit.set_prop('range', ['set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) s2) ((member (car s1) s2) (run-alg 'set-union (cdr s1) s2)) (t (cons (car s1) (run-alg 'set-union (cdr s1) s2)))))"))
     unit.set_prop('worth', 500)
 
     # set-intersect
@@ -783,11 +783,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['set', 'set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('set-intersect'))
     unit.set_prop('generalizations', ['struc-intersect'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'anything', 'struc-op', 'set-op', 'binary-op'])
     unit.set_prop('range', ['set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (cons (car s1) (run-alg 'set-intersect (cdr s1) s2))) (t (run-alg 'set-intersect (cdr s1) s2))))"))
     unit.set_prop('worth', 500)
 
     # ord-struc-op
@@ -804,7 +804,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['ord-struc', 'ord-struc'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('equal'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'anything', 'struc-op', 'ord-struc-op', 'binary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('specializations', ['list-equal', 'o-set-equal'])
@@ -820,7 +820,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'struc-op', 'bag-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((and (null s1) (null s2)) t) (t (and (consp s1) (consp s2) (member (car s1) s2) (run-alg 'bag-equal (cdr s1) (run-alg 'bag-delete-1 (car s1) s2))))))"))
     unit.set_prop('specializations', ['list-equal'])
     unit.set_prop('worth', 500)
 
@@ -829,13 +829,13 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['list', 'list'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('equal'))
     unit.set_prop('generalizations', ['equal', 'struc-equal', 'bag-equal', 'ord-struc-equal'])
     unit.set_prop('is-a-int', ['binary-pred'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'struc-op', 'list-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((and (null s1) (null s2)) t) (t (and (consp s1) (consp s2) (equal (car s1) (car s2)) (run-alg 'list-equal (cdr s1) (cdr s2))))))"))
     unit.set_prop('worth', 500)
 
     # o-set-equal
@@ -843,18 +843,18 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['o-set', 'o-set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('equal'))
     unit.set_prop('generalizations', ['equal', 'struc-equal', 'subsetp', 'set-equal', 'ord-struc-equal'])
     unit.set_prop('is-a-int', ['binary-pred'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'struc-op', 'o-set-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((and (null s1) (null s2)) t) (t (and (consp s1) (consp s2) (equal (car s1) (car s2)) (run-alg 'o-set-equal (cdr s1) (cdr s2))))))"))
     unit.set_prop('worth', 500)
 
     # suf-defn
     unit = registry.create_unit('suf-defn')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('generalizations', ['defn'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['defn'])
@@ -862,7 +862,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # nec-defn
     unit = registry.create_unit('nec-defn')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('generalizations', ['defn'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['defn'])
@@ -887,7 +887,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit = registry.create_unit('no-mult-ele-struc')
     unit.set_prop('generalizations', ['structure', 'anything'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
-    unit.set_prop('nec-defn', TODO)
+    unit.set_prop('nec-defn', TODO('no-repeats-in'))
     unit.set_prop('specializations', ['set', 'o-set', 'empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 
@@ -896,11 +896,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'o-set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('remove'))
     unit.set_prop('generalizations', ['struc-delete'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (cdr s)) (t (cons (car s) (run-alg 'o-set-delete x (cdr s))))))"))
     unit.set_prop('worth', 500)
 
     # o-set-op
@@ -916,24 +916,24 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'o-set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO("(lambda (x s) (cond ((member x s) s) ((null s) (cons x s)) (t (cons (car s) (run-alg 'o-set-insert x (cdr s))))))"))
     unit.set_prop('generalizations', ['struc-insert'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) (cons x s)) ((equal x (car s)) s) (t (cons (car s) (run-alg 'o-set-insert x (cdr s))))))"))
     unit.set_prop('worth', 500)
 
     # o-set
     unit = registry.create_unit('o-set')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (s) (or (eq s ()) (no-repeats-in s)))'))
     unit.set_prop('generalizations', ['anything', 'structure', 'bag', 'list', 'set', 'no-mult-ele-struc', 'ord-struc'])
     unit.set_prop('generator', [[[]], ['get-a-set'], ['old']])
     unit.set_prop('in-domain-of', ['o-set-insert', 'o-set-delete', 'o-set-equal', 'o-set-intersect', 'o-set-union', 'o-set-difference'])
     unit.set_prop('is-range-of', ['o-set-insert', 'o-set-delete', 'o-set-intersect', 'o-set-union', 'o-set-difference'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO)
+    unit.set_prop('recursive-defn', TODO("(lambda (s) (if (consp s) (and (not (member (car s) (cdr s))) (run-defn 'o-set (cdr s))) (eq s ())))"))
     unit.set_prop('specializations', ['empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 
@@ -944,7 +944,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('elim-slots', ['applics'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'mult-ele-struc-op', 'binary-op'])
     unit.set_prop('range', ['mult-ele-struc'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (cdr s)) (t (cons (car s) (run-alg 'mult-ele-struc-delete-1 x (cdr s))))))"))
     unit.set_prop('specializations', ['list-delete-1', 'bag-delete-1'])
     unit.set_prop('worth', 500)
 
@@ -964,7 +964,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('is-range-of', ['mult-ele-struc-delete-1', 'mult-ele-struc-insert'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('specializations', ['list', 'bag', 'o-pair', 'pair', 'empty-struc', 'non-empty-struc'])
-    unit.set_prop('suf-defn', TODO)
+    unit.set_prop('suf-defn', TODO('repeats-in'))
     unit.set_prop('worth', 500)
 
     # bag-delete-1
@@ -975,7 +975,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['mult-ele-struc-delete-1'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
     unit.set_prop('range', ['bag'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (cdr s)) (t (cons (car s) (run-alg 'bag-delete-1 x (cdr s))))))"))
     unit.set_prop('worth', 500)
 
     # bag-delete
@@ -983,11 +983,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'bag'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('remove'))
     unit.set_prop('generalizations', ['struc-delete'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
     unit.set_prop('range', ['bag'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (run-alg 'bag-delete x (cdr s))) (t (cons (car s) (run-alg 'bag-delete x (cdr s))))))"))
     unit.set_prop('worth', 500)
 
     # bag-op
@@ -1003,7 +1003,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'bag'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('cons'))
     unit.set_prop('generalizations', ['struc-insert', 'mult-ele-struc-insert'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
     unit.set_prop('range', ['bag'])
@@ -1012,14 +1012,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # bag
     unit = registry.create_unit('bag')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('listp'))
     unit.set_prop('generalizations', ['anything', 'structure', 'mult-ele-struc', 'un-ord-struc'])
     unit.set_prop('generator', [[[]], ['get-a-list'], ['old']])
     unit.set_prop('in-domain-of', ['bag-insert', 'bag-delete', 'bag-delete-1', 'bag-equal', 'bag-intersect', 'bag-union', 'bag-difference'])
     unit.set_prop('is-range-of', ['bag-insert', 'bag-delete', 'bag-delete-1', 'bag-intersect', 'bag-union', 'bag-difference'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO)
+    unit.set_prop('recursive-defn', TODO("(lambda (s) (cond ((not (consp s)) (eq s ())) (t (run-defn 'bag (cdr s)))))"))
     unit.set_prop('specializations', ['set', 'o-set', 'pair', 'empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 
@@ -1031,7 +1031,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['mult-ele-struc-delete-1'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (cdr s)) (t (cons (car s) (run-alg 'list-delete-1 x (cdr s))))))"))
     unit.set_prop('worth', 500)
 
     # list-delete
@@ -1039,24 +1039,24 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'list'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('remove'))
     unit.set_prop('generalizations', ['struc-delete'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (run-alg 'list-delete x (cdr s))) (t (cons (car s) (run-alg 'list-delete x (cdr s))))))"))
     unit.set_prop('worth', 500)
 
     # list
     unit = registry.create_unit('list')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('listp'))
     unit.set_prop('generalizations', ['anything', 'structure', 'mult-ele-struc', 'ord-struc'])
     unit.set_prop('generator', [[[]], ['get-a-list'], ['old']])
     unit.set_prop('in-domain-of', ['list-insert', 'list-delete', 'list-delete-1', 'list-equal', 'list-intersect', 'list-union', 'list-difference'])
     unit.set_prop('is-range-of', ['list-insert', 'list-delete', 'list-delete-1', 'list-intersect', 'list-union', 'list-difference'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO)
+    unit.set_prop('recursive-defn', TODO("(lambda (s) (cond ((not (consp s)) (eq s ())) (t (run-defn 'list (cdr s)))))"))
     unit.set_prop('specializations', ['set', 'o-set', 'o-pair', 'empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 
@@ -1065,7 +1065,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'list'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('cons'))
     unit.set_prop('generalizations', ['struc-insert', 'mult-ele-struc-insert'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'list-op', 'binary-op'])
     unit.set_prop('range', ['list'])
@@ -1084,11 +1084,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('remove'))
     unit.set_prop('generalizations', ['struc-delete'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'set-op', 'binary-op'])
     unit.set_prop('range', ['set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (cdr s)) (t (cons (car s) (run-alg 'set-delete x (cdr s))))))"))
     unit.set_prop('worth', 500)
 
     # set-insert
@@ -1096,11 +1096,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x s) (cond ((member x s) s) (t (cons x s))))'))
     unit.set_prop('generalizations', ['struc-insert'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'set-op', 'binary-op'])
     unit.set_prop('range', ['set'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) (cons x s)) ((equal x (car s)) s) (t (cons (car s) (run-alg 'set-insert x (cdr s))))))"))
     unit.set_prop('worth', 500)
 
     # struc-delete
@@ -1137,7 +1137,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (and x y))'))
     unit.set_prop('generalizations', ['the-second-of', 'the-first-of', 'or'])
     unit.set_prop('isa', ['op', 'pred', 'math-op', 'math-pred', 'anything', 'binary-op', 'logic-op', 'binary-pred'])
     unit.set_prop('range', ['anything'])
@@ -1146,7 +1146,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # abbrev
     unit = registry.create_unit('abbrev')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('text'))
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 307)
 
@@ -1155,17 +1155,17 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['nnumber', 'nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (+ x y))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'binary-op'])
-    unit.set_prop('iterative-alg', TODO)
+    unit.set_prop('iterative-alg', TODO('(lambda (x y) (loop for i from 1 to x do (incf y)) y)'))
     unit.set_prop('range', ['nnumber'])
-    unit.set_prop('recursive-alg', TODO)
-    unit.set_prop('unitized-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x y) (cond ((eq x 0) y) (t (run-alg 'successor (run-alg 'add (1- x) y)))))"))
+    unit.set_prop('unitized-alg', TODO("(lambda (x y) (cond ((eq x 0) y) (t (run-alg 'successor (run-alg 'add (1- x) y)))))"))
     unit.set_prop('worth', 500)
 
     # alg
     unit = registry.create_unit('alg')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('sub-slots', ['fast-alg', 'iterative-alg', 'recursive-alg', 'unitized-alg'])
     unit.set_prop('worth', 600)
@@ -1175,7 +1175,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x) (declare (ignore x)) ())'))
     unit.set_prop('generalizations', ['constant-unary-pred'])
     unit.set_prop('isa', ['op', 'pred', 'anything', 'constant-pred', 'unary-op', 'math-op', 'unary-pred'])
     unit.set_prop('range', ['bit'])
@@ -1186,7 +1186,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (declare (ignore x y)) ())'))
     unit.set_prop('generalizations', ['constant-binary-pred'])
     unit.set_prop('isa', ['op', 'pred', 'anything', 'constant-pred', 'binary-op', 'math-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
@@ -1197,7 +1197,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x) (declare (ignore x)) t)'))
     unit.set_prop('generalizations', ['constant-unary-pred'])
     unit.set_prop('isa', ['op', 'pred', 'anything', 'constant-pred', 'unary-op', 'math-op', 'unary-pred'])
     unit.set_prop('range', ['bit'])
@@ -1208,7 +1208,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (declare (ignore x y)) t)'))
     unit.set_prop('generalizations', ['constant-binary-pred'])
     unit.set_prop('isa', ['op', 'pred', 'anything', 'constant-pred', 'binary-op', 'math-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
@@ -1217,7 +1217,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # anything
     unit = registry.create_unit('anything')
     unit.set_prop('examples', ['and', 'or', 'the-first-of', 'the-second-of', 'square', 'divisors-of', 'multiply-add', 'successor', 'random-choose', 'random-subset', 'good-choose', 'best-choose', 'best-subset', 'good-subset', 'equal', 'ieqp', 'eq', 'ileq', 'igeq', 'ilessp', 'igreaterp', 'los1', 'los2', 'los3', 'los4', 'los5', 'los6', 'los7', 'win1', True, [], 'proto-conjec', 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 69, 71, 73, 75, 77, 79, 81, 83, 85, 6, 28, 'if-about-to-work-on-task', 'applics', 'if-finished-working-on-task', 'isa', 'if-truly-relevant', 'sub-slots', 'if-parts', 'if-potentially-relevant', 'examples', 'data-type', 'english', 'worth', 'inverse', 'creditors', 'generalizations', 'specializations', 'then-add-to-agenda', 'then-compute', 'then-conjecture', 'abbrev', 'then-define-new-concepts', 'then-modify-slots', 'then-print-to-user', 'then-parts', 'super-slots', 'if-task-parts', 'format', 'dont-copy', 'double-check', 'generator', 'if-working-on-task', 'is-range-of', 'to-delete-1', 'alg', 'fast-defn', 'recursive-defn', 'unitized-defn', 'fast-alg', 'iterative-alg', 'recursive-alg', 'unitized-alg', 'iterative-defn', 'to-delete', 'applic-generator', 'arity', 'non-examples', 'compiled-defn', 'elim-slots', 'in-domain-of', 'domain', 'range', 'indirect-applics', 'direct-applics', 'defn', 'sib-slots', 'transpose', 'then-delete-old-concepts', 'subsumes', 'subsumed-by', 'overall-record', 'then-print-to-user-failed-record', 'then-add-to-agenda-failed-record', 'then-delete-old-concepts-failed-record', 'then-define-new-concepts-failed-record', 'then-conjecture-failed-record', 'then-modify-slots-failed-record', 'then-compute-failed-record', 'then-print-to-user-record', 'then-add-to-agenda-record', 'then-delete-old-concepts-record', 'then-define-new-concepts-record', 'then-conjecture-record', 'then-modify-slots-record', 'then-compute-record', 'record-for', 'failed-record-for', 'record', 'failed-record', 'h1', 'h5', 'h6', 'h3', 'h4', 'h7', 'h8', 'h9', 'h10', 'h11', 'h2', 'h12', 'h-avoid', 'h-avoid-2', 'h-avoid-3', 'h13', 'h14', 'h15', 'h16', 'h17', 'h18', 'h19', 'h-avoid-2-and', 'h-avoid-3-first', 'h-avoid-if-working', 'h5-criterial', 'h5-good', 'h19-criterial', 'set', 'heuristic', 'anything', 'math-concept', 'slot', 'math-obj', 'nnumber', 'unit', 'prime-num', 'conjecture', 'repr-concept', 'even-num', 'task', 'math-op', 'odd-num', 'perf-num', 'perf-square', 'op', 'set-of-numbers', 'set-op', 'unit-op', 'num-op', 'criterial-slot', 'pred', 'math-pred', 'bit', 'non-criterial-slot', 'hind-sight-rule', 'unary-unit-op', 'record-slot', 'h20', 'conjectures', 'h21', 'conjecture-about', 'structure', 'category', 'struc-equal', 'set-equal', 'subsetp', 'constant-pred', 'always-t', 'always-nil', 'constant-binary-pred', 'always-t-2', 'always-nil-2', 'constant-unary-pred', 'compose', 'undefined-pred', 'struc-insert', 'struc-op', 'struc-delete', 'set-insert', 'set-delete', 'list-op', 'list', 'list-insert', 'list-delete', 'list-delete-1', 'bag', 'bag-op', 'bag-insert', 'bag-delete', 'bag-delete-1', 'mult-ele-struc', 'mult-ele-struc-op', 'mult-ele-struc-delete-1', 'o-set', 'o-set-insert', 'o-set-op', 'o-set-delete', 'no-mult-ele-struc', 'ord-struc', 'un-ord-struc', 'nec-defn', 'suf-defn', 'o-set-equal', 'bag-equal', 'list-equal', 'ord-struc-op', 'ord-struc-equal', 'set-intersect', 'set-union', 'struc-intersect', 'list-intersect', 'o-set-intersect', 'bag-intersect', 'struc-union', 'o-set-union', 'list-union', 'bag-union', 'struc-difference', 'set-difference', 'list-difference', 'o-set-difference', 'bag-difference', 'coalesce', 'type-of-structure', 'unary-op', 'parallel-replace', 'each-element-is-a', 'binary-op', 'parallel-replace-2', 'repeat', 'tertiary-op', 'repeat2', 'parallel-join', 'parallel-join-2', 'o-pair', 'pair', 'reverse-o-pair', 'first-ele', 'second-ele', 'third-ele', 'all-but-first', 'all-but-second', 'all-but-third', 'last-ele', 'all-but-last', 'member', 'memb', 'proj1', 'proj2', 'proj-1-of-3', 'proj-2-of-3', 'proj-3-of-3', 'identity-1', 'restrict', 'inverted-op', 'invert-op', 'set-of-o-pairs', 'relation', 'logic-op', 'not', 'implies', 'atom', 'truth-value', 'structure-of-structures', 'set-of-sets', 'empty-struc', 'non-empty-struc', 'undefined', 'lower-arity', 'higher-arity', 'unary-pred', 'binary-pred', 'tertiary-pred', 'pred-cat-by-nargs', 'op-cat-by-nargs', 'extensions', 'restrictions', 'interestingness', 'h22', 'more-interesting', 'less-interesting', 'int-examples', 'h23', 'h24', 'why-int', 'rarity', 'is-a-int', 'h25', 'h26', 'h27', 28, 'h29', 'mult-ele-struc-insert', 'int-applics', 'english-1', 'restrict-random-subset-3'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (x) (declare (ignore x)) t)'))
     unit.set_prop('in-domain-of', ['equal', 'eq', 'and', 'or', 'the-second-of', 'the-first-of', 'always-t', 'always-nil', 'constant-binary-pred', 'always-t-2', 'always-nil-2', 'constant-unary-pred', 'undefined-pred', 'struc-insert', 'struc-delete', 'set-insert', 'set-delete', 'list-insert', 'list-delete', 'list-delete-1', 'bag-insert', 'bag-delete', 'bag-delete-1', 'mult-ele-struc-delete-1', 'o-set-insert', 'o-set-delete', 'member', 'memb', 'proj1', 'proj2', 'proj-1-of-3', 'proj-2-of-3', 'proj-3-of-3', 'identity-1', 'not', 'implies', 'mult-ele-struc-insert'])
     unit.set_prop('is-range-of', ['random-choose', 'good-choose', 'best-choose', 'and', 'or', 'the-second-of', 'the-first-of', 'first-ele', 'second-ele', 'third-ele', 'all-but-first', 'all-but-second', 'all-but-third', 'last-ele', 'all-but-last', 'proj1', 'proj2', 'proj-1-of-3', 'proj-2-of-3', 'proj-3-of-3', 'identity-1', 'implies', 'ord-struc-equal'])
     unit.set_prop('isa', ['repr-concept', 'anything', 'category'])
@@ -1227,14 +1227,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # applic-generator
     unit = registry.create_unit('applic-generator')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('format', ['applic-gen-init', 'applic-gen-build', 'applic-gen-args'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 600)
 
     # applics
     unit = registry.create_unit('applics')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('io-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('format', [['situation', 'resultant-units', 'directness'], ['situation', 'resultant-units', 'directness'], 'etc.'])
@@ -1245,7 +1245,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # arity
     unit = registry.create_unit('arity')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('number'))
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
 
@@ -1254,7 +1254,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('best-choose'))
     unit.set_prop('generalizations', ['random-choose', 'good-choose'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'set-op', 'anything', 'struc-op', 'unary-op'])
     unit.set_prop('range', ['anything'])
@@ -1265,7 +1265,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('best-subset'))
     unit.set_prop('generalizations', ['random-subset', 'good-subset'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'set-op', 'anything', 'struc-op', 'unary-op'])
     unit.set_prop('range', ['set'])
@@ -1275,7 +1275,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # bit
     unit = registry.create_unit('bit')
     unit.set_prop('examples', [True, []])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (b) (or (eq b ()) (eq b t)))'))
     unit.set_prop('generalizations', ['anything'])
     unit.set_prop('is-range-of', ['equal', 'ieqp', 'eq', 'ileq', 'igeq', 'ilessp', 'igreaterp', 'struc-equal', 'set-equal', 'subsetp', 'always-t', 'always-nil', 'constant-binary-pred', 'always-t-2', 'always-nil-2', 'constant-unary-pred', 'o-set-equal', 'bag-equal', 'list-equal', 'member', 'memb', 'not'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
@@ -1291,7 +1291,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # compiled-defn
     unit = registry.create_unit('compiled-defn')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('compiled-lisp-code'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['defn'])
     unit.set_prop('worth', 600)
@@ -1301,7 +1301,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['op', 'op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO("(lambda (f g) (cond ((and (range f) (domain g) (is-a-kind-of (car (range f)) (car (domain g)))) (let ((fargs (mapcar \\#\\'the-second-of (domain f) '(u v w x y z z2 z3 z4 z5))) (gargs (mapcar \\#\\'the-second-of (cdr (domain g)) '(a b c d e f g h i j k))) (nam (create-unit (pack* g '-o- f)))) (put nam 'isa (set-diff (isa g) (examples 'op-cat-by-nargs))) (put nam 'worth (average-worths 'compose (average-worths f g))) (put nam 'arity (+ (length fargs) (length gargs))) (put nam 'domain (append (copy (domain f)) (cdr (domain g)))) (put nam 'range (copy (range g))) (put nam 'unitized-alg (compile-report \\` (lambda \\, (nconc (copy fargs) (copy gargs)) (run-alg '\\,g (run-alg '\\,f \\,@fargs) \\,@gargs)))) (put nam 'elim-slots '(applics)) (put nam 'creditors '(compose)) (put nam 'isa (append (isa nam) (subset (examples 'op-cat-by-nargs) (lambda (pc) (run-defn pc nam))))) (add-inv nam) nam)) (t 'failed)))"))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['op'])
     unit.set_prop('rarity', [0.3612903, 56, 99])
@@ -1316,7 +1316,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # conjecture-about
     unit = registry.create_unit('conjecture-about')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['conjectures'])
@@ -1325,7 +1325,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # conjectures
     unit = registry.create_unit('conjectures')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('conjecture'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['conjecture-about'])
@@ -1361,7 +1361,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # creditors
     unit = registry.create_unit('creditors')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('to-delete-1', ['lambda', ['u1', 'p', 'u2'], ['declare', ['ignore', 'p']], ['rem1prop', 'u1', Quoted(Symbol('applics')), ['find-if', ['lambda', ['a'], ['eq', ['caadr', 'a'], 'u2']], ['applics', 'u1']]]])
     unit.set_prop('worth', 300)
@@ -1375,14 +1375,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # data-type
     unit = registry.create_unit('data-type')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('data-type'))
     unit.set_prop('double-check', True)
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 600)
 
     # defn
     unit = registry.create_unit('defn')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('list-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('specializations', ['nec-defn', 'suf-defn'])
     unit.set_prop('sub-slots', ['compiled-defn', 'fast-defn', 'iterative-defn', 'recursive-defn', 'unitized-defn', 'suf-defn', 'nec-defn'])
@@ -1390,7 +1390,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # direct-applics
     unit = registry.create_unit('direct-applics')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('io-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('format', [['situation', 'resultant-units', 'directness'], ['situation', 'resultant-units', 'directness'], 'etc.'])
@@ -1403,28 +1403,28 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO("(lambda (n) (sort (loop for i from 1 until (> (square i) n) when (divides i n) collect i and collect (floor n i)) \\#\\'<))"))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'unary-op'])
-    unit.set_prop('iterative-alg', TODO)
+    unit.set_prop('iterative-alg', TODO('(lambda (n) (loop for i from 1 to n when (divides i n) collect i))'))
     unit.set_prop('range', ['set-of-numbers'])
     unit.set_prop('worth', 500)
 
     # domain
     unit = registry.create_unit('domain')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('inverse', ['in-domain-of'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 600)
 
     # dont-copy
     unit = registry.create_unit('dont-copy')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('bit'))
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
 
     # double-check
     unit = registry.create_unit('double-check')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('bit'))
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
 
@@ -1433,7 +1433,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('eq'))
     unit.set_prop('generalizations', ['equal'])
     unit.set_prop('is-a-int', ['binary-pred'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'binary-op', 'binary-pred'])
@@ -1446,7 +1446,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('equal'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('specializations', ['ieqp', 'eq', 'struc-equal', 'set-equal', 'o-set-equal', 'bag-equal', 'list-equal'])
@@ -1454,29 +1454,29 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # elim-slots
     unit = registry.create_unit('elim-slots')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 600)
 
     # english
     unit = registry.create_unit('english')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('text'))
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 304)
 
     # even-num
     unit = registry.create_unit('even-num')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (n) (and (fixp n) (divides 2 n)))'))
     unit.set_prop('generalizations', ['nnumber', 'anything'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (n) (run-alg 'divides 2 n))"))
     unit.set_prop('worth', 800)
 
     # examples
     unit = registry.create_unit('examples')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['isa'])
@@ -1487,7 +1487,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # failed-record
     unit = registry.create_unit('failed-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['failed-record-for'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -1495,7 +1495,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # failed-record-for
     unit = registry.create_unit('failed-record-for')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['failed-record'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -1503,7 +1503,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # fast-alg
     unit = registry.create_unit('fast-alg')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['alg'])
@@ -1511,20 +1511,20 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # fast-defn
     unit = registry.create_unit('fast-defn')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['defn'])
     unit.set_prop('worth', 600)
 
     # format
     unit = registry.create_unit('format')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('data-type'))
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 400)
 
     # generalizations
     unit = registry.create_unit('generalizations')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['specializations'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -1533,7 +1533,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # generator
     unit = registry.create_unit('generator')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('format', ['gen-init', 'gen-build', 'gen-args'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 600)
@@ -1543,7 +1543,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('good-choose'))
     unit.set_prop('generalizations', ['random-choose'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'set-op', 'anything', 'struc-op', 'unary-op'])
     unit.set_prop('range', ['anything'])
@@ -1555,7 +1555,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('good-subset'))
     unit.set_prop('generalizations', ['random-subset'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'set-op', 'anything', 'struc-op', 'unary-op'])
     unit.set_prop('range', ['set'])
@@ -1583,7 +1583,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['nnumber', 'nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('='))
     unit.set_prop('generalizations', ['equal', 'ileq', 'igeq'])
     unit.set_prop('is-a-int', ['binary-pred'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'num-op', 'binary-op', 'binary-pred'])
@@ -1596,7 +1596,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['nnumber', 'nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('>='))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'num-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('specializations', ['ieqp', 'igreaterp'])
@@ -1608,7 +1608,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['nnumber', 'nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('>'))
     unit.set_prop('generalizations', ['igeq'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'num-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
@@ -1620,7 +1620,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['nnumber', 'nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('<='))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'num-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('specializations', ['ieqp', 'ilessp'])
@@ -1632,7 +1632,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['nnumber', 'nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('<'))
     unit.set_prop('generalizations', ['ileq'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'num-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
@@ -1641,63 +1641,63 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # if-about-to-work-on-task
     unit = registry.create_unit('if-about-to-work-on-task')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['if-parts', 'if-task-parts'])
     unit.set_prop('worth', 600)
 
     # if-finished-working-on-task
     unit = registry.create_unit('if-finished-working-on-task')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['if-task-parts', 'if-parts'])
     unit.set_prop('worth', 600)
 
     # if-parts
     unit = registry.create_unit('if-parts')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('sub-slots', ['if-potentially-relevant', 'if-truly-relevant', 'if-about-to-work-on-task', 'if-working-on-task', 'if-finished-working-on-task'])
     unit.set_prop('worth', 600)
 
     # if-potentially-relevant
     unit = registry.create_unit('if-potentially-relevant')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['if-parts'])
     unit.set_prop('worth', 600)
 
     # if-task-parts
     unit = registry.create_unit('if-task-parts')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('sub-slots', ['if-about-to-work-on-task', 'if-working-on-task', 'if-finished-working-on-task'])
     unit.set_prop('worth', 600)
 
     # if-truly-relevant
     unit = registry.create_unit('if-truly-relevant')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['if-parts'])
     unit.set_prop('worth', 600)
 
     # if-working-on-task
     unit = registry.create_unit('if-working-on-task')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['if-parts', 'if-task-parts'])
     unit.set_prop('worth', 600)
 
     # in-domain-of
     unit = registry.create_unit('in-domain-of')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('inverse', ['domain'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
 
     # indirect-applics
     unit = registry.create_unit('indirect-applics')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('io-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('format', [['situation', 'resultant-units', 'directness'], ['situation', 'resultant-units', 'directness'], 'etc.'])
@@ -1707,7 +1707,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # inverse
     unit = registry.create_unit('inverse')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['inverse'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -1715,7 +1715,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # isa
     unit = registry.create_unit('isa')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['examples'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -1723,21 +1723,21 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # is-range-of
     unit = registry.create_unit('is-range-of')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('inverse', ['range'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
 
     # iterative-alg
     unit = registry.create_unit('iterative-alg')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['alg'])
     unit.set_prop('worth', 600)
 
     # iterative-defn
     unit = registry.create_unit('iterative-defn')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['defn'])
     unit.set_prop('worth', 600)
@@ -1777,18 +1777,18 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['nnumber', 'nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (* x y))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'binary-op'])
-    unit.set_prop('iterative-alg', TODO)
+    unit.set_prop('iterative-alg', TODO('(lambda (x y) (loop for i from 1 to x sum y))'))
     unit.set_prop('range', ['nnumber'])
-    unit.set_prop('recursive-alg', TODO)
-    unit.set_prop('unitized-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (x y) (cond ((eq x 0) 0) ((eq x 1) y) (t (run-alg 'add y (run-alg 'multiply (1- x) y)))))"))
+    unit.set_prop('unitized-alg', TODO("(lambda (x y) (cond ((eq x 0) 0) ((eq x 1) y) (t (run-alg 'add y (run-alg 'multiply (1- x) y)))))"))
     unit.set_prop('worth', 500)
 
     # nnumber
     unit = registry.create_unit('nnumber')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (n) (fixp n))'))
     unit.set_prop('generalizations', ['anything'])
     unit.set_prop('generator', [[0], ['1+'], ['old']])
     unit.set_prop('in-domain-of', ['divisors-of', 'multiply', 'add', 'successor', 'square', 'ieqp', 'ileq', 'igeq', 'ilessp', 'igreaterp'])
@@ -1807,7 +1807,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # non-examples
     unit = registry.create_unit('non-examples')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('double-check', True)
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
@@ -1826,7 +1826,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (or x y))'))
     unit.set_prop('isa', ['op', 'pred', 'math-op', 'math-pred', 'anything', 'binary-op', 'logic-op', 'binary-pred'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('specializations', ['the-first-of', 'the-second-of', 'and'])
@@ -1835,10 +1835,10 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # odd-num
     unit = registry.create_unit('odd-num')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (n) (and (fixp n) (oddp n)))'))
     unit.set_prop('generalizations', ['nnumber', 'anything'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (n) (not (run-alg 'divides 2 n)))"))
     unit.set_prop('worth', 700)
 
     # op
@@ -1853,7 +1853,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # overall-record
     unit = registry.create_unit('overall-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything', 'record-slot'])
     unit.set_prop('worth', 300)
@@ -1864,9 +1864,9 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('examples', [6, 28])
     unit.set_prop('generalizations', ['nnumber', 'anything'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('iterative-defn', TODO)
+    unit.set_prop('iterative-defn', TODO('(lambda (n) (and (fixp n) (eq (1- n) (loop for i from 2 to (1- n) sum (cond ((divides i n) i) (t 0))))))'))
     unit.set_prop('non-examples', [0, 1])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (n) (eq (run-alg 'double n) (apply \\#\\'+ (run-alg 'divisors-of n))))"))
     unit.set_prop('worth', 800)
 
     # perf-square
@@ -1889,12 +1889,12 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # prime-num
     unit = registry.create_unit('prime-num')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (n) (and (fixp n) (loop for i from 2 to (isqrt n) never (divides i n))))'))
     unit.set_prop('generalizations', ['nnumber', 'anything'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('iterative-defn', TODO)
+    unit.set_prop('iterative-defn', TODO('(lambda (n) (and (fixp n) (eq 0 (loop for i from 2 to (1- n) sum (cond ((divides i n) i) (t 0))))))'))
     unit.set_prop('non-examples', [0, 1])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (n) (run-defn (run-alg 'divisors-of n) 'doubleton))"))
     unit.set_prop('worth', 950)
 
     # proto-conjec
@@ -1907,7 +1907,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('random-choose'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'set-op', 'anything', 'struc-op', 'unary-op'])
     unit.set_prop('range', ['anything'])
     unit.set_prop('specializations', ['good-choose', 'best-choose'])
@@ -1918,7 +1918,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('random-subset'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'set-op', 'anything', 'struc-op', 'unary-op'])
     unit.set_prop('range', ['set'])
     unit.set_prop('rarity', [0.4065041, 50, 73])
@@ -1927,14 +1927,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # range
     unit = registry.create_unit('range')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('inverse', ['is-range-of'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 300)
 
     # record
     unit = registry.create_unit('record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['record-for'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -1942,7 +1942,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # record-for
     unit = registry.create_unit('record-for')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['record'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -1957,14 +1957,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # recursive-alg
     unit = registry.create_unit('recursive-alg')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['alg'])
     unit.set_prop('worth', 600)
 
     # recursive-defn
     unit = registry.create_unit('recursive-defn')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['defn'])
     unit.set_prop('worth', 600)
@@ -1980,14 +1980,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # set
     unit = registry.create_unit('set')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('(lambda (s) (or (eq s ()) (no-repeats-in s)))'))
     unit.set_prop('generalizations', ['anything', 'structure', 'bag', 'list', 'no-mult-ele-struc', 'un-ord-struc'])
     unit.set_prop('generator', [[[]], ['get-a-set'], ['old']])
     unit.set_prop('in-domain-of', ['random-choose', 'random-subset', 'good-choose', 'best-choose', 'best-subset', 'good-subset', 'set-equal', 'subsetp', 'set-insert', 'set-delete', 'set-intersect', 'set-union', 'set-difference'])
     unit.set_prop('is-range-of', ['random-subset', 'best-subset', 'good-subset', 'set-insert', 'set-delete', 'set-intersect', 'set-union', 'set-difference', 'restrict-random-subset-2-1', 'restrict-random-subset-1-2'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO)
+    unit.set_prop('recursive-defn', TODO("(lambda (s) (cond ((not (consp s)) (eq s ())) (t (and (not (member (car s) (cdr s))) (run-defn 'set (cdr s))))))"))
     unit.set_prop('specializations', ['o-set', 'empty-struc', 'non-empty-struc', 'set-of-sets'])
     unit.set_prop('worth', 500)
 
@@ -1995,26 +1995,26 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit = registry.create_unit('set-equal')
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['set', 'set'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (s1 s2) (cond ((not (eq (length s1) (length s2))) ()) ((equal s1 s2) t) (t (and (is-subset-of s1 s2) (is-subset-of s2 s1)))))'))
     unit.set_prop('generalizations', ['equal', 'struc-equal', 'subsetp'])
     unit.set_prop('is-a-int', ['binary-pred'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'struc-op', 'set-op', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
     unit.set_prop('rarity', [0.1, 1, 9])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((and (null s1) (null s2)) t) (t (and (consp s1) (consp s2) (member (car s1) s2) (run-alg 'set-equal (cdr s2) (remove (car s1) s2))))))"))
     unit.set_prop('specializations', ['o-set-equal'])
-    unit.set_prop('unitized-alg', TODO)
+    unit.set_prop('unitized-alg', TODO("(lambda (s1 s2) (and (run-alg 'subsetp s1 s2) (run-alg 'subsetp s2 s1)))"))
     unit.set_prop('worth', 500)
 
     # set-of-numbers
     unit = registry.create_unit('set-of-numbers')
-    unit.set_prop('each-element-is-a', TODO)
+    unit.set_prop('each-element-is-a', TODO('nnumber'))
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO("(lambda (s) (and (run-defn 'set s) (every \\#\\'numberp s)))"))
     unit.set_prop('generalizations', ['anything'])
     unit.set_prop('is-range-of', ['divisors-of'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('unitized-defn', TODO)
+    unit.set_prop('unitized-defn', TODO("(lambda (s) (and (run-defn 'set s) (every (lambda (n) (run-defn 'nnumber n)) s)))"))
     unit.set_prop('worth', 500)
 
     # set-op
@@ -2028,7 +2028,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # sib-slots
     unit = registry.create_unit('sib-slots')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['sib-slots'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -2044,7 +2044,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # specializations
     unit = registry.create_unit('specializations')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['generalizations'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -2056,11 +2056,11 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (n) (* n n))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'unary-op'])
     unit.set_prop('range', ['perf-square'])
     unit.set_prop('rarity', [1.0, 220, 0])
-    unit.set_prop('unitized-alg', TODO)
+    unit.set_prop('unitized-alg', TODO("(lambda (n) (run-alg 'multiply n n))"))
     unit.set_prop('worth', 500)
 
     # struc-equal
@@ -2078,20 +2078,20 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # structure
     unit = registry.create_unit('structure')
-    unit.set_prop('fast-defn', TODO)
+    unit.set_prop('fast-defn', TODO('listp'))
     unit.set_prop('generalizations', ['anything'])
     unit.set_prop('in-domain-of', ['struc-equal', 'struc-insert', 'struc-delete', 'struc-intersect', 'struc-union', 'struc-difference', 'member', 'memb'])
     unit.set_prop('interestingness', ['progn', ['setf', 'u', ['subset', 'u', "#'alivep"]], ['some', ['lambda', ['p'], ['and', ['or', ['has-high-worth', 'p'], ['memb', 'p', ['check-int-examples', Quoted(Symbol('unary-pred'))]]], ['is-rare', 'p'], ['cprin1', 88, 'High worth and rare predicate: ', 'p', '~%'], ['let*', [['tempdef', ['defn', ['car', ['domain', 'p']]]], ['tempu', ['subset', 'u', ['lambda', ['e'], ['failed-to-nil', ['funcall', 'tempdef', 'e']]]]]], ['when', 'tempu', ['let', [['tempdef2', ['subset', 'tempu', ['lambda', ['e'], ['failed-to-nil', ['run-alg', 'p', 'e']]]]]], ['when', 'tempdef2', ['cprin1', 39, 'Potential interesting subset of length: ', ['length', 'tempdef2'], '~%'], ['let', [['temp2', ['find-if', ['lambda', ['p2'], ['failed-to-nil', ['and', ['run-defn', ['cadr', ['domain', 'p2']], 'tempdef2'], ['run-alg', 'p2', 'tempu', 'tempdef2']]]], ['ok-bin-preds', 'tempu']]]], ['when', 'temp2', ['cprin1', 14, '~%The set of elements of size ', ['length', 'u'], ' which satisfy the rare predicate ', 'p', ' form a very special subset; namely, there are in relation ', 'temp2', ' to the entire structure.~%'], ['cprin1', 43, '    They are, by the way: ', 'tempdef2', '~%']]]]]]]]], ['check-examples', Quoted(Symbol('unary-pred'))]]])
     unit.set_prop('is-range-of', ['struc-insert', 'struc-delete', 'struc-intersect', 'struc-union', 'struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO)
+    unit.set_prop('recursive-defn', TODO("(lambda (s) (cond ((not (consp s)) (eq s ())) (t (run-defn 'structure (cdr s)))))"))
     unit.set_prop('specializations', ['set', 'list', 'bag', 'mult-ele-struc', 'o-set', 'no-mult-ele-struc', 'ord-struc', 'un-ord-struc', 'o-pair', 'pair', 'empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 
     # sub-slots
     unit = registry.create_unit('sub-slots')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['super-slots'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -2103,16 +2103,16 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['set', 'set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('is-subset-of'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
-    unit.set_prop('recursive-alg', TODO)
+    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) t) (t (and (consp s1) (member (car s1) s2) (run-alg 'subsetp (cdr s1) s2)))))"))
     unit.set_prop('specializations', ['set-equal', 'o-set-equal'])
     unit.set_prop('worth', 500)
 
     # subsumed-by
     unit = registry.create_unit('subsumed-by')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['subsumes'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -2120,7 +2120,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # subsumes
     unit = registry.create_unit('subsumes')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['subsumed-by'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -2131,14 +2131,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x) (1+ x))'))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'unary-op'])
     unit.set_prop('range', ['nnumber'])
     unit.set_prop('worth', 500)
 
     # super-slots
     unit = registry.create_unit('super-slots')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('slot'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['sub-slots'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -2157,7 +2157,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (declare (ignore y)) x)'))
     unit.set_prop('generalizations', ['or'])
     unit.set_prop('isa', ['op', 'pred', 'math-op', 'math-pred', 'anything', 'binary-op', 'logic-op', 'binary-pred'])
     unit.set_prop('range', ['anything'])
@@ -2170,7 +2170,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'anything'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO)
+    unit.set_prop('fast-alg', TODO('(lambda (x y) (declare (ignore x)) y)'))
     unit.set_prop('generalizations', ['or'])
     unit.set_prop('isa', ['op', 'pred', 'math-op', 'math-pred', 'anything', 'binary-op', 'logic-op', 'binary-pred'])
     unit.set_prop('range', ['anything'])
@@ -2179,7 +2179,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-add-to-agenda
     unit = registry.create_unit('then-add-to-agenda')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('failed-record', ['then-add-to-agenda-failed-record'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('record', ['then-add-to-agenda-record'])
@@ -2188,7 +2188,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-add-to-agenda-failed-record
     unit = registry.create_unit('then-add-to-agenda-failed-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('failed-record-for', ['then-add-to-agenda'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
@@ -2196,7 +2196,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-add-to-agenda-record
     unit = registry.create_unit('then-add-to-agenda-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
     unit.set_prop('record-for', ['then-add-to-agenda'])
@@ -2204,7 +2204,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-compute
     unit = registry.create_unit('then-compute')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('failed-record', ['then-compute-failed-record'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('record', ['then-compute-record'])
@@ -2213,7 +2213,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-compute-failed-record
     unit = registry.create_unit('then-compute-failed-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('failed-record-for', ['then-compute'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
@@ -2221,7 +2221,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-compute-record
     unit = registry.create_unit('then-compute-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot-non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
     unit.set_prop('record-for', ['then-compute'])
@@ -2229,7 +2229,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-conjecture
     unit = registry.create_unit('then-conjecture')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('failed-record', ['then-conjecture-failed-record'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('record', ['then-conjecture-record'])
@@ -2238,7 +2238,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-conjecture-failed-record
     unit = registry.create_unit('then-conjecture-failed-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('failed-record-for', ['then-conjecture'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
@@ -2246,7 +2246,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-conjecture-record
     unit = registry.create_unit('then-conjecture-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
     unit.set_prop('record-for', ['then-conjecture'])
@@ -2254,7 +2254,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-define-new-concepts
     unit = registry.create_unit('then-define-new-concepts')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('failed-record', ['then-define-new-concepts-failed-record'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('record', ['then-define-new-concepts-record'])
@@ -2263,7 +2263,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-define-new-concepts-failed-record
     unit = registry.create_unit('then-define-new-concepts-failed-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('failed-record-for', ['then-define-new-concepts'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
@@ -2271,7 +2271,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-define-new-concepts-record
     unit = registry.create_unit('then-define-new-concepts-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
     unit.set_prop('record-for', ['then-define-new-concepts'])
@@ -2279,7 +2279,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-delete-old-concepts
     unit = registry.create_unit('then-delete-old-concepts')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('failed-record', ['then-delete-old-concepts-failed-record'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('record', ['then-delete-old-concepts-record'])
@@ -2288,7 +2288,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-delete-old-concepts-failed-record
     unit = registry.create_unit('then-delete-old-concepts-failed-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('failed-record-for', ['then-delete-old-concepts'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
@@ -2296,7 +2296,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-delete-old-concepts-record
     unit = registry.create_unit('then-delete-old-concepts-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
     unit.set_prop('record-for', ['then-delete-old-concepts'])
@@ -2304,7 +2304,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-modify-slots
     unit = registry.create_unit('then-modify-slots')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('failed-record', ['then-modify-slots-failed-record'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('record', ['then-modify-slots-record'])
@@ -2313,7 +2313,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-modify-slots-failed-record
     unit = registry.create_unit('then-modify-slots-failed-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('failed-record-for', ['then-modify-slots'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
@@ -2321,7 +2321,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-modify-slots-record
     unit = registry.create_unit('then-modify-slots-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
     unit.set_prop('record-for', ['then-modify-slots'])
@@ -2329,14 +2329,14 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-parts
     unit = registry.create_unit('then-parts')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('sub-slots', ['then-compute', 'then-modify-slots', 'then-conjecture', 'then-define-new-concepts', 'then-delete-old-concepts', 'then-add-to-agenda', 'then-print-to-user'])
     unit.set_prop('worth', 600)
 
     # then-print-to-user
     unit = registry.create_unit('then-print-to-user')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('failed-record', ['then-print-to-user-failed-record'])
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('record', ['then-print-to-user-record'])
@@ -2345,7 +2345,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-print-to-user-failed-record
     unit = registry.create_unit('then-print-to-user-failed-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('failed-record-for', ['then-print-to-user'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
@@ -2353,7 +2353,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # then-print-to-user-record
     unit = registry.create_unit('then-print-to-user-record')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('dotted-pair'))
     unit.set_prop('dont-copy', True)
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'record-slot', 'anything'])
     unit.set_prop('record-for', ['then-print-to-user'])
@@ -2361,19 +2361,19 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # to-delete
     unit = registry.create_unit('to-delete')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 600)
 
     # to-delete-1
     unit = registry.create_unit('to-delete-1')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 600)
 
     # transpose
     unit = registry.create_unit('transpose')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('unit'))
     unit.set_prop('double-check', True)
     unit.set_prop('inverse', ['transpose'])
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
@@ -2418,21 +2418,21 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
 
     # unitized-alg
     unit = registry.create_unit('unitized-alg')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-fn'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['alg'])
     unit.set_prop('worth', 600)
 
     # unitized-defn
     unit = registry.create_unit('unitized-defn')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('lisp-pred'))
     unit.set_prop('isa', ['slot', 'criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('super-slots', ['defn'])
     unit.set_prop('worth', 600)
 
     # worth
     unit = registry.create_unit('worth')
-    unit.set_prop('data-type', TODO)
+    unit.set_prop('data-type', TODO('number'))
     unit.set_prop('isa', ['slot', 'non-criterial-slot', 'repr-concept', 'anything'])
     unit.set_prop('worth', 305)
 

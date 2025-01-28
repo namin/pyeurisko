@@ -26,7 +26,7 @@ def parse_unit_def(e) -> Dict[str, Any]:
         k = prope[i].value()
         v = prope[i+1]
         if problematic(k):
-            props[k] = 'TODO'
+            props[k] = 'TODO('+repr(sexpdata.dumps(v))+')'
         else:
             props[k] = v
     return {
@@ -81,7 +81,7 @@ def convert_lisp_file(input_file: str, output_file: str, module_name: str) -> No
         '',
         'from typing import Dict, Any',
         'from ..units import Unit, UnitRegistry',
-        'TODO = None # hack',
+        'TODO = lambda x: None # hack',
         'def Quoted(x): return x # hack',
         'def Symbol(x): return x # hack',
         '',
