@@ -1,6 +1,18 @@
 # Porting LISP Units to Python
 
-This document describes the process of porting LISP unit functionality from the original Eurisko to Python.
+## File Structure
+
+The LISP unit functionality is spread across several files in the `/projects/code/pyeurisko/eurisko/units/` directory:
+
+### Core Files
+- `lisp_units.py`: Contains the main unit definitions and TODO implementations that need to be ported. This is where most of the work happens.
+- `lisp_impl.py`: Contains core LISP functionality implemented in Python (cons, car, cdr, etc.). This provides the foundation for implementing the unit operations.
+
+### Workflow
+1. Ensure core LISP operations are implemented in `lisp_impl.py`
+2. Port TODO implementations in `lisp_units.py` using these core operations
+3. Add any necessary utility functions to `lisp_impl.py` as needed
+4. Test implementations through running `python -m main.eurisko` without fault.
 
 ## Types of TODOs
 
