@@ -1073,7 +1073,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('is-range-of', ['bag-insert', 'bag-delete', 'bag-delete-1', 'bag-intersect', 'bag-union', 'bag-difference'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO("(lambda (s) (cond ((not (consp s)) (eq s ())) (t (run-defn 'bag (cdr s)))))"))
+    unit.set_prop('recursive-defn', lambda s: not s if not isinstance(s, (list, tuple)) else run_defn('bag', s[1:])))
     unit.set_prop('specializations', ['set', 'o-set', 'pair', 'empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 
@@ -1835,7 +1835,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'binary-op'])
     unit.set_prop('iterative-alg', lambda x, y: x * y)
     unit.set_prop('range', ['nnumber'])
-    unit.set_prop('recursive-alg', TODO("(lambda (x y) (cond ((eq x 0) 0) ((eq x 1) y) (t (run-alg 'add y (run-alg 'multiply (1- x) y)))))"))
+    unit.set_prop('recursive-alg', lambda x, y: 0 if x == 0 else y if x == 1 else run_alg('add', y, run_alg('multiply', x-1, y))))
     unit.set_prop('unitized-alg', TODO("(lambda (x y) (cond ((eq x 0) 0) ((eq x 1) y) (t (run-alg 'add y (run-alg 'multiply (1- x) y)))))"))
     unit.set_prop('worth', 500)
 
