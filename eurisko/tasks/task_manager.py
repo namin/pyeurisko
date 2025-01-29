@@ -47,6 +47,9 @@ class TaskManager:
         from ..system import System
         self.system = System(self)
 
+    def task_count(self):
+        return len(self.agenda)
+
     def record_heuristic_result(self, heuristic_name: str, success: bool, 
                               execution_time: float, aborted: bool = False):
         """Record the outcome of applying a heuristic."""
