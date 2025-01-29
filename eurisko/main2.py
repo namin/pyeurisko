@@ -9,6 +9,7 @@ from .heuristics import initialize_all_heuristics
 from .units import Unit, UnitRegistry, initialize_all_units
 from .slots import SlotRegistry, initialize_all_slots
 from .tasks import Task, TaskManager
+from .tasks.task_manager import HeuristicStats
 
 def setup_logging(verbosity: int):
     """Configure logging based on verbosity."""
@@ -50,31 +51,42 @@ class Eurisko:
 
     def _initialize_test_applications(self, registry):
         """Initialize some test applications for units."""
-        add = registry.get_unit('add')
-        if add:
-            applications = [
+        self.logger.info("Initializing test applications...")
+        
+        operations = {
+            'add': [
                 {'args': [1, 2], 'result': 3, 'worth': 800},
                 {'args': [2, 3], 'result': 5, 'worth': 600},
                 {'args': [3, 4], 'result': 7, 'worth': 400}
-            ]
-            add.set_prop('applics', applications)
-            add.set_prop('applications', applications)
-
-        multiply = registry.get_unit('multiply')
-        if multiply:
-            applications = [
+            ],
+            'multiply': [
                 {'args': [2, 3], 'result': 6, 'worth': 900},
                 {'args': [3, 4], 'result': 12, 'worth': 500},
                 {'args': [4, 5], 'result': 20, 'worth': 300}
+            ],
+            'subtract': [
+                {'args': [5, 3], 'result': 2, 'worth': 700},
+                {'args': [8, 5], 'result': 3, 'worth': 600}
+            ],
+            'divide': [
+                {'args': [6, 2], 'result': 3, 'worth': 750},
+                {'args': [8, 4], 'result': 2, 'worth': 650}
             ]
-            multiply.set_prop('applics', applications)
-            multiply.set_prop('applications', applications)
+        }
+        
+        for op_name, apps in operations.items():
+            op = registry.get_unit(op_name)
+            if op:
+                self.logger.info(f"Setting up applications for {op_name}")
+                op.set_prop('applications', apps)
+                op.set_prop('applics', apps)  # For compatibility
+                op.set_prop('worth', sum(app['worth'] for app in apps) // len(apps))
 
     def _generate_initial_tasks(self):
         """Generate initial tasks focusing on core operations and exploration."""
         self.logger.info("Generating initial tasks...")
         tasks_added = 0
-
+        
         # Initialize basic arithmetic operations
         arithmetic_ops = {
             'add': {'priority': 600, 'description': 'Basic addition operation'},
@@ -82,36 +94,31 @@ class Eurisko:
             'subtract': {'priority': 500, 'description': 'Basic subtraction operation'},
             'divide': {'priority': 450, 'description': 'Basic division operation'}
         }
-
-        # Add tasks for arithmetic operations
+        
+        # First add specialization tasks
         for op_name, details in arithmetic_ops.items():
             op = self.unit_registry.get_unit(op_name)
-            if op:
-                # Task to find applications
+            if op and op.get_prop('applics'):
+                # Add specialization task for ops with mixed success
                 task = Task(
-                    priority=details['priority'],
+                    priority=500,
                     unit_name=op_name,
-                    slot_name='applications',
-                    reasons=[f'Initial exploration of {op_name} applications'],
-                    task_type='application_discovery',
-                    supplemental={
-                        'description': details['description'],
-                        'task_type': 'application_discovery'
-                    }
+                    slot_name='specializations',
+                    reasons=['Initial specialization exploration'],
+                    task_type='specialization',
+                    supplemental={'task_type': 'specialization'}
                 )
                 self.task_manager.add_task(task)
                 tasks_added += 1
 
-                # Task to analyze patterns
+                # Add application finding task
                 task = Task(
-                    priority=details['priority'] - 50,
+                    priority=470,
                     unit_name=op_name,
-                    slot_name='patterns',
-                    reasons=[f'Pattern analysis for {op_name}'],
-                    task_type='pattern_analysis',
-                    supplemental={
-                        'task_type': 'pattern_analysis'
-                    }
+                    slot_name='applics',
+                    reasons=['Find additional applications'],
+                    task_type='find_applications',
+                    supplemental={'task_type': 'find_applications'}
                 )
                 self.task_manager.add_task(task)
                 tasks_added += 1
@@ -131,23 +138,7 @@ class Eurisko:
                 self.task_manager.add_task(task)
                 tasks_added += 1
 
-        # Add relationship discovery tasks
-        task = Task(
-            priority=350,
-            unit_name='relationship-finder',
-            slot_name='analyze',
-            reasons=['Find initial relationships between units'],
-            task_type='relationship_discovery',
-            supplemental={
-                'task_type': 'relationship_discovery',
-                'scope': 'global'
-            }
-        )
-        self.task_manager.add_task(task)
-        tasks_added += 1
-
         self.logger.info(f"Generated {tasks_added} initial tasks")
-
 
     def run(self, eternal_mode: bool = False, 
             max_cycles: Optional[int] = None,
@@ -166,9 +157,10 @@ class Eurisko:
                 self.logger.info(f"Reached maximum cycles ({max_cycles})")
                 break
 
-            # Process regular agenda tasks
+            # Process agenda tasks
             tasks_processed = self._process_agenda_tasks(max_in_cycle)
             
+            # If no tasks processed and not in eternal mode
             if not tasks_processed and not eternal_mode:
                 self.logger.info("Agenda empty, switching to unit exploration")
                 # Find unexplored high-worth units
@@ -217,241 +209,46 @@ class Eurisko:
                     f"Working on task {task.unit_name}:{task.slot_name} "
                     f"(Priority: {task.priority})"
                 )
-                result = self._work_on_task(task)
+                # Use task_manager to process the task
+                result = self.task_manager.work_on_task(task)
                 self.logger.info(f"Task completed with status: {result.get('status')}")
                 
-                # Adjust unit worth based on task outcome
-                if result.get('status') == 'success':
+                # Record task result
+                if result.get('status') == 'completed':
                     self.task_manager.adjust_unit_worth(task.unit_name, 50)
-                elif result.get('status') == 'failure':
+                else:
                     self.task_manager.adjust_unit_worth(task.unit_name, -20)
                     
         return in_cycle_count
 
-    def _work_on_task(self, task: Task) -> Dict[str, Any]:
-        """Enhanced task execution with heuristic application and monitoring."""
-        from time import time
-        
-        start_time = time()
-        result = {'status': 'failure', 'modifications': []}
-        
-        # Get applicable heuristics
-        applicable_heuristics = self._get_applicable_heuristics(task)
-        
-        for heuristic in applicable_heuristics:
-            h_start = time()
-            try:
-                success = heuristic.apply(task, self.unit_registry)
-                execution_time = time() - h_start
-                
-                self.task_manager.record_heuristic_result(
-                    heuristic.name, success, execution_time
-                )
-                
-                if success:
-                    result['status'] = 'success'
-                    result['modifications'].append({
-                        'heuristic': heuristic.name,
-                        'time': execution_time
-                    })
-                    
-            except Exception as e:
-                self.logger.error(f"Error applying heuristic {heuristic.name}: {str(e)}")
-                self.task_manager.record_heuristic_result(
-                    heuristic.name, False, time() - h_start, aborted=True
-                )
-        
-        result['total_time'] = time() - start_time
-        return result
-
     def _work_on_unit(self, unit_name: str) -> None:
         """Direct exploration of a unit using applicable heuristics."""
-        unit = self.unit_registry.get_unit(unit_name)
-        if not unit:
-            return
-        
-        self.logger.info(f"Focusing on unit: {unit_name}")
-        
-        # Get heuristics that can work directly on units
-        unit_heuristics = self._get_unit_heuristics()
-        
-        for heuristic in unit_heuristics:
-            try:
-                heuristic.apply_to_unit(unit, self.unit_registry)
-            except Exception as e:
-                self.logger.error(f"Error applying heuristic to unit: {str(e)}")
-
-    def _get_applicable_heuristics(self, task: Task) -> List:
-        """Get heuristics that could be applied to the task.
-
-        This method filters and ranks available heuristics based on:
-        1. Task type compatibility
-        2. Historical performance
-        3. Heuristic worth values
-        4. Success rates
-        """
-        from typing import List, Tuple
-        import operator
-
-        applicable = []
-        unit = self.unit_registry.get_unit(task.unit_name)
-        if not unit:
-            return []
-
-        # Get all available heuristics
-        heuristics = self._get_all_heuristics()
-
-        for heuristic in heuristics:
-            # Check basic applicability conditions
-            if not self._is_heuristic_applicable(heuristic, task, unit):
-                continue
-
-            # Calculate a score for this heuristic
-            score = self._calculate_heuristic_score(heuristic, task)
-            applicable.append((heuristic, score))
-
-        # Sort by score and return just the heuristics
-        applicable.sort(key=operator.itemgetter(1), reverse=True)
-        return [h for h, _ in applicable]
-
-    def _is_heuristic_applicable(self, heuristic, task: Task, unit: Unit) -> bool:
-        """Check if a heuristic is applicable to the given task and unit."""
-
-        # Check if heuristic is enabled
-        if not heuristic.is_enabled():
-            return False
-
-        # Check task type compatibility
-        task_type = task.supplemental.get('task_type')
-        if task_type:
-            compatible_types = heuristic.get_prop('compatible_task_types', [])
-            if compatible_types and task_type not in compatible_types:
-                return False
-
-        # Check if heuristic has required conditions
-        if_potentially_relevant = heuristic.get_prop('if_potentially_relevant')
-        if if_potentially_relevant:
-            context = {
-                'unit': unit,
-                'task': task,
-                'system': self.unit_registry,
-                'task_manager': self.task_manager
-            }
-            try:
-                if not if_potentially_relevant(heuristic, context):
-                    return False
-            except Exception as e:
-                self.logger.error(f"Error checking potential relevance of {heuristic.name}: {e}")
-                return False
-
-        return True
-
-    def _calculate_heuristic_score(self, heuristic, task: Task) -> float:
-        """Calculate a score for how applicable/promising a heuristic is for a task."""
-
-        # Get heuristic stats
-        stats = self.task_manager.heuristic_stats.get(heuristic.name, HeuristicStats())
-
-        # Base score is the heuristic's worth
-        score = heuristic.get_prop('worth', 500) / 1000.0
-
-        # Adjust based on success rate (if we have enough data)
-        total_tries = stats.successes + stats.failures
-        if total_tries > 0:
-            success_rate = stats.successes / total_tries
-            score *= (0.5 + success_rate)  # Scale from 0.5x to 1.5x based on success
-
-        # Penalize for high abort rate
-        if total_tries > 0:
-            abort_rate = stats.aborts / total_tries
-            score *= (1.0 - abort_rate * 0.5)  # Up to 50% penalty for aborts
-
-        # Consider average execution time
-        if total_tries > 0:
-            avg_time = stats.total_time / total_tries
-            if avg_time > 1.0:  # If average time > 1 second
-                score *= (1.0 / avg_time) ** 0.5  # Gradual penalty for slow heuristics
-
-        # Boost score for task-type specific heuristics
-        task_type = task.supplemental.get('task_type')
-        if task_type:
-            compatible_types = heuristic.get_prop('compatible_task_types', [])
-            if task_type in compatible_types:
-                score *= 1.2  # 20% boost for task-type specific heuristics
-
-        # Consider recency of last use
-        if stats.last_used > 0:
-            recency = (self.task_manager.credit_assignment_counter - stats.last_used) / 1000.0
-            score *= (1.0 - min(0.5, recency))  # Up to 50% penalty for old heuristics
-
-        return score
-
-    def _get_unit_heuristics(self) -> List:
-        """Get heuristics that work directly on units.
-
-        These are heuristics specifically designed for unit exploration
-        and manipulation, rather than task-specific operations.
-        """
-        exploration_heuristics = []
-
-        # Get all available heuristics
-        all_heuristics = self._get_all_heuristics()
-
-        for heuristic in all_heuristics:
-            # Check if heuristic is enabled
-            if not heuristic.is_enabled():
-                continue
-
-            # Check if heuristic is designed for unit exploration
-            if any([
-                heuristic.get_prop('unit_explorer', False),  # Explicit flag
-                'explore' in heuristic.get_prop('compatible_task_types', []),
-                'analyze' in heuristic.get_prop('compatible_task_types', []),
-                heuristic.get_prop('arity', 0) == 1,  # Single unit operations
-            ]):
-                exploration_heuristics.append(heuristic)
-
-        # Sort by worth
-        exploration_heuristics.sort(
-            key=lambda h: h.get_prop('worth', 0),
-            reverse=True
+        # Create and execute a task to analyze the unit
+        task = Task(
+            priority=800,
+            unit_name=unit_name,
+            slot_name='analyze',
+            reasons=['Direct unit exploration'],
+            task_type='analysis',
+            supplemental={'task_type': 'analysis'}
         )
-
-        return exploration_heuristics
-
-    def _get_all_heuristics(self) -> List:
-        """Get all available heuristics from the registry."""
-        return [
-            unit for unit in self.unit_registry.all_units().values()
-            if 'Heuristic' in unit.get_prop('is_a', [])
-        ]
+        self.task_manager.work_on_task(task)
 
     def _generate_new_tasks(self) -> None:
         """Generate new tasks when agenda is empty."""
         # Look for high-worth units that haven't been examined recently
-        current_time = self.task_manager.credit_assignment_counter
-        
+        self.logger.info("Looking for high-worth units...")
         for unit_name, unit in self.unit_registry.all_units().items():
             if unit.worth_value() > 800:
-                # Create examination tasks for high-worth units
                 task = Task(
-                    unit.worth_value(),
-                    unit_name,
-                    'examine',
-                    ['high worth unit needs examination'],
-                    'examination',
-                    {'last_examined': current_time}
+                    priority=unit.worth_value(),
+                    unit_name=unit_name,
+                    slot_name='examine',
+                    reasons=['High worth unit needs examination'],
+                    task_type='examination',
+                    supplemental={'task_type': 'examination'}
                 )
                 self.task_manager.add_task(task)
-                
-            # Look for potential relationships between units
-            self._generate_relationship_tasks(unit)
-
-    def _generate_relationship_tasks(self, unit: Unit) -> None:
-        """Generate tasks to explore potential relationships between units."""
-        # Implementation would look for patterns and potential connections
-        # between units that might be worth exploring
-        pass
 
     def _print_cycle_stats(self, cycle_count: int) -> None:
         """Print detailed statistics for the cycle."""
@@ -463,11 +260,10 @@ class Eurisko:
         # Print heuristic performance stats
         if self.verbosity > 1:
             self.logger.info("Heuristic Performance:")
-            for h_name, stats in self.task_manager.heuristic_stats.items():
-                self.logger.info(
-                    f"  {h_name}: {stats.success_rate:.2%} success rate "
-                    f"({stats.successes}/{stats.successes + stats.failures})"
-                )
+            for h_name, stats in self.task_manager.heuristic_stats0.items():
+                relevant_rate = (stats['relevant'] / stats['tries_for_relevant'] * 100) if stats['tries_for_relevant'] > 0 else 0
+                success_rate = (stats['success'] / stats['tries_for_success'] * 100) if stats['tries_for_success'] > 0 else 0
+                self.logger.info(f"  {h_name}: {success_rate:.0f}% success ({relevant_rate:.0f}% relevant)")
 
 def main():
     """Command line entry point."""
