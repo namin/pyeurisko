@@ -733,3 +733,281 @@ def restrict(f, registry):
 
     return new_unit
 
+def average_worths(*args):
+    """Calculate average worth of units and values.
+    
+    Args:
+        *args: Units and values to average
+        
+    Returns:
+        Average worth value
+    """
+    total = 0
+    count = 0
+    for arg in args:
+        if hasattr(arg, 'worth'):
+            total += arg.worth
+            count += 1
+        elif isinstance(arg, (int, float, str)):
+            total += 500  # Default worth
+            count += 1
+        elif isinstance(arg, list):
+            for x in arg:
+                if hasattr(x, 'worth'):
+                    total += x.worth
+                    count += 1
+    return total // count if count > 0 else 500
+
+def mult_ele_struc_delete_1(x, s):
+    """Delete the first occurrence of x from multiple-element structure s.
+    
+    Similar to list-delete-1 but generalized for any multiple element structure.
+    
+    Args:
+        x: Element to delete
+        s: Multiple element structure
+    
+    Returns:
+        Structure with first occurrence of x removed
+    """
+    if not s:
+        return []
+    if equals(x, car(s)):
+        return cdr(s)
+    return cons(car(s), mult_ele_struc_delete_1(x, cdr(s)))
+
+def bag_delete_1(x, s):
+    """Delete the first occurrence of x from bag s.
+    
+    Same as mult_ele_struc_delete_1 since bags have same representation.
+    
+    Args:
+        x: Element to delete
+        s: Bag structure
+    
+    Returns:
+        Bag with first occurrence of x removed
+    """
+    if not s:
+        return []
+    if equals(x, car(s)):
+        return cdr(s)
+    return cons(car(s), bag_delete_1(x, cdr(s)))
+
+def bag_delete(x, s):
+    """Delete all occurrences of x from bag s.
+    
+    Args:
+        x: Element to delete
+        s: Bag structure
+        
+    Returns:
+        Bag with all occurrences of x removed
+    """
+    if not s:
+        return []
+    if equals(x, car(s)):
+        return bag_delete(x, cdr(s))
+    return cons(car(s), bag_delete(x, cdr(s)))
+
+def recursive_list_defn(s):
+    """Recursive definition for list type.
+    
+    Args:
+        s: Structure to check
+        
+    Returns:
+        True if s is a valid list (empty or cons cell), False otherwise
+    """
+    if not isinstance(s, (list, tuple)):
+        return s == []
+    return recursive_list_defn(cdr(s))
+
+def compose(f, g, registry):
+    """Compose two operations f and g.
+    
+    Creates a new operation that applies g to the result of applying f to arguments.
+    
+    Args:
+        f: First operation 
+        g: Second operation
+        registry: Unit registry for creating new unit
+    
+    Returns:
+        New composed operation unit or None if composition not possible
+    """
+    f_range = getattr(f, 'range', [])
+    g_domain = getattr(g, 'domain', [])
+    
+    if not (f_range and g_domain and is_a_kind_of(f_range[0], g_domain[0])):
+        return None
+        
+    # Create new composed operation
+    new_name = f'{g.name}-o-{f.name}'
+    new_unit = registry.create_unit(new_name)
+    
+    # Set properties
+    new_unit.set_prop('isa', list(set_difference(
+        getattr(g, 'isa', []), 
+        getattr(registry.get_unit('op-cat-by-nargs'), 'examples', [])
+    )))
+    new_unit.set_prop('worth', average_worths('compose', f, g))
+    
+    # Set up arguments
+    f_args = zip(getattr(f, 'domain', []), 
+                ['u', 'v', 'w', 'x', 'y', 'z', 'z2', 'z3', 'z4', 'z5'])
+    g_args = zip(getattr(g, 'domain', [])[1:],
+                ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'])
+    
+    f_args = list(f_args)
+    g_args = list(g_args)
+    
+    new_unit.set_prop('arity', len(f_args) + len(g_args))
+    new_unit.set_prop('domain', 
+        [a[0] for a in f_args] + [a[0] for a in g_args])
+    new_unit.set_prop('range', list(getattr(g, 'range', [])))
+    
+    # Define composition algorithm
+    def composed_alg(*args):
+        f_args_count = len(f_args)
+        f_result = run_alg(f.name, *args[:f_args_count])
+        return run_alg(g.name, f_result, *args[f_args_count:])
+    new_unit.set_prop('unitized-alg', composed_alg)
+    
+    # Set administrative properties
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['compose'])
+    
+    # Update ISA based on actual properties
+    op_cats = getattr(registry.get_unit('op-cat-by-nargs'), 'examples', [])
+    matching_cats = [pc for pc in op_cats if run_defn(pc, new_unit)]
+    new_unit.set_prop('isa', list(set(new_unit.get_prop('isa', [])) | set(matching_cats)))
+        
+    return new_unit
+    
+def divisors_of(n):
+    """Find all divisors of a number n.
+    
+    Args:
+        n: Number to find divisors for
+        
+    Returns:
+        Sorted list of all divisors of n
+    """
+    # Edge cases
+    if not isinstance(n, int) or n < 1:
+        return []
+        
+    # Find divisors up to square root    
+    divisors = []
+    i = 1
+    while i*i <= n:
+        if n % i == 0:
+            divisors.append(i)
+            if i*i != n: # Don't count square root twice
+                divisors.append(n//i)
+        i += 1
+            
+    return sorted(divisors)
+
+def unitized_even_defn(n):
+    """Definition for even number using divide by 2.
+    
+    Args:
+        n: Number to test
+        
+    Returns:
+        True if n is evenly divisible by 2, False otherwise
+    """
+    return divides(2, n)
+
+def unitized_multiply_alg(x, y):
+    """Multiply x and y using repeated addition.
+    
+    Args:
+        x: First factor
+        y: Second factor
+        
+    Returns:
+        Product x*y
+    """
+    if x == 0:
+        return 0
+    if x == 1:
+        return y
+    return run_alg('add', y, run_alg('multiply', x-1, y))
+
+def unitized_odd_defn(n):
+    """Definition for odd number using divide by 2.
+    
+    Args:
+        n: Number to test
+        
+    Returns:
+        True if n is not evenly divisible by 2, False otherwise
+    """
+    return not divides(2, n)
+
+def unitized_perfect_defn(n):
+    """Definition for perfect number using divisors.
+    
+    Args:
+        n: Number to test
+        
+    Returns:
+        True if sum of proper divisors equals n, False otherwise  
+    """
+    return run_alg('double', n) == sum(divisors_of(n))
+
+def recursive_set_defn(s):
+    """Recursive definition for set type.
+    
+    Args:
+        s: Structure to test
+        
+    Returns:
+        True if s is a valid set (no duplicates), False otherwise
+    """
+    if not isinstance(s, (list, tuple)):
+        return s == []
+    return not member(car(s), cdr(s)) and recursive_set_defn(cdr(s))
+
+def recursive_bag_equal(s1, s2):
+    """Recursive definition for bag equality.
+    
+    Args:
+        s1: First bag
+        s2: Second bag
+        
+    Returns:
+        True if bags contain same elements with same multiplicity
+    """
+    if not s1 and not s2:
+        return True
+    if not s1 or not s2:
+        return False
+    return memb(s1[0], s2) and bag_equal_recursive(s1[1:], list_delete_1(s1[0], s2))
+
+def recursive_set_equal(s1, s2):
+    """Recursive definition for set equality using subset.
+    
+    Args:
+        s1: First set
+        s2: Second set
+        
+    Returns:
+        True if sets contain same elements
+    """
+    return is_subset_of(s1, s2) and is_subset_of(s2, s1)
+
+def unitized_set_equal(s1, s2):
+    """Definition for set equality using subset.
+    
+    Args:
+        s1: First set 
+        s2: Second set
+        
+    Returns:
+        True if sets contain same elements
+    """
+    return run_alg('subsetp', s1, s2) and run_alg('subsetp', s2, s1)

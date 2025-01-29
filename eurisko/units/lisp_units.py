@@ -579,7 +579,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['type-of-structure', 'type-of-structure', 'binary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO('(lambda (s s2 f) (cond ((and (memb \'structure (generalizations s)) (memb \'structure (generalizations s2)) (memb \'op (isa f)) (eq 2 (length (domain f))) (is-a-kind-of s2 (cadr (domain f))) (or (eq \'anything (car (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (car (domain f))))))) (let ((nam (create-unit (pack* \'perform- f \'-on- s \'s-with-a- s2 \'-as-param)))) (put nam \'isa (isa f)) (put nam \'worth (average-worths \'parallel-replace-2 (average-worths f (average-worths s s2)))) (put nam \'arity 2) (put nam \'domain (list s s2)) (put nam \'range (list (let ((mu (pack* s \'-of- (car (range f)) \'s))) (cond ((unitp mu) mu) (t (cprin1 21 "~% It might be nice to have a unit called " mu "~%") s))))) (put nam \'unitized-alg (compile-report (subst f \'f \'(lambda (s s2) (mapcar (lambda (e) (run-alg \'f e s2)) s))))) (put nam \'elim-slots \'(applics)) (put nam \'creditors \'(parallel-replace-2)) (add-inv nam) nam)) (t \'failed)))'))
+    unit.set_prop('fast-alg', lambda s, s2, f, registry: parallel_replace(s, f, registry))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['binary-op'])
     unit.set_prop('rarity', [0.375, 3, 5])
@@ -998,7 +998,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('elim-slots', ['applics'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'mult-ele-struc-op', 'binary-op'])
     unit.set_prop('range', ['mult-ele-struc'])
-    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (cdr s)) (t (cons (car s) (run-alg 'mult-ele-struc-delete-1 x (cdr s))))))"))
+    unit.set_prop('recursive-alg', mult_ele_struc_delete_1)
     unit.set_prop('specializations', ['list-delete-1', 'bag-delete-1'])
     unit.set_prop('worth', 500)
 
@@ -1029,7 +1029,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['mult-ele-struc-delete-1'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
     unit.set_prop('range', ['bag'])
-    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (cdr s)) (t (cons (car s) (run-alg 'bag-delete-1 x (cdr s))))))"))
+    unit.set_prop('recursive-alg', bag_delete_1)
     unit.set_prop('worth', 500)
 
     # bag-delete
@@ -1041,7 +1041,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-delete'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'bag-op', 'binary-op'])
     unit.set_prop('range', ['bag'])
-    unit.set_prop('recursive-alg', TODO("(lambda (x s) (cond ((null s) ()) ((equal x (car s)) (run-alg 'bag-delete x (cdr s))) (t (cons (car s) (run-alg 'bag-delete x (cdr s))))))"))
+    unit.set_prop('recursive-alg', bag_delete)
     unit.set_prop('worth', 500)
 
     # bag-op
