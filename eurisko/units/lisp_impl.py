@@ -1015,3 +1015,27 @@ def unitized_set_equal(s1, s2):
         True if sets contain same elements
     """
     return run_alg('subsetp', s1, s2) and run_alg('subsetp', s2, s1)
+
+def restrict_alg(f):
+    """Restrict an operation to use a more specific type for one of its arguments.
+    
+    Args:
+        f: Operation to restrict
+        
+    Returns:
+        New restricted operation or 'failed'
+    """
+    # This is already implemented in the restrict() function
+    # We'll just call that implementation
+    return restrict(f, f.registry)
+
+def square_alg(n):
+    """Square a number using multiplication.
+    
+    Args:
+        n: Number to square
+        
+    Returns:
+        n * n using the multiply operation
+    """
+    return run_alg('multiply', n, n)
