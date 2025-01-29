@@ -192,7 +192,10 @@ def main():
     def eurisko_run():
         eurisko.run(eternal_mode=args.eternal, max_cycles=args.max_cycles, max_in_cycle=args.max_in_cycle)
     if args.timeout:
-        func_timeout(args.timeout, eurisko_run)
+        try:
+            func_timeout(args.timeout, eurisko_run)
+        except FunctionTimeOut:
+            logger.debug("Function timed out")
     else:
         eurisko_run()
     eurisko.task_manager.print_stats()
