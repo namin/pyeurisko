@@ -9,7 +9,7 @@ from typing import Optional, Dict, List, Set, Tuple
 from .heuristics import initialize_all_heuristics
 from .units import Unit, UnitRegistry, initialize_all_units
 from .slots import SlotRegistry, initialize_all_slots
-from .tasks import Task, TaskManager
+from .tasks import Task, TaskManager, generate_initial_tasks, generate_ongoing_tasks
 
 def cur_time():
     return int(time.time())  # Current time in seconds since epoch
@@ -103,59 +103,10 @@ class Eurisko:
                 break
 
     def _generate_initial_tasks(self):
-        """Generate initial tasks focusing on core operations."""
-        # Start with operations that have applications
-        for op_name in ['add', 'multiply']:
-            op = self.unit_registry.get_unit(op_name)
-            if op and op.get_prop('applics'):
-                # Add specialization task for ops with mixed success
-                task = Task(
-                    priority=500,
-                    unit_name=op_name,
-                    slot_name='specializations',
-                    reasons=['Initial specialization exploration'],
-                    task_type='specialization',
-                    supplemental={'task_type': 'specialization'}
-                )
-                self.task_manager.add_task(task)
-
-                # Add application finding task
-                task = Task(
-                    priority=450,
-                    unit_name=op_name,
-                    slot_name='applics',
-                    reasons=['Find additional applications'],
-                    task_type='find_applications',
-                    supplemental={'task_type': 'find_applications'}
-                )
-                self.task_manager.add_task(task)
-
-        # Add tasks for other key operations
-        for op_name in ['compose', 'set-union', 'list-union', 'bag-union']:
-            op = self.unit_registry.get_unit(op_name)
-            if op:
-                task = Task(
-                    priority=400,
-                    unit_name=op_name,
-                    slot_name='analyze',
-                    reasons=[f'Initial analysis of {op_name} operation'],
-                    task_type='analysis',
-                    supplemental={'task_type': 'analysis'}
-                )
-                self.task_manager.add_task(task)
+        return generate_initial_tasks(self.task_manager, self.unit_registry)
 
     def _generate_new_tasks(self) -> None:
-        """Generate new tasks when agenda is empty."""
-        # Look for high-worth units that haven't been examined recently
-        for unit_name, unit in self.unit_registry.all_units().items():
-            if unit.worth_value() > 800:  # High worth threshold
-                task = Task(
-                    unit.worth_value(),  # priority
-                    unit_name,           # unit_name
-                    'examine',           # slot_name
-                    ['high worth unit needs examination']  # reasons
-                )
-                self.task_manager.add_task(task)
+        return generate_ongoing_tasks(self.task_manager, self.unit_registry)
 
     def initialize_test_applications(self, registry):
         """Initialize some test applications for units."""
