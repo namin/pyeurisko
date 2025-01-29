@@ -3,17 +3,6 @@
 from typing import Dict, Any
 from ..units import Unit, UnitRegistry
 import logging
-def TODO(original_lisp):
-    """Placeholder for unimplemented LISP functionality.
-    Args:
-        original_lisp: The original LISP code to be implemented
-    Returns:
-        A function that logs a warning and returns None
-    """
-    def todo_func(*args, **kwargs):
-        logging.warning(f'Called unimplemented function. Original LISP: {original_lisp}')
-        return None
-    return todo_func
 from .lisp_impl import *
 def Quoted(x): return x # hack
 def Symbol(x): return x # hack
@@ -554,7 +543,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 3)
     unit.set_prop('domain', ['type-of-structure', 'type-of-structure', 'tertiary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO("(lambda (s s2 f) (cond ((and (memb 'structure (generalizations s)) (memb 'structure (generalizations s2)) (memb 'op (isa f)) (eq 3 (length (domain f))) (or (eq 'anything (caddr (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (caddr (domain f)))))) (is-a-kind-of (car (range f)) (car (domain f))) (is-a-kind-of s2 (cadr (domain f)))) (let ((nam (create-unit (pack* 'repeat2- f '-on- 's-with-a- s2 '-as-param)))) (put nam 'isa (let* ((r (isa f)) (r (subst 'binary-op 'tertiary-op r)) (r (subst 'binary-pred 'teritiary-pred r))) r)) (put nam 'worth (average-worths 'repeat2 (average-worths f (average-worths s s2)))) (put nam 'arity 2) (put nam 'domain (list s s2)) (put nam 'range (copy (range f))) (put nam 'unitized-alg (compile-report (subst f 'f '(lambda (s s2) (if (consp s) (let ((v (car s))) (mapc (lambda (e) (setf v (run-alg 'f v s2 e))) (cdr s)) v) 'failed))))) (put nam 'elim-slots '(applics)) (put nam 'creditors '(repeat2)) (add-inv nam) nam)) (t 'failed)))"))
+    unit.set_prop('fast-alg', lambda s, s2, f: repeat2(s, s2, f, registry))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'tertiary-op'])
     unit.set_prop('range', ['binary-op'])
     unit.set_prop('rarity', [0.2295082, 14, 47])
@@ -667,7 +656,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO("(lambda (f) (let ((coargs (random-pair (domain f) 'is-a-kind-of))) (cond (coargs (let ((nam (create-unit (pack* 'coa- f)))) (put nam 'isa (set-diff (isa f) (examples 'op-cat-by-nargs))) (put nam 'worth (average-worths 'coalesce f)) (put nam 'arity (1- (arity f))) (let* ((fargs (mapcar \\#\\'the-second-of (domain f) '(u v w x y z z2 z3 z4 z5))) (newargs (copy fargs))) (rplaca (nth newargs (cadr coargs)) (car (nth newargs (car coargs)))) (let ((newdom (copy (domain f)))) (rplaca (nth newdom (cadr coargs)) (car (nth newdom (car coargs)))) (if (<= (cadr coargs) 1) (pop newdom) (rplacd (nth newdom (1- (cadr coargs))) (cdr (nth newdom (cadr coargs))))) (if (<= (cadr coargs) 1) (pop fargs) (rplacd (nth fargs (1- (cadr coargs))) (cdr (nth fargs (cadr coargs))))) (put nam 'domain newdom) (put nam 'range (copy (range f))) (put nam 'unitized-alg (compile-report \\` (lambda \\,fargs (run-alg '\\,f \\,@newargs)))) (put nam 'elim-slots '(applics)) (put nam 'creditors '(coalesce)) (put nam 'isa (append (isa nam) (subset (examples 'op-cat-by-nargs) (lambda (pc) (run-defn pc nam))))) (add-inv nam) nam)))) (t 'failed))))"))
+    unit.set_prop('fast-alg', lambda f: coalesce(f, registry))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['op'])
     unit.set_prop('rarity', [0.3928571, 22, 34])
@@ -1355,7 +1344,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['op', 'op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO("(lambda (f g) (cond ((and (range f) (domain g) (is-a-kind-of (car (range f)) (car (domain g)))) (let ((fargs (mapcar \\#\\'the-second-of (domain f) '(u v w x y z z2 z3 z4 z5))) (gargs (mapcar \\#\\'the-second-of (cdr (domain g)) '(a b c d e f g h i j k))) (nam (create-unit (pack* g '-o- f)))) (put nam 'isa (set-diff (isa g) (examples 'op-cat-by-nargs))) (put nam 'worth (average-worths 'compose (average-worths f g))) (put nam 'arity (+ (length fargs) (length gargs))) (put nam 'domain (append (copy (domain f)) (cdr (domain g)))) (put nam 'range (copy (range g))) (put nam 'unitized-alg (compile-report \\` (lambda \\, (nconc (copy fargs) (copy gargs)) (run-alg '\\,g (run-alg '\\,f \\,@fargs) \\,@gargs)))) (put nam 'elim-slots '(applics)) (put nam 'creditors '(compose)) (put nam 'isa (append (isa nam) (subset (examples 'op-cat-by-nargs) (lambda (pc) (run-defn pc nam))))) (add-inv nam) nam)) (t 'failed)))"))
+    unit.set_prop('fast-alg', lambda f, g: compose(f, g, registry))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['op'])
     unit.set_prop('rarity', [0.3612903, 56, 99])
@@ -1457,7 +1446,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['nnumber'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO("(lambda (n) (sort (loop for i from 1 until (> (square i) n) when (divides i n) collect i and collect (floor n i)) \\#\\'<))"))
+    unit.set_prop('fast-alg', divisors_of)
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'unary-op'])
     unit.set_prop('iterative-alg', lambda n: [i for i in range(1, n+1) if divides(i, n)])
     unit.set_prop('range', ['set-of-numbers'])
@@ -1525,7 +1514,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('fast-defn', lambda n: fixp(n) and divides(2, n))
     unit.set_prop('generalizations', ['nnumber', 'anything'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('unitized-defn', TODO("(lambda (n) (run-alg 'divides 2 n))"))
+    unit.set_prop('unitized-defn', lambda n: run_alg('divides', 2, n))
     unit.set_prop('worth', 800)
 
     # examples
@@ -1836,7 +1825,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('iterative-alg', lambda x, y: x * y)
     unit.set_prop('range', ['nnumber'])
     unit.set_prop('recursive-alg', lambda x, y: 0 if x == 0 else y if x == 1 else run_alg('add', y, run_alg('multiply', x-1, y)))
-    unit.set_prop('unitized-alg', TODO("(lambda (x y) (cond ((eq x 0) 0) ((eq x 1) y) (t (run-alg 'add y (run-alg 'multiply (1- x) y)))))"))
+    unit.set_prop('unitized-alg', lambda x, y: 0 if x == 0 else y if x == 1 else run_alg('add', y, run_alg('multiply', x-1, y)))
     unit.set_prop('worth', 500)
 
     # nnumber
@@ -1892,7 +1881,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('fast-defn', lambda n: fixp(n) and oddp(n))
     unit.set_prop('generalizations', ['nnumber', 'anything'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('unitized-defn', TODO("(lambda (n) (not (run-alg 'divides 2 n)))"))
+    unit.set_prop('unitized-defn', lambda n: not run_alg('divides', 2, n))
     unit.set_prop('worth', 700)
 
     # op
@@ -1920,7 +1909,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
     unit.set_prop('iterative-defn', lambda n: fixp(n) and n-1 == sum(i for i in range(2, n) if divides(i, n)))
     unit.set_prop('non-examples', [0, 1])
-    unit.set_prop('unitized-defn', TODO("(lambda (n) (eq (run-alg 'double n) (apply \\#\\'+ (run-alg 'divisors-of n))))"))
+    unit.set_prop('unitized-defn', lambda n: run_alg('double', n) == sum(run_alg('divisors-of', n)))
     unit.set_prop('worth', 800)
 
     # perf-square
@@ -1948,7 +1937,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
     unit.set_prop('iterative-defn', lambda n: fixp(n) and 0 == sum(i for i in range(2, n) if divides(i, n)))
     unit.set_prop('non-examples', [0, 1])
-    unit.set_prop('unitized-defn', TODO("(lambda (n) (run-defn (run-alg 'divisors-of n) 'doubleton))"))
+    unit.set_prop('unitized-defn', lambda n: len(run_alg('divisors-of', n)) == 2)
     unit.set_prop('worth', 950)
 
     # proto-conjec
@@ -2056,18 +2045,18 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('range', ['bit'])
     unit.set_prop('recursive-alg', recursive_set_equal)
     unit.set_prop('specializations', ['o-set-equal'])
-    unit.set_prop('unitized-alg', TODO("(lambda (s1 s2) (and (run-alg 'subsetp s1 s2) (run-alg 'subsetp s2 s1)))"))
+    unit.set_prop('unitized-alg', lambda s1, s2: run_alg('subsetp', s1, s2) and run_alg('subsetp', s2, s1))
     unit.set_prop('worth', 500)
 
     # set-of-numbers
     unit = registry.create_unit('set-of-numbers')
     unit.set_prop('each-element-is-a', NUMBER)
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', TODO("(lambda (s) (and (run-defn 'set s) (every \\#\\'numberp s)))"))
+    unit.set_prop('fast-defn', lambda s: run_defn('set', s) and all(isinstance(x, (int, float)) for x in s))
     unit.set_prop('generalizations', ['anything'])
     unit.set_prop('is-range-of', ['divisors-of'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
-    unit.set_prop('unitized-defn', TODO("(lambda (s) (and (run-defn 'set s) (every (lambda (n) (run-defn 'nnumber n)) s)))"))
+    unit.set_prop('unitized-defn', lambda s: run_defn('set', s) and all(run_defn('nnumber', n) for n in s))
     unit.set_prop('worth', 500)
 
     # set-op
