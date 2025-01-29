@@ -1110,7 +1110,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('is-range-of', ['list-insert', 'list-delete', 'list-delete-1', 'list-intersect', 'list-union', 'list-difference'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO("(lambda (s) (cond ((not (consp s)) (eq s ())) (t (run-defn 'list (cdr s)))))"))
+    unit.set_prop('recursive-defn', recursive_list_defn)
     unit.set_prop('specializations', ['set', 'o-set', 'o-pair', 'empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 

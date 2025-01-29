@@ -814,12 +814,16 @@ def recursive_list_defn(s):
     """Recursive definition for list type.
     
     Args:
-        s: Structure to check
+        s: Structure to test
         
     Returns:
-        True if s is a valid list (empty or cons cell), False otherwise
+        True if s is a valid list, False otherwise
+        
+    Original LISP:
+    (lambda (s) (cond ((not (consp s)) (eq s ())) 
+                      (t (run-defn 'list (cdr s)))))
     """
-    if not isinstance(s, (list, tuple)):
+    if not consp(s):
         return s == []
     return recursive_list_defn(cdr(s))
 
