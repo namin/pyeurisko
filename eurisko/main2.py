@@ -26,71 +26,6 @@ def setup_logging(verbosity: int):
         force=True
     )
 
-@dataclass
-class HeuristicStats:
-    """Track statistics for heuristic performance."""
-    successes: int = 0
-    failures: int = 0
-    aborts: int = 0
-    total_time: float = 0.0
-    last_used: float = 0.0
-    
-    @property
-    def success_rate(self) -> float:
-        total = self.successes + self.failures
-        return self.successes / total if total > 0 else 0.0
-
-class EnhancedTaskManager(TaskManager):
-    """Enhanced task manager with better heuristic integration."""
-    
-    def __init__(self):
-        super().__init__()
-        self.heuristic_stats: Dict[str, HeuristicStats] = {}
-        self.user_impatience: float = 1.0
-        self.map_cycle_time: float = 0.0
-        self.credit_assignment_counter: int = 1
-        
-    def merge_tasks(self, task1: Task, task2: Task) -> Task:
-        """Merge two related tasks, combining their reasons and adjusting priority."""
-        new_priority = max(task1.priority, task2.priority) + \
-                      min(100, 10 * len(set(task1.reasons + task2.reasons)))
-        
-        return Task(
-            priority=min(1000, new_priority),
-            unit_name=task1.unit_name,
-            slot_name=task1.slot_name,
-            reasons=list(set(task1.reasons + task2.reasons)),
-            task_type=task1.task_type,
-            supplemental=task1.supplemental
-        )
-    
-    def record_heuristic_result(self, heuristic_name: str, success: bool, 
-                              execution_time: float, aborted: bool = False):
-        """Record the outcome of applying a heuristic."""
-        if heuristic_name not in self.heuristic_stats:
-            self.heuristic_stats[heuristic_name] = HeuristicStats()
-        
-        stats = self.heuristic_stats[heuristic_name]
-        stats.last_used = self.credit_assignment_counter
-        stats.total_time += execution_time
-        
-        if aborted:
-            stats.aborts += 1
-        elif success:
-            stats.successes += 1
-        else:
-            stats.failures += 1
-            
-        self.credit_assignment_counter += 1
-
-    def adjust_unit_worth(self, unit_name: str, delta: int):
-        """Adjust the worth of a unit based on task outcomes."""
-        unit = self.unit_registry.get_unit(unit_name)
-        if unit:
-            current_worth = unit.worth_value()
-            new_worth = max(0, min(1000, current_worth + delta))
-            unit.set_prop('worth', new_worth)
-
 class Eurisko:
     """Enhanced main Eurisko system class."""
     
@@ -99,7 +34,7 @@ class Eurisko:
         UnitRegistry.reset_instance()
         self.unit_registry = UnitRegistry.get_instance()
         self.slot_registry = SlotRegistry()
-        self.task_manager = EnhancedTaskManager()
+        self.task_manager = TaskManager()
         self.task_manager.verbosity = verbosity
         setup_logging(verbosity)
         self.logger = logging.getLogger(__name__)
@@ -136,32 +71,50 @@ class Eurisko:
             multiply.set_prop('applications', applications)
 
     def _generate_initial_tasks(self):
-        """Generate initial tasks focusing on core operations."""
-        # Start with operations that have applications
-        for op_name in ['add', 'multiply']:
-            op = self.unit_registry.get_unit(op_name)
-            if op and op.get_prop('applics'):
-                # Add specialization task for ops with mixed success
-                task = Task(
-                    priority=500,
-                    unit_name=op_name,
-                    slot_name='specializations',
-                    reasons=['Initial specialization exploration'],
-                    task_type='specialization',
-                    supplemental={'task_type': 'specialization'}
-                )
-                self.task_manager.add_task(task)
+        """Generate initial tasks focusing on core operations and exploration."""
+        self.logger.info("Generating initial tasks...")
+        tasks_added = 0
 
-                # Add application finding task
+        # Initialize basic arithmetic operations
+        arithmetic_ops = {
+            'add': {'priority': 600, 'description': 'Basic addition operation'},
+            'multiply': {'priority': 550, 'description': 'Basic multiplication operation'},
+            'subtract': {'priority': 500, 'description': 'Basic subtraction operation'},
+            'divide': {'priority': 450, 'description': 'Basic division operation'}
+        }
+
+        # Add tasks for arithmetic operations
+        for op_name, details in arithmetic_ops.items():
+            op = self.unit_registry.get_unit(op_name)
+            if op:
+                # Task to find applications
                 task = Task(
-                    priority=450,
+                    priority=details['priority'],
                     unit_name=op_name,
-                    slot_name='applics',
-                    reasons=['Find additional applications'],
-                    task_type='find_applications',
-                    supplemental={'task_type': 'find_applications'}
+                    slot_name='applications',
+                    reasons=[f'Initial exploration of {op_name} applications'],
+                    task_type='application_discovery',
+                    supplemental={
+                        'description': details['description'],
+                        'task_type': 'application_discovery'
+                    }
                 )
                 self.task_manager.add_task(task)
+                tasks_added += 1
+
+                # Task to analyze patterns
+                task = Task(
+                    priority=details['priority'] - 50,
+                    unit_name=op_name,
+                    slot_name='patterns',
+                    reasons=[f'Pattern analysis for {op_name}'],
+                    task_type='pattern_analysis',
+                    supplemental={
+                        'task_type': 'pattern_analysis'
+                    }
+                )
+                self.task_manager.add_task(task)
+                tasks_added += 1
 
         # Add tasks for other key operations
         for op_name in ['compose', 'set-union', 'list-union', 'bag-union']:
@@ -176,6 +129,25 @@ class Eurisko:
                     supplemental={'task_type': 'analysis'}
                 )
                 self.task_manager.add_task(task)
+                tasks_added += 1
+
+        # Add relationship discovery tasks
+        task = Task(
+            priority=350,
+            unit_name='relationship-finder',
+            slot_name='analyze',
+            reasons=['Find initial relationships between units'],
+            task_type='relationship_discovery',
+            supplemental={
+                'task_type': 'relationship_discovery',
+                'scope': 'global'
+            }
+        )
+        self.task_manager.add_task(task)
+        tasks_added += 1
+
+        self.logger.info(f"Generated {tasks_added} initial tasks")
+
 
     def run(self, eternal_mode: bool = False, 
             max_cycles: Optional[int] = None,

@@ -194,7 +194,7 @@ def main():
     if args.timeout:
         try:
             func_timeout(args.timeout, eurisko_run)
-        except FunctionTimeOut:
+        except FunctionTimedOut:
             logger.debug("Function timed out")
     else:
         eurisko_run()

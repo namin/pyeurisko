@@ -9,6 +9,20 @@ from .task import Task
 
 logger = logging.getLogger(__name__)
 
+@dataclass
+class HeuristicStats:
+    """Track statistics for heuristic performance."""
+    successes: int = 0
+    failures: int = 0
+    aborts: int = 0
+    total_time: float = 0.0
+    last_used: float = 0.0
+    
+    @property
+    def success_rate(self) -> float:
+        total = self.successes + self.failures
+        return self.successes / total if total > 0 else 0.0
+
 class TaskManager:
     """Manages the agenda of tasks to be worked on."""
     def __init__(self):
@@ -20,15 +34,42 @@ class TaskManager:
         self.abort_current_task: bool = False
         self.current_task: Optional[Task] = None
         self.verbosity: int = 1
-        self.heuristic_stats = defaultdict(lambda: {'tries_for_success': 0, 'success': 0, 'tries_for_relevant': 0, 'relevant': 0})
-        # Enhanced stats tracking
         self.cycle_stats = defaultdict(int)  # Stats for current cycle
         self.total_stats = defaultdict(int)  # Cumulative stats
         self.task_type_stats = defaultdict(int)  # Stats by task type
         self.unit_creation_stats = defaultdict(list)  # Track unit creation details
         self.unit_modification_stats = defaultdict(list)  # Track unit modifications
+        self.heuristic_stats0 = defaultdict(lambda: {'tries_for_success': 0, 'success': 0, 'tries_for_relevant': 0, 'relevant': 0})
+        self.heuristic_stats: Dict[str, HeuristicStats] = defaultdict(lambda: HeuristicStats())
+        self.user_impatience: float = 1.0
+        self.map_cycle_time: float = 0.0
+        self.credit_assignment_counter: int = 1
         from ..system import System
         self.system = System(self)
+
+    def record_heuristic_result(self, heuristic_name: str, success: bool, 
+                              execution_time: float, aborted: bool = False):
+        """Record the outcome of applying a heuristic."""
+        stats = self.heuristic_stats[heuristic_name]
+        stats.last_used = self.credit_assignment_counter
+        stats.total_time += execution_time
+        
+        if aborted:
+            stats.aborts += 1
+        elif success:
+            stats.successes += 1
+        else:
+            stats.failures += 1
+            
+        self.credit_assignment_counter += 1
+
+    def adjust_unit_worth(self, unit_name: str, delta: int):
+        """Adjust the worth of a unit based on task outcomes."""
+        unit = self.unit_registry.get_unit(unit_name)
+        if unit:
+            current_worth = unit.worth_value()
+            new_worth = max(0, min(1000, current_worth + delta))
+            unit.set_prop('worth', new_worth)
 
     def _process_task_results(self, results: Dict[str, Any]) -> None:
         """Process task results to add new tasks."""
@@ -208,7 +249,7 @@ class TaskManager:
 
     def track_heuristic_result(self, heuristic_name: str, mark: str, outcome: bool):
         """Track heuristic execution stats."""
-        stats = self.heuristic_stats[heuristic_name]
+        stats = self.heuristic_stats0[heuristic_name]
         tries_mark = 'tries_for_'+mark
         stats.setdefault(tries_mark, 0)
         stats.setdefault(mark, 0)
@@ -235,7 +276,7 @@ class TaskManager:
                     print(f"  - {unit_name} (from {task_type} task)")
         
         print("\nHeuristic Performance:")
-        for h_name, stats in sorted(self.heuristic_stats.items()):
+        for h_name, stats in sorted(self.heuristic_stats0.items()):
             relevant_rate = (stats['relevant'] / stats['tries_for_relevant'] * 100) if stats['tries_for_relevant'] > 0 else 0
             success_rate = (stats['success'] / stats['tries_for_success'] * 100) if stats['tries_for_success'] > 0 else 0
             print(f"{h_name} -> {success_rate:.0f}% success ({relevant_rate:.0f}% relevant)")
