@@ -52,7 +52,7 @@ def initialize_all_heuristics(unit_registry) -> None:
     logger.info(f"Discovered heuristics: {[h['name'] for h in heuristics]}")
     
     for h in heuristics:
-        if h['name'] not in enabled_heuristics:
+        if isinstance(enabled_heuristics, list) and h['name'] not in enabled_heuristics:
             logger.debug(f"Skipping disabled heuristic {h['name']}")
             continue
             
