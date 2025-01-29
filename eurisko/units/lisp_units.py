@@ -970,7 +970,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['anything', 'o-set'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO("(lambda (x s) (cond ((member x s) s) ((null s) (cons x s)) (t (cons (car s) (run-alg 'o-set-insert x (cdr s))))))"))
+    unit.set_prop('fast-alg', lambda x, s: s if member(x, s) else cons(x) if not s else cons(car(s), run_alg('o-set-insert', x, cdr(s)))))
     unit.set_prop('generalizations', ['struc-insert'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
