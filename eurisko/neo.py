@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Callable, Optional
-import anthropic
 from textwrap import dedent
 import inspect
 import logging
 from enum import Enum
+from .llm import generate
 
 class SlotType(Enum):
     CODE = "code"  # Executable Python code
@@ -34,8 +34,8 @@ class Unit:
 class EuriskoLLM:
     """LLM interface for introspection and code generation"""
     
-    def __init__(self, client: anthropic.Client):
-        self.client = client
+    def __init__(self):
+        pass
         
     def analyze_code(self, code: str) -> Dict[str, Any]:
         """Analyze Python code to extract key features and relationships"""
@@ -52,13 +52,12 @@ class EuriskoLLM:
         5. Suggested criteria for success/failure
         """)
         
-        response = self.client.messages.create(
-            model="claude-3-opus-20240229",
+        response_text = generate(
             max_tokens=1000,
             temperature=0.2,
-            messages=[{"role": "user", "content": prompt}]
+            prompt=prompt
         )
-        return response.content
+        return response_text
 
     def suggest_modifications(self, unit: Unit, context: str) -> List[Dict]:
         """Suggest modifications to a unit based on its performance"""
@@ -86,18 +85,17 @@ class EuriskoLLM:
         4. Potential risks
         """)
         
-        response = self.client.messages.create(
-            model="claude-3-opus-20240229",
+        content = generate(
             max_tokens=1000,
             temperature=0.5,
-            messages=[{"role": "user", "content": prompt}]
+            prompt=prompt
         )
-        return response.content
+        return content
 
 class NeoEurisko:
-    def __init__(self, llm_client: anthropic.Client):
+    def __init__(self):
         self.units: Dict[str, Unit] = {}
-        self.llm = EuriskoLLM(llm_client)
+        self.llm = EuriskoLLM()
         self.agenda: List[Dict] = []
         
     def create_heuristic_from_function(self, func: Callable) -> Unit:
@@ -229,13 +227,12 @@ class NeoEurisko:
         Preserve the core functionality while making the suggested improvements.
         """)
         
-        response = self.client.messages.create(
-            model="claude-3-opus-20240229",
+        content = generate(
             max_tokens=2000,
             temperature=0.2,
-            messages=[{"role": "user", "content": prompt}]
+            prompt=prompt
         )
-        return response.content
+        return content
 
     def _evaluate_criteria(self, criteria: List[str], result: Dict) -> bool:
         """Use LLM to evaluate if result meets success criteria"""
@@ -252,13 +249,12 @@ class NeoEurisko:
         Explain your reasoning.
         """)
         
-        response = self.client.messages.create(
-            model="claude-3-opus-20240229",
+        content = generate(
             max_tokens=500,
             temperature=0.2,
-            messages=[{"role": "user", "content": prompt}]
+            prompt=prompt
         )
-        return "true" in response.content.lower()
+        return "true" in content.lower()
 
 # Example usage:
 def example_heuristic(target: Unit, eurisko: NeoEurisko) -> Dict:
