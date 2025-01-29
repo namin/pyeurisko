@@ -4,13 +4,16 @@ from textwrap import dedent
 import inspect
 import logging
 from enum import Enum
+import json
 from .llm import generate
 
+logger = logging.getLogger(__name__)
+
 class SlotType(Enum):
-    CODE = "code"  # Executable Python code
-    TEXT = "text"  # Natural language description
-    LIST = "list"  # List of values
-    UNIT = "unit"  # Reference to another unit
+    CODE = "code"  
+    TEXT = "text"  
+    LIST = "list"  
+    UNIT = "unit"  
 
 @dataclass
 class Slot:
@@ -32,65 +35,66 @@ class Unit:
         return self.slots.get(name)
 
 class EuriskoLLM:
-    """LLM interface for introspection and code generation"""
-    
     def __init__(self):
-        pass
+        self.default_analysis = {
+            "core_concepts": [],
+            "key_operations": [],
+            "dependencies": [],
+            "potential_areas": [],
+            "success_criteria": []
+        }
         
     def analyze_code(self, code: str) -> Dict[str, Any]:
-        """Analyze Python code to extract key features and relationships"""
-        prompt = dedent(f"""
-        Analyze this Python code to extract key features and relationships:
+        prompt = dedent(f'''
+        Analyze this Python code and return a JSON object.
+        Use this exact format and nothing else:
+        {{
+          "core_concepts": ["concept1", "concept2"],
+          "key_operations": ["op1", "op2"],
+          "dependencies": ["dep1", "dep2"],
+          "potential_areas": ["area1", "area2"],
+          "success_criteria": ["criterion1", "criterion2"]
+        }}
+
+        Code to analyze:
         ```python
         {code}
         ```
-        Return a JSON object with:
-        1. Core concepts/objects manipulated
-        2. Key operations performed
-        3. Dependencies and relationships
-        4. Potential areas for specialization
-        5. Suggested criteria for success/failure
-        """)
+        ''')
         
-        response_text = generate(
-            max_tokens=1000,
-            temperature=0.2,
-            prompt=prompt
-        )
-        return response_text
-
-    def suggest_modifications(self, unit: Unit, context: str) -> List[Dict]:
-        """Suggest modifications to a unit based on its performance"""
-        # Get code and documentation
-        code = unit.get_slot("code")
-        docs = unit.get_slot("documentation")
-        performance = unit.get_slot("performance")
-        
-        prompt = dedent(f"""
-        Given this unit:
-        Name: {unit.name}
-        Documentation: {docs.value if docs else 'None'}
-        Code: 
-        ```python
-        {code.value if code else 'None'}
-        ```
-        Performance: {performance.value if performance else 'No data'}
-        Context: {context}
-
-        Suggest 2-3 specific modifications that could improve its performance.
-        Format each as a JSON object with:
-        1. What to modify
-        2. How to modify it
-        3. Expected benefit
-        4. Potential risks
-        """)
-        
-        content = generate(
-            max_tokens=1000,
-            temperature=0.5,
-            prompt=prompt
-        )
-        return content
+        try:
+            logger.info("Requesting code analysis")
+            response = generate(
+                max_tokens=1000,
+                temperature=0.2,
+                prompt=prompt
+            )
+            logger.debug(f"Raw response: {response[:200]}")
+            
+            try:
+                # Extract JSON if it's embedded in text
+                json_start = response.find('{')
+                json_end = response.rfind('}') + 1
+                if json_start >= 0 and json_end > json_start:
+                    json_str = response[json_start:json_end]
+                    analysis = json.loads(json_str)
+                else:
+                    logger.warning("No JSON found in response")
+                    return self.default_analysis
+                    
+                # Validate keys
+                for key in self.default_analysis:
+                    if key not in analysis:
+                        analysis[key] = self.default_analysis[key]
+                return analysis
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parse error: {str(e)}")
+                return self.default_analysis
+                
+        except Exception as e:
+            logger.error(f"LLM error: {str(e)}")
+            return self.default_analysis
 
 class NeoEurisko:
     def __init__(self):
@@ -99,7 +103,8 @@ class NeoEurisko:
         self.agenda: List[Dict] = []
         
     def create_heuristic_from_function(self, func: Callable) -> Unit:
-        """Create a heuristic unit from a Python function"""
+        logger.info(f"Creating heuristic from {func.__name__}")
+        
         # Extract code and docs
         source = inspect.getsource(func)
         docs = inspect.getdoc(func) or ""
@@ -112,6 +117,7 @@ class NeoEurisko:
         
         # Use LLM to analyze code
         analysis = self.llm.analyze_code(source)
+        logger.debug(f"Code analysis results: {analysis}")
         
         # Add extracted features as slots
         unit.add_slot("features", analysis["core_concepts"], SlotType.LIST)
@@ -133,82 +139,61 @@ class NeoEurisko:
         self.units[unit.name] = unit
         return unit
 
-    def evolve_heuristic(self, unit: Unit) -> Optional[Unit]:
-        """Evolve a heuristic based on its performance"""
-        if "Heuristic" not in unit.get_slot("is_a").value:
-            return None
-            
-        # Get performance context
-        perf = unit.get_slot("performance").value
-        context = f"Applied {perf['applications']} times, {perf['successes']} successes"
-        
-        # Get modification suggestions
-        suggestions = self.llm.suggest_modifications(unit, context)
-        
-        # Create new version with modifications
-        new_name = f"{unit.name}-evolved-{len(self.units)}"
-        new_unit = Unit(new_name)
-        
-        # Copy basic slots
-        for slot_name in ["documentation", "is_a", "features", "operations"]:
-            if slot := unit.get_slot(slot_name):
-                new_unit.add_slot(slot_name, slot.value, slot.type, slot.meta)
-        
-        # Modify code based on suggestions
-        orig_code = unit.get_slot("code").value
-        modified_code = self._apply_modifications(orig_code, suggestions)
-        new_unit.add_slot("code", modified_code, SlotType.CODE)
-        
-        # Add evolution record
-        new_unit.add_slot("evolved_from", unit.name, SlotType.UNIT)
-        new_unit.add_slot("evolution_context", {
-            "parent_performance": perf,
-            "modifications": suggestions
-        }, SlotType.LIST)
-        
-        self.units[new_name] = new_unit
-        return new_unit
-
     def apply_heuristic(self, heuristic: Unit, target: Unit) -> Dict[str, Any]:
         """Apply a heuristic to a target unit"""
         try:
             # Get code and compile
+            logger.info(f"Applying {heuristic.name} to {target.name}")
             code = heuristic.get_slot("code").value
-            func = compile(code, heuristic.name, 'exec')
             
-            # Create namespace and run
-            namespace = {"target": target, "eurisko": self}
-            exec(func, namespace)
+            # Create complete namespace with all required types
+            namespace = {
+                "Unit": Unit,
+                "SlotType": SlotType,
+                "NeoEurisko": type(self),  # Add the class itself
+                "target": target,
+                "eurisko": self,
+                # Add any other required types from the module
+                "Optional": Optional,
+                "Dict": Dict,
+                "List": List,
+                "Any": Any
+            }
+            
+            # First compile the code
+            compiled = compile(code, heuristic.name, 'exec')
+            # Execute it in our namespace
+            exec(compiled, namespace)
+            
+            # Get the function by name
+            func = namespace.get(heuristic.name)
+            if not func:
+                logger.error(f"Could not find function {heuristic.name} in compiled code")
+                return {"success": False, "error": "Function not found"}
+                
+            logger.debug(f"Executing {heuristic.name} with target={target.name}")
+            # Run the function
+            result = func(target, self)
+            logger.debug(f"Function result: {result}")
             
             # Update performance
             perf = heuristic.get_slot("performance").value
             perf["applications"] += 1
             
-            # Check success criteria
-            criteria = heuristic.get_slot("success_criteria").value
-            success = self._evaluate_criteria(criteria, namespace.get("result", {}))
-            
-            if success:
+            # Check success
+            if result.get("success", False):
+                logger.info(f"Heuristic {heuristic.name} succeeded")
                 perf["successes"] += 1
-                worth_generated = namespace.get("result", {}).get("worth_generated", 0)
+                worth_generated = result.get("worth_generated", 0)
                 perf["worth_generated"] += worth_generated
             else:
+                logger.info(f"Heuristic {heuristic.name} failed")
                 perf["failures"] += 1
                 
-            # Consider evolution if needed
-            if perf["applications"] > 10 and perf["failures"] / perf["applications"] > 0.7:
-                task = {
-                    "type": "evolve",
-                    "unit": heuristic.name,
-                    "priority": heuristic.worth,
-                    "reason": "High failure rate"
-                }
-                self.agenda.append(task)
-                
-            return namespace.get("result", {})
+            return result
             
         except Exception as e:
-            logging.error(f"Error applying {heuristic.name}: {e}")
+            logger.error(f"Error applying {heuristic.name}: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
     def _apply_modifications(self, code: str, suggestions: List[Dict]) -> str:
