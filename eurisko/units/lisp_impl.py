@@ -1039,3 +1039,26 @@ def square_alg(n):
         n * n using the multiply operation
     """
     return run_alg('multiply', n, n)
+
+def recursive_subsetp(s1, s2):
+    """Recursive implementation of subset predicate.
+    
+    Args:
+        s1: First set to test
+        s2: Second set to test
+        
+    Returns:
+        True if s1 is a subset of s2, False otherwise
+        
+    Original LISP:
+    (lambda (s1 s2) 
+      (cond ((null s1) t)
+            (t (and (consp s1) 
+                    (member (car s1) s2)
+                    (run-alg 'subsetp (cdr s1) s2)))))
+    """
+    if not s1:  # null case
+        return True
+    return (consp(s1) and 
+            member(car(s1), s2) and 
+            recursive_subsetp(cdr(s1), s2))

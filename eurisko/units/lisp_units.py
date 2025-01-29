@@ -2160,7 +2160,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('fast-alg', is_subset_of)
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'math-pred', 'pred', 'anything', 'binary-op', 'binary-pred'])
     unit.set_prop('range', ['bit'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) t) (t (and (consp s1) (member (car s1) s2) (run-alg 'subsetp (cdr s1) s2)))))"))
+    unit.set_prop('recursive-alg', recursive_subsetp)
     unit.set_prop('specializations', ['set-equal', 'o-set-equal'])
     unit.set_prop('worth', 500)
 
