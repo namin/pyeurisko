@@ -1104,3 +1104,66 @@ def recursive_set_equal(s1, s2):
         True if sets contain same elements
     """
     return is_subset_of(s1, s2) and is_subset_of(s2, s1)
+
+def repeat(s, f, registry):
+    """Create a new operation that repeatedly applies a binary operation to elements of a structure.
+    
+    Args:
+        s: Structure type
+        f: Binary operation to repeat
+        registry: Unit registry for creating new unit
+        
+    Returns:
+        New unit that applies f repeatedly over elements of s, or None if invalid
+    """
+    # Check compatibility conditions
+    if not (memb('structure', getattr(s, 'generalizations', [])) and
+            memb('op', getattr(f, 'isa', [])) and
+            len(getattr(f, 'domain', [])) == 2):
+        return None
+        
+    # Check domain compatibility
+    f_domain = getattr(f, 'domain', [])[1]  # Second argument type
+    if f_domain != 'anything':
+        typmem = getattr(s, 'each-element-is-a', None)
+        if not (typmem and is_a_kind_of(typmem, f_domain)):
+            return None
+
+    # Check first argument compatibility with range
+    f_range = getattr(f, 'range', [])[0] if getattr(f, 'range', []) else None
+    if not (f_range and is_a_kind_of(f_range, getattr(f, 'domain', [])[0])):
+        return None
+            
+    # Create new unit name
+    new_name = f'repeat-{f.name}-on-{s.name}s'
+    new_unit = registry.create_unit(new_name)
+    
+    # Copy and modify ISA - replacing binary versions with unary versions
+    isa = list(getattr(f, 'isa', []))
+    isa = [('unary-op' if x == 'binary-op' else
+            'unary-pred' if x == 'binary-pred' else
+            'constant-unary-pred' if x == 'constant-binary-pred' else x)
+           for x in isa]
+    new_unit.set_prop('isa', isa)
+    
+    # Set properties
+    new_unit.set_prop('worth', average_worths('repeat', f, s))
+    new_unit.set_prop('arity', 1)
+    new_unit.set_prop('domain', [s.name])
+    new_unit.set_prop('range', list(getattr(f, 'range', [])))
+    
+    # Define the algorithm that repeatedly applies f
+    def repeat_alg(struct):
+        if not isinstance(struct, (list, tuple)):
+            return 'failed'
+        val = struct[0]
+        for e in struct[1:]:
+            val = run_alg(f.name, val, e)
+        return val
+    new_unit.set_prop('unitized-alg', repeat_alg)
+    
+    # Set administrative properties
+    new_unit.set_prop('elim-slots', ['applics'])
+    new_unit.set_prop('creditors', ['repeat'])
+    
+    return new_unit

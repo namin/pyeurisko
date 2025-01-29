@@ -543,7 +543,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 2)
     unit.set_prop('domain', ['type-of-structure', 'binary-op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO("(lambda (s f) (cond ((and (memb 'structure (generalizations s)) (memb 'op (isa f)) (eq 2 (length (domain f))) (or (eq 'anything (cadr (domain f))) (let ((typmem (each-element-is-a s))) (and typmem (is-a-kind-of typmem (cadr (domain f)))))) (is-a-kind-of (car (range f)) (car (domain f)))) (let ((nam (create-unit (pack* 'repeat- f '-on- s 's)))) (put nam 'isa (let* ((r (isa f)) (r (subst 'unary-op 'binary-op r)) (r (subst 'unary-pred 'binary-pred r)) (r (subst 'constant-unary-pred 'constant-binary-pred r))) r)) (put nam 'worth (average-worths 'repeat (average-worths f s))) (put nam 'arity 1) (put nam 'domain (list s)) (put nam 'range (copy (range f))) (put nam 'unitized-alg (compile-report (subst f 'f '(lambda (s) (if (consp s) (let ((v (car s))) (mapc (lambda (e) (setf v (run-alg 'f v e))) (cdr s)) v) 'failed))))) (put nam 'elim-slots '(applics)) (put nam 'creditors 'repeat) (add-inv nam) nam)) (t 'failed)))"))
+    unit.set_prop('fast-alg', lambda s,f: repeat(s, f, registry))
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'binary-op'])
     unit.set_prop('range', ['unary-op'])
     unit.set_prop('rarity', [0.3555556, 16, 29])
