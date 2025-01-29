@@ -1,216 +1,263 @@
 # Neo-Eurisko Design Document
 
 ## Overview
-Neo-Eurisko is a Python reimagining of Lenat's original Eurisko system, designed to explore how modern LLMs can replace the reflection capabilities that were originally provided by Interlisp. The goal is to maintain Eurisko's core ideas about self-improving heuristics while leveraging modern tools and practices.
+Neo-Eurisko reimagines Lenat's Eurisko in Python, using LLMs to replace Interlisp's reflection capabilities. The core idea is to maintain Eurisko's self-improving nature while making the system more transparent and inspectable.
 
-## Core Concepts
+## Key Features By Example
 
-### Units
-- Basic building blocks, similar to original Eurisko
-- Each unit has:
-  - Name (string identifier)
-  - Slots (key-value storage)
-  - Worth (numeric value 0-1000)
-- Units can represent:
-  - Heuristics (executable code)
-  - Concepts (collections of properties)
-  - Patterns (discovered regularities)
+### Inspectable System State
+The system maintains inspectable state at all levels. For example:
 
-### Slots
-- Typed storage mechanism
-- Four fundamental types:
-  - CODE: Executable Python code
-  - TEXT: Natural language descriptions
-  - LIST: Collections of values
-  - UNIT: References to other units
-- Slots carry metadata to support reflection
+```python
+# 1. Examine a unit's complete state
+>>> unit = eurisko.units["test-numbers"]
+>>> print(unit)
+Unit(name='test-numbers', worth=500)
+  Slots:
+    value1: 4 (type=LIST)
+    value2: 8 (type=LIST)
+    value3: 16 (type=LIST)
 
-### LLM Integration
-- LLMs replace Interlisp's reflection capabilities
-- Used for:
-  - Code analysis
-  - Pattern discovery
-  - Heuristic evolution
-  - Success criteria evaluation
-- Always has fallback behavior if LLM fails
+# 2. Track heuristic application
+>>> result = eurisko.apply_heuristic(heuristic, unit)
+2025-01-29 18:13:45,597 - INFO - Applying find_number_patterns to test-numbers
+2025-01-29 18:13:45,599 - INFO - Found patterns: ['all_even', 'powers_of_2', 'geometric']
+2025-01-29 18:13:45,599 - INFO - Created specialized unit: test-numbers-numeric-powers_of_2
 
-## Key Components
+# 3. Examine evolution history
+>>> unit = eurisko.units["test-numbers-numeric-powers_of_2"]
+>>> print(unit.get_slot("pattern_details").value)
+{
+  "confidence": 1.0,
+  "powers": [2, 3, 4],
+  "evidence": "Numbers are 2^[2, 3, 4]"
+}
+```
 
-### NeoEurisko Class
-- Central system coordinator
-- Maintains unit registry
-- Manages heuristic application
-- Coordinates LLM interactions
+### Pattern Discovery Example
+Here's a concrete example of the system discovering multiple patterns:
 
-### EuriskoLLM Class
-- Handles all LLM interactions
-- Provides robust error handling
-- Ensures consistent JSON responses
-- Maintains default responses for failures
+```python
+# Original unit with numerical values
+unit = Unit("sequence")
+unit.add_slot("v1", 6, SlotType.LIST)
+unit.add_slot("v2", 12, SlotType.LIST)
+unit.add_slot("v3", 18, SlotType.LIST)
+unit.add_slot("v4", 24, SlotType.LIST)
 
-### Unit Class
-- Immutable after creation (except for slots)
-- Maintains type safety
-- Provides slot access methods
-- Tracks worth and relationships
+# Apply pattern detection
+result = eurisko.apply_heuristic(pattern_heuristic, unit)
 
-## Design Principles
+# Discovered patterns:
+{
+  "patterns_found": [
+    "all_even",
+    "arithmetic",
+    "multiples_of_6"
+  ],
+  "details": {
+    "all_even": {
+      "confidence": 1.0,
+      "evidence": "All numbers [6, 12, 18, 24] divisible by 2"
+    },
+    "arithmetic": {
+      "confidence": 1.0,
+      "common_difference": 6,
+      "evidence": "Common difference of 6 between consecutive terms"
+    },
+    "multiples_of_6": {
+      "confidence": 1.0,
+      "evidence": "All numbers divisible by 6"
+    }
+  }
+}
 
-### 1. Robustness
-- System should never crash
-- Graceful degradation when LLM fails
-- Default behaviors for all operations
-- Comprehensive error handling
+# Created specialized units
+- sequence-numeric-all_even
+- sequence-numeric-arithmetic
+- sequence-numeric-multiples_of_6
+```
 
-### 2. Type Safety
-- All slots have explicit types
-- Type checking on slot assignment
-- Safe execution of code slots
-- Clean separation of concerns
+### Pattern Composition
+Pattern composition allows the system to recognize how patterns interact and combine. For example:
 
-### 3. Debuggability
-- Comprehensive logging
-- Clear error messages
-- Traceable execution paths
-- Inspectable state
+1. Basic Pattern: All numbers are even
+2. Basic Pattern: Numbers form arithmetic sequence
+3. Composed Pattern: "Even arithmetic sequence with step 6"
 
-### 4. Extensibility
-- Easy to add new slot types
-- Pluggable LLM backend
-- Extensible heuristic system
-- Modular design
+The system tracks these relationships:
+```python
+>>> unit = eurisko.units["sequence-numeric-composed"]
+>>> print(unit.get_slot("pattern_composition").value)
+{
+  "type": "composition",
+  "components": ["all_even", "arithmetic"],
+  "constraints": {
+    "arithmetic": {"step": 6},
+    "all_even": {"validity": "all"}
+  },
+  "emergence": {
+    "discovered": "multiples_of_6",
+    "evidence": "Step size 6 combined with all-even property"
+  }
+}
+```
 
-## Core Invariants
+### LLM-Guided Evolution
+When a heuristic performs poorly, the system uses LLMs to suggest improvements:
 
-1. Unit Identity
-   - Names are unique
-   - Worth is always 0-1000
-   - Must have at least one slot
+```python
+# Original heuristic with poor performance
+def find_patterns(unit):
+    numbers = get_numbers(unit)
+    return check_even(numbers)
 
-2. Slot Consistency
-   - Values match declared types
-   - No null values (empty containers okay)
-   - Metadata always present
+# LLM analysis
+"This heuristic only checks for even numbers. Consider:
+1. Add arithmetic sequence detection
+2. Add geometric sequence detection
+3. Add validation for minimum sequence length"
 
-3. Heuristic Execution
-   - Must return result dictionary
-   - Must not modify other units directly
-   - Must maintain atomicity
+# Evolved heuristic
+def find_patterns_v2(unit):
+    numbers = get_numbers(unit)
+    if len(numbers) < 2:
+        return {"success": False, "reason": "Too few numbers"}
+        
+    patterns = []
+    if check_even(numbers):
+        patterns.append("even")
+    if check_arithmetic(numbers):
+        patterns.append("arithmetic")
+    if check_geometric(numbers):
+        patterns.append("geometric")
+    return {"success": True, "patterns": patterns}
+```
 
-4. LLM Integration
-   - Must have fallback behavior
-   - Must parse responses safely
-   - Must validate outputs
+### Interactive Debugging
+The system provides multiple ways to debug and understand its operation:
 
-## Integration with pyeurisko
+1. Logging with context:
+```python
+2025-01-29 18:13:45,597 - DEBUG - Starting pattern analysis for unit: sequence
+2025-01-29 18:13:45,598 - DEBUG - Found numerical values: [6, 12, 18, 24]
+2025-01-29 18:13:45,598 - INFO  - Detected pattern: arithmetic (confidence: 1.0)
+2025-01-29 18:13:45,599 - INFO  - Creating specialized unit: sequence-numeric-arithmetic
+```
 
-### Bridge Mechanism
-- Converts Neo units to pyeurisko units
-- Maintains slot mappings
-- Preserves relationships
-- Handles rule conversion
+2. Pattern Evidence:
+```python
+>>> unit = eurisko.units["sequence-numeric-arithmetic"]
+>>> print(unit.get_slot("evidence").value)
+{
+  "type": "arithmetic_sequence",
+  "values": [6, 12, 18, 24],
+  "properties": {
+    "first_term": 6,
+    "common_difference": 6,
+    "terms": 4
+  },
+  "validation": {
+    "differences": [6, 6, 6],
+    "regularity": "perfect"
+  }
+}
+```
 
-### Compatibility Layer
-- Optional pyeurisko dependency
-- Clean fallback to standalone
-- Consistent API surface
-- Type compatibility
+3. Worth Calculation:
+```python
+>>> print(unit.get_slot("worth_calculation").value)
+{
+  "base_worth": 500,
+  "adjustments": [
+    {"type": "pattern_rarity", "value": 100},
+    {"type": "composition_bonus", "value": 50},
+    {"type": "evidence_quality", "value": 50}
+  ],
+  "final_worth": 700
+}
+```
 
-## Current Focus Areas
+### Extensible Pattern Types
+The system can be extended with new pattern types:
 
-1. Pattern Discovery
-   - Numerical pattern detection
-   - Pattern composition
-   - Worth calculation
-   - Evidence tracking
+```python
+@pattern_detector
+def detect_fibonacci(numbers: List[int]) -> PatternResult:
+    """Detect Fibonacci-like sequences."""
+    if len(numbers) < 3:
+        return PatternResult(success=False)
+        
+    is_fibonacci = all(
+        numbers[i+2] == numbers[i] + numbers[i+1]
+        for i in range(len(numbers)-2)
+    )
+    
+    if is_fibonacci:
+        return PatternResult(
+            success=True,
+            pattern_type="fibonacci",
+            evidence={
+                "terms": numbers,
+                "verification": [
+                    f"{numbers[i]} + {numbers[i+1]} = {numbers[i+2]}"
+                    for i in range(len(numbers)-2)
+                ]
+            }
+        )
+    return PatternResult(success=False)
+```
+
+## Current Limitations
+
+1. Pattern Types
+- Currently focused on numerical patterns
+- Limited to single-sequence patterns
+- No cross-unit pattern detection
 
 2. Heuristic Evolution
-   - Performance tracking
-   - LLM-guided modification
-   - Success criteria
-   - Combination detection
+- LLM suggestions need human validation
+- No automatic code generation yet
+- Limited to simple code modifications
 
-3. Testing Infrastructure
-   - Unit test suite
-   - Pattern test cases
-   - Integration tests
-   - Performance benchmarks
+3. Performance
+- LLM calls can be slow
+- Pattern detection is compute-intensive
+- No pattern caching yet
 
-## Future Directions
+## Future Features
 
-1. Enhanced Pattern Types
-   - More numerical patterns
-   - Structural patterns
-   - Relationship patterns
-   - Meta-patterns
+1. Advanced Pattern Detection
+- Cross-unit pattern discovery
+- Temporal patterns in unit evolution
+- Meta-patterns in heuristic behavior
 
-2. Deeper LLM Integration
-   - Pattern discovery
-   - Heuristic generation
-   - Code improvement
-   - Concept learning
+2. Autonomous Evolution
+- Self-modifying heuristics
+- Automatic code generation
+- Safety-bounded evolution
 
-3. Better pyeurisko Integration
-   - Two-way conversion
-   - Shared heuristics
-   - Compatible worth system
-   - Event synchronization
+3. Performance Optimization
+- Pattern result caching
+- Parallel pattern detection
+- Incremental pattern updates
 
-## Command Line Interface
+## Development Roadmap
 
-```bash
-# Basic usage
-python -m eurisko.neomain
+### Phase 1 (Current)
+- ✓ Basic numerical patterns
+- ✓ Simple pattern composition
+- ✓ LLM integration
+- ✓ Logging and inspection
 
-# Run pattern tests
-python -m eurisko.neomain --test-patterns
+### Phase 2 (In Progress)
+- Richer pattern types
+- Better composition rules
+- Improved worth calculation
+- Enhanced debugging tools
 
-# Enable debug logging
-python -m eurisko.neomain --debug
-
-# Enable pyeurisko integration
-python -m eurisko.neomain --pyeurisko
-```
-
-## Project Structure
-```
-eurisko/
-├── __init__.py
-├── neo.py          # Core implementation
-├── neomain.py      # CLI and runner
-├── llm.py          # LLM integration
-└── tests/
-    ├── __init__.py
-    └── test_patterns.py
-```
-
-## Development Guidelines
-
-1. Always maintain fallbacks
-2. Add comprehensive logging
-3. Keep LLM interactions isolated
-4. Maintain type safety
-5. Write clear documentation
-6. Include test cases
-7. Consider failure modes
-8. Preserve Eurisko's spirit
-
-## Version Goals
-
-### v0.1 (Current)
-- Basic unit system
-- Simple pattern discovery
-- LLM integration
-- Test framework
-
-### v0.2 (Planned)
-- More pattern types
-- Better heuristic evolution
-- Improved pyeurisko integration
-- Enhanced testing
-
-### v0.3 (Future)
-- Pattern composition
-- Automatic heuristic generation
-- Deep learning integration
+### Phase 3 (Planned)
+- Cross-unit patterns
+- Automatic code generation
+- Pattern caching
 - Performance optimization
