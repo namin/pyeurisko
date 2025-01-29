@@ -1092,3 +1092,15 @@ def recursive_set_defn(s):
     if not isinstance(s, (list, tuple)):
         return s == []
     return not member(car(s), cdr(s)) and recursive_set_defn(cdr(s))
+
+def recursive_set_equal(s1, s2):
+    """Recursive definition for set equality using subset.
+    
+    Args:
+        s1: First set
+        s2: Second set
+        
+    Returns:
+        True if sets contain same elements
+    """
+    return is_subset_of(s1, s2) and is_subset_of(s2, s1)
