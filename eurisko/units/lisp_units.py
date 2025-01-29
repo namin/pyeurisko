@@ -297,7 +297,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('arity', 1)
     unit.set_prop('domain', ['op'])
     unit.set_prop('elim-slots', ['applics'])
-    unit.set_prop('fast-alg', TODO("(lambda (f) (let* ((garg (random-choose (subset (domain f) \\#\\'specializations))) (newdom (random-subst (random-choose (specializations garg)) garg (domain f)))) (cond ((and garg newdom (not (equal newdom (domain f)))) (let ((nam (create-unit (pack* 'restrict- f)))) (put nam 'isa (copy (isa f))) (put nam 'worth (average-worths 'restrict f)) (put nam 'arity (arity f)) (let ((fargs (mapcar \\#\\'the-second-of (domain f) '(u v w x y z z2 z3 z4 z5)))) (put nam 'domain newdom) (put nam 'range (copy (range f))) (put nam 'unitized-alg (compile-report \\` (lambda \\,fargs (run-alg '\\,f \\,@fargs))))) (put nam 'extensions (list f)) (put nam 'elim-slots '(applics)) (put nam 'creditors '(restrict)) (add-inv nam) nam)) (t 'failed))))"))
+    unit.set_prop('fast-alg', restrict_alg)
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'unary-op'])
     unit.set_prop('range', ['op'])
     unit.set_prop('worth', 600)
@@ -2114,7 +2114,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'num-op', 'anything', 'unary-op'])
     unit.set_prop('range', ['perf-square'])
     unit.set_prop('rarity', [1.0, 220, 0])
-    unit.set_prop('unitized-alg', TODO("(lambda (n) (run-alg 'multiply n n))"))
+    unit.set_prop('unitized-alg', square_alg)
     unit.set_prop('worth', 500)
 
     # struc-equal
