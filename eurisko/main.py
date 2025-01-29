@@ -1,5 +1,6 @@
 """Main entry point for PyEurisko."""
 
+from func_timeout import func_timeout, FunctionTimedOut
 import argparse
 import logging
 from typing import Optional
@@ -182,11 +183,18 @@ def main():
                         help='Maximum number of cycles to run in eternal mode')
     parser.add_argument('-n', '--max-in-cycle', type=int,
                         help='Maximum number of tasks processed in one cycle')
+    parser.add_argument('-t', '--timeout', type=int,
+                        help='Global run timeout')
     args = parser.parse_args()
 
     eurisko = Eurisko(verbosity=args.verbosity)
     eurisko.initialize()
-    eurisko.run(eternal_mode=args.eternal, max_cycles=args.max_cycles, max_in_cycle=args.max_in_cycle)
+    def eurisko_run():
+        eurisko.run(eternal_mode=args.eternal, max_cycles=args.max_cycles, max_in_cycle=args.max_in_cycle)
+    if args.timeout:
+        func_timeout(args.timeout, eurisko_run)
+    else:
+        eurisko_run()
     eurisko.task_manager.print_stats()
 
 if __name__ == '__main__':
