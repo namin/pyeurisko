@@ -6,6 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "dataclasses",
+        "func_timeout"
         "typing",
     ],
     extras_require={
