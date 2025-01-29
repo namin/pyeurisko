@@ -1079,3 +1079,16 @@ def recursive_structure_defn(s):
     if not consp(s):
         return s == []
     return recursive_structure_defn(cdr(s))
+
+def recursive_set_defn(s):
+    """Recursive definition for set type.
+    
+    Args:
+        s: Structure to test
+        
+    Returns:
+        True if s is a valid set (no duplicates), False otherwise
+    """
+    if not isinstance(s, (list, tuple)):
+        return s == []
+    return not member(car(s), cdr(s)) and recursive_set_defn(cdr(s))

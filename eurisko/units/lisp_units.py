@@ -2034,15 +2034,15 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     # set
     unit = registry.create_unit('set')
     unit.set_prop('elim-slots', ['examples'])
-    unit.set_prop('fast-defn', lambda s: not s or no_repeats_in(s))
-    unit.set_prop('generalizations', ['anything', 'structure', 'bag', 'list', 'no-mult-ele-struc', 'un-ord-struc'])
+    unit.set_prop('fast-defn', lambda s: isinstance(s, (list, tuple)) and len(set(s)) == len(s))
+    unit.set_prop('generalizations', ['anything', 'structure', 'no-mult-ele-struc', 'un-ord-struc'])
     unit.set_prop('generator', [[[]], ['get-a-set'], ['old']])
-    unit.set_prop('in-domain-of', ['random-choose', 'random-subset', 'good-choose', 'best-choose', 'best-subset', 'good-subset', 'set-equal', 'subsetp', 'set-insert', 'set-delete', 'set-intersect', 'set-union', 'set-difference'])
-    unit.set_prop('is-range-of', ['random-subset', 'best-subset', 'good-subset', 'set-insert', 'set-delete', 'set-intersect', 'set-union', 'set-difference', 'restrict-random-subset-2-1', 'restrict-random-subset-1-2'])
+    unit.set_prop('in-domain-of', ['set-insert', 'set-delete', 'set-delete-1', 'set-equal', 'set-intersect', 'set-union', 'set-difference', 'subsetp'])
+    unit.set_prop('is-range-of', ['set-insert', 'set-delete', 'set-delete-1', 'set-intersect', 'set-union', 'set-difference'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category', 'type-of-structure'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO("(lambda (s) (cond ((not (consp s)) (eq s ())) (t (and (not (member (car s) (cdr s))) (run-defn 'set (cdr s))))))"))
-    unit.set_prop('specializations', ['o-set', 'empty-struc', 'non-empty-struc', 'set-of-sets'])
+    unit.set_prop('recursive-defn', recursive_set_defn)
+    unit.set_prop('specializations', ['empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 
     # set-equal
