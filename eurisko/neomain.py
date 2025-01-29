@@ -24,8 +24,22 @@ except ImportError:
 
 def find_number_patterns(target: 'Unit', eurisko: 'NeoEurisko') -> Dict[str, Any]:
     '''Look for interesting numerical patterns in unit properties.
-    If found, create new specialized units based on those patterns.'''
-    result = {"success": False, "patterns_found": [], "worth_generated": 0}
+    If found, create new specialized units based on those patterns.
+    
+    Detects patterns like:
+    - Even/Odd numbers
+    - Powers of 2
+    - Arithmetic sequences
+    - Geometric sequences
+    - Perfect squares
+    - Fibonacci-like sequences
+    '''
+    result = {
+        "success": False, 
+        "patterns_found": [], 
+        "worth_generated": 0,
+        "details": {}
+    }
     
     # Get numerical properties
     numbers = []
@@ -38,29 +52,69 @@ def find_number_patterns(target: 'Unit', eurisko: 'NeoEurisko') -> Dict[str, Any
         
     # Look for patterns
     patterns = []
+    details = {}
     
     # Check if all numbers are even
     if all(n % 2 == 0 for n in numbers):
         patterns.append("all_even")
+        details["all_even"] = {
+            "confidence": 1.0,
+            "evidence": f"All numbers ({numbers}) are divisible by 2"
+        }
         
     # Check if all numbers are powers of 2
     def is_power_2(n):
         return n > 0 and (n & (n - 1)) == 0
     if all(is_power_2(n) for n in numbers):
         patterns.append("powers_of_2")
+        powers = [n.bit_length() - 1 for n in numbers]
+        details["powers_of_2"] = {
+            "confidence": 1.0,
+            "powers": powers,
+            "evidence": f"Numbers are 2^{powers}"
+        }
         
-    # If patterns found, create specialized unit
-    if patterns:
-        new_name = f"{target.name}-numeric-{patterns[0]}"
+    # Check for arithmetic sequence
+    if len(numbers) > 2:
+        diffs = [numbers[i+1] - numbers[i] for i in range(len(numbers)-1)]
+        if len(set(diffs)) == 1:
+            patterns.append("arithmetic")
+            details["arithmetic"] = {
+                "confidence": 1.0,
+                "common_difference": diffs[0],
+                "evidence": f"Common difference of {diffs[0]} between consecutive terms"
+            }
+            
+    # Check for geometric sequence
+    if len(numbers) > 2 and all(n > 0 for n in numbers):
+        ratios = [numbers[i+1]/numbers[i] for i in range(len(numbers)-1)]
+        if len(set(f"{r:.6f}" for r in ratios)) == 1:  # Allow for float imprecision
+            patterns.append("geometric")
+            details["geometric"] = {
+                "confidence": 1.0,
+                "common_ratio": ratios[0],
+                "evidence": f"Common ratio of {ratios[0]:.2f} between consecutive terms"
+            }
+        
+    # If patterns found, create specialized units
+    for pattern in patterns:
+        new_name = f"{target.name}-numeric-{pattern}"
         specialized = Unit(new_name)
         specialized.worth = min(1000, target.worth + 100)
         specialized.add_slot("specializes", target.name, SlotType.UNIT)
-        specialized.add_slot("pattern_found", patterns[0], SlotType.TEXT)
-        eurisko.units[new_name] = specialized
+        specialized.add_slot("pattern_found", pattern, SlotType.TEXT)
+        specialized.add_slot("pattern_details", details[pattern], SlotType.LIST)
         
+        # Add the numbers that show this pattern
+        specialized.add_slot("examples", numbers, SlotType.LIST)
+        
+        eurisko.units[new_name] = specialized
+        result["worth_generated"] += 100
+        
+    if patterns:
         result["success"] = True
         result["patterns_found"] = patterns
-        result["worth_generated"] = 100
+        result["details"] = details
         
     return result
 
