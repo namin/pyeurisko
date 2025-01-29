@@ -796,7 +796,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('generalizations', ['struc-intersect'])
     unit.set_prop('isa', ['math-concept', 'math-op', 'op', 'anything', 'struc-op', 'o-set-op', 'binary-op'])
     unit.set_prop('range', ['o-set'])
-    unit.set_prop('recursive-alg', TODO("(lambda (s1 s2) (cond ((null s1) ()) ((member (car s1) s2) (cons (car s1) (run-alg 'o-set-intersect (cdr s1) s2))) (t (run-alg 'o-set-intersect (cdr s1) s2))))"))
+    unit.set_prop('recursive-alg', lambda s1, s2: [] if not s1 else ([s1[0]] + run_alg('o-set-intersect', s1[1:], s2) if member(s1[0], s2) else run_alg('o-set-intersect', s1[1:], s2)))
     unit.set_prop('worth', 500)
 
     # list-intersect
