@@ -2139,7 +2139,7 @@ def initialize_lisp_units(registry: UnitRegistry) -> None:
     unit.set_prop('is-range-of', ['struc-insert', 'struc-delete', 'struc-intersect', 'struc-union', 'struc-difference'])
     unit.set_prop('isa', ['math-concept', 'math-obj', 'anything', 'category'])
     unit.set_prop('rarity', [0, 2, 2])
-    unit.set_prop('recursive-defn', TODO("(lambda (s) (cond ((not (consp s)) (eq s ())) (t (run-defn 'structure (cdr s)))))"))
+    unit.set_prop('recursive-defn', recursive_structure_defn)
     unit.set_prop('specializations', ['set', 'list', 'bag', 'mult-ele-struc', 'o-set', 'no-mult-ele-struc', 'ord-struc', 'un-ord-struc', 'o-pair', 'pair', 'empty-struc', 'non-empty-struc'])
     unit.set_prop('worth', 500)
 

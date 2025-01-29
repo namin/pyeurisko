@@ -1062,3 +1062,20 @@ def recursive_subsetp(s1, s2):
     return (consp(s1) and 
             member(car(s1), s2) and 
             recursive_subsetp(cdr(s1), s2))
+
+def recursive_structure_defn(s):
+    """Recursive definition for structure type.
+    
+    Args:
+        s: Structure to test
+        
+    Returns:
+        True if s is a valid structure, False otherwise
+        
+    Original LISP:
+    (lambda (s) (cond ((not (consp s)) (eq s ())) 
+                      (t (run-defn 'structure (cdr s)))))
+    """
+    if not consp(s):
+        return s == []
+    return recursive_structure_defn(cdr(s))
