@@ -3,8 +3,9 @@ import chess
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 from ..neo import NeoEurisko, Unit, SlotType
-from .motifs import ChessMotif, create_motif_from_analysis
-from .pattern_learner import analyze_position_change, PieceRelation, GeometricPattern
+from .motifs import ChessMotif, create_basic_motifs
+from .pattern_learner import analyze_position_change
+from .pattern_concepts import ConceptDiscoverer
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -14,164 +15,163 @@ class ChessDiscoverySystem(NeoEurisko):
     
     def __init__(self):
         super().__init__()
-        self.motifs: Dict[str, ChessMotif] = {}
-        self.pattern_examples = defaultdict(list)  # Collects examples for pattern discovery
-        self.min_examples_for_motif = 3  # Reduced from 5 to be more lenient
+        self.patterns = []
+        self.pattern_examples = defaultdict(list)
+        self.concept_discoverer = ConceptDiscoverer()
+        self.min_examples_for_pattern = 3
         
     def analyze_position(self, board: chess.Board) -> List[Dict[str, Any]]:
-        """Apply all known motif detection heuristics to a position."""
+        """Analyze a position for tactical patterns."""
         findings = []
-        for motif in self.motifs.values():
-            try:
-                result = motif.detect(board)
-                if result["instances"]:
-                    findings.append(result)
-            except Exception as e:
-                logger.error(f"Error detecting motif {motif.name}: {e}")
+        try:
+            relationships = analyze_position_change(board, board.copy(), None)
+            findings.extend(self.extract_patterns(relationships))
+        except Exception as e:
+            logger.error(f"Error analyzing position: {e}")
         return findings
         
-    def learn_from_puzzle(self, board: chess.Board, solution: List[str], themes: List[str]):
-        """Learn from a puzzle by analyzing the positions and moves."""
+    def extract_patterns(self, relationships: Dict) -> List[Dict]:
+        """Extract potential patterns from position relationships."""
+        patterns = []
+        
+        # Look at piece relationships
+        for rel in relationships.get('new_relations', []):
+            pattern = {
+                'pieces': [chess.piece_name(rel.from_piece.piece_type),
+                          chess.piece_name(rel.to_piece.piece_type)],
+                'relationship': rel.relation_type,
+                'squares': [rel.from_square, rel.to_square]
+            }
+            patterns.append(pattern)
+            
+        # Look at geometric patterns
+        for geo in relationships.get('new_patterns', []):
+            pattern = {
+                'pieces': [chess.piece_name(p.piece_type) for p in geo.pieces],
+                'relationship': geo.pattern_type,
+                'squares': geo.squares
+            }
+            patterns.append(pattern)
+            
+        return patterns
+        
+    def learn_from_puzzle(self, board: chess.Board, solution: List[str]):
+        """Learn from a puzzle by analyzing positions and moves."""
         try:
             board_copy = board.copy()
-            all_analyses = []
+            current_patterns = []
+            moves = []
             
             # Analyze each move in the solution
             for move_uci in solution:
                 move = chess.Move.from_uci(move_uci)
+                moves.append(move)
                 
-                # Analyze position before and after move
-                analysis = analyze_position_change(board_copy, board_copy.copy(), move)
-                analysis['themes'] = themes
-                analysis['position'] = board_copy.fen()
-                
-                # Add to collected analyses
-                all_analyses.append(analysis)
-                
-                # Store the analysis for pattern learning
-                self.collect_pattern_example(analysis)
+                # Get patterns before move
+                before_patterns = self.analyze_position(board_copy)
                 
                 # Make the move
+                piece_captured = board_copy.piece_at(move.to_square)
+                material_gain = self.calculate_material_gain(piece_captured)
                 board_copy.push(move)
                 
-            # Try to discover new patterns after collecting all analyses
-            self.discover_patterns(all_analyses)
+                # Get patterns after move
+                after_patterns = self.analyze_position(board_copy)
                 
+                # Look for new or changed patterns
+                new_patterns = self.find_new_patterns(before_patterns, after_patterns)
+                for pattern in new_patterns:
+                    pattern_key = self.get_pattern_key(pattern)
+                    self.pattern_examples[pattern_key].append({
+                        'board': board_copy.copy(),
+                        'moves': moves.copy(),
+                        'material_gain': material_gain
+                    })
+                    
+                # Add to concept discoverer
+                self.concept_discoverer.add_pattern_sequence(
+                    pattern_key, moves.copy(), material_gain
+                )
+                
+            # Update patterns database
+            self.update_patterns()
+            
         except Exception as e:
             logger.error(f"Error learning from puzzle: {e}")
             
-    def collect_pattern_example(self, analysis: Dict):
-        """Collect an example of a potential pattern."""
-        # Extract key features from the analysis
-        features = self.extract_key_features(analysis)
+    def calculate_material_gain(self, captured_piece: Optional[chess.Piece]) -> int:
+        """Calculate material gain from a capture."""
+        if not captured_piece:
+            return 0
+            
+        values = {
+            chess.PAWN: 1,
+            chess.KNIGHT: 3,
+            chess.BISHOP: 3,
+            chess.ROOK: 5,
+            chess.QUEEN: 9
+        }
+        return values.get(captured_piece.piece_type, 0)
         
-        for feature_set in features:
-            # Create a pattern key from the features
-            pattern_key = tuple(sorted(feature_set))
-            
-            # Store the complete analysis with these features
-            self.pattern_examples[pattern_key].append(analysis)
-            
-    def extract_key_features(self, analysis: Dict) -> List[set]:
-        """Extract key features that might indicate a tactical pattern."""
-        features = []
+    def find_new_patterns(self, before: List[Dict], after: List[Dict]) -> List[Dict]:
+        """Find patterns that are new or changed after a move."""
+        new_patterns = []
+        before_keys = {self.get_pattern_key(p) for p in before}
         
-        # Look at new piece relations
-        for relation in analysis.get("new_relations", []):
-            # Basic relation features
-            relation_features = {
-                f"relation_{relation.relation_type}",
-                f"from_{chess.piece_name(relation.from_piece.piece_type)}",
-                f"to_{chess.piece_name(relation.to_piece.piece_type)}"
-            }
-            features.append(relation_features)
-            
-            # Add theme-based features if present
-            if analysis.get('themes'):
-                for theme in analysis['themes']:
-                    relation_features.add(f"theme_{theme}")
-            
-        # Look at new geometric patterns
-        for pattern in analysis.get("new_patterns", []):
-            pattern_features = {
-                f"geometry_{pattern.pattern_type}",
-                f"piece_count_{len(pattern.pieces)}"
-            }
-            # Add piece types involved
-            for piece in pattern.pieces:
-                pattern_features.add(f"uses_{chess.piece_name(piece.piece_type)}")
-            features.append(pattern_features)
-            
-        return features
-        
-    def discover_patterns(self, analyses: List[Dict]):
-        """Try to discover new patterns from collected examples."""
-        for feature_key, examples in self.pattern_examples.items():
-            if len(examples) >= self.min_examples_for_motif:
-                # Create a descriptive name from the features
-                pattern_name = self.create_pattern_name(feature_key)
+        for pattern in after:
+            key = self.get_pattern_key(pattern)
+            if key not in before_keys:
+                new_patterns.append(pattern)
                 
-                if pattern_name not in self.motifs:
-                    # Try to create a new motif
-                    motif = create_motif_from_analysis(pattern_name, examples)
-                    if motif:
-                        # Calculate success metrics
-                        material_gains = [ex.get("material_change", 0) for ex in examples]
-                        successful_gains = [g for g in material_gains if g > 0]
-                        
-                        if len(successful_gains) > 0:
-                            success_rate = len(successful_gains) / len(examples)
-                            if success_rate > 0.3:  # At least 30% success rate
-                                logger.info(f"Discovered new pattern: {pattern_name}")
-                                self.motifs[pattern_name] = motif
-                                self.units[pattern_name] = motif
-                                
-    def create_pattern_name(self, feature_key: tuple) -> str:
-        """Create a descriptive name for a pattern based on its features."""
-        # Extract main components
-        relations = [f for f in feature_key if f.startswith("relation_")]
-        geometries = [f for f in feature_key if f.startswith("geometry_")]
-        pieces = [f for f in feature_key if f.startswith("from_") or f.startswith("to_")]
-        themes = [f for f in feature_key if f.startswith("theme_")]
+        return new_patterns
         
-        name_parts = []
+    def get_pattern_key(self, pattern: Dict) -> str:
+        """Generate a unique key for a pattern."""
+        pieces = '_'.join(sorted(pattern['pieces']))
+        return f"{pieces}_{pattern['relationship']}"
         
-        # Add main relation type if present
-        if relations:
-            name_parts.append(relations[0].replace("relation_", ""))
-            
-        # Add geometry if present
-        if geometries:
-            name_parts.append(geometries[0].replace("geometry_", ""))
-            
-        # Add piece types if present
-        if pieces:
-            piece_names = [p.split("_")[1] for p in pieces]
-            name_parts.extend(piece_names[:2])  # Just take first two pieces
-            
-        # Add theme if present
-        if themes:
-            name_parts.append(themes[0].replace("theme_", ""))
-            
-        return "_".join(name_parts)
+    def update_patterns(self):
+        """Update the database of discovered patterns."""
+        self.patterns = []
         
-    def get_pattern_statistics(self) -> Dict[str, Dict]:
-        """Get statistics about discovered patterns."""
-        stats = {}
-        for name, motif in self.motifs.items():
-            perf = motif.get_slot("performance").value
-            success_rate = motif.get_slot("success_rate").value
-            avg_gain = motif.get_slot("average_gain").value
-            examples = motif.get_slot("examples").value
+        for pattern_key, examples in self.pattern_examples.items():
+            if len(examples) < self.min_examples_for_pattern:
+                continue
+                
+            # Calculate success metrics
+            successful = [ex for ex in examples if ex['material_gain'] > 0]
+            success_rate = len(successful) / len(examples)
+            avg_gain = sum(ex['material_gain'] for ex in examples) / len(examples)
             
-            stats[name] = {
-                "success_rate": success_rate,
-                "average_gain": avg_gain,
-                "total_applications": perf["applications"],
-                "examples_count": len(examples),
-                "themes": list(set(
-                    theme for ex in examples 
-                    for theme in ex.get('themes', [])
-                ))
+            # Parse pattern info
+            pieces = pattern_key.split('_')[:-1]  # Last part is relationship
+            relationship = pattern_key.split('_')[-1]
+            
+            pattern = {
+                'name': pattern_key,
+                'pieces': pieces,
+                'relationship': relationship,
+                'success_rate': success_rate,
+                'avg_gain': avg_gain,
+                'examples': examples[:5]  # Keep top 5 examples
             }
-        return stats
+            
+            self.patterns.append(pattern)
+            
+    def discover_concepts(self) -> List[Dict]:
+        """Discover higher-level chess concepts from patterns."""
+        concepts = self.concept_discoverer.discover_concepts(self.patterns)
+        return [
+            {
+                'name': concept.name,
+                'patterns': len(concept.patterns),
+                'success_rate': concept.success_rate,
+                'avg_gain': concept.avg_material_gain,
+                'core_features': concept.core_features
+            }
+            for concept in concepts
+        ]
+        
+    def find_novel_patterns(self) -> List[Dict]:
+        """Find successful patterns that don't match common chess concepts."""
+        return self.concept_discoverer.get_novel_patterns()

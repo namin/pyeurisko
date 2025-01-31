@@ -1,13 +1,11 @@
 """Main script for running the chess discovery system."""
 import chess
 import logging
-from typing import Optional, Dict, List
+from typing import Optional
 import argparse
 import os
-import csv
-import json
-from collections import defaultdict
 from .discovery import ChessDiscoverySystem
+import json
 
 # Set up logging
 logging.basicConfig(
@@ -23,7 +21,6 @@ class PuzzleExtractor:
     
     def __init__(self):
         self.header_idx = dict([(self.HEADERS[i], i) for i in range(len(self.HEADERS))])
-        self.themes_by_puzzle = defaultdict(list)
 
     def extract_puzzle(self, line: str):
         """Extract board and solution from a puzzle line."""
@@ -33,65 +30,76 @@ class PuzzleExtractor:
         board = chess.Board(fen)
         solution_moves = xs[self.header_idx['Moves']].split(' ')
         themes = xs[self.header_idx['Themes']].strip('"').split(' ')
-        self.themes_by_puzzle[puzzle_id] = themes
         return puzzle_id, board, solution_moves, themes
 
-def print_status(system: ChessDiscoverySystem, stats_by_theme: Dict):
-    """Print current status of the discovery system."""
-    print("\nDiscovered Patterns:")
-    pattern_stats = system.get_pattern_statistics()
+def print_discovered_concepts(system: ChessDiscoverySystem):
+    """Print the discovered chess concepts."""
+    concepts = system.discover_concepts()
     
-    if not pattern_stats:
-        print("No patterns discovered yet")
-    else:
-        for name, stats in pattern_stats.items():
-            print(f"\n{name}:")
-            print(f"  Success rate: {stats['success_rate']*100:.1f}%")
-            print(f"  Average material gain: {stats['average_gain']:.1f}")
-            print(f"  Total applications: {stats['total_applications']}")
-            print(f"  Examples collected: {stats['examples_count']}")
-            print(f"  Associated themes: {', '.join(stats['themes'])}")
+    print("\nDiscovered Chess Concepts:")
+    for i, concept in enumerate(concepts, 1):
+        print(f"\nConcept {i}: {concept['name']}")
+        print(f"Based on {concept['patterns']} related patterns")
+        print(f"Success rate: {concept['success_rate']*100:.1f}%")
+        print(f"Average material gain: {concept['avg_gain']:.1f}")
+        print("\nCore Features:")
+        for feature, value in concept['core_features'].items():
+            if isinstance(value, set):
+                value = list(value)
+            print(f"  {feature}: {value}")
 
-    print("\nPattern Success by Puzzle Theme:")
-    for theme, stats in stats_by_theme.items():
-        if stats['total'] > 0:
-            success_rate = (stats['discovered'] / stats['total']) * 100
-            print(f"{theme}: {success_rate:.1f}% led to discoveries ({stats['discovered']}/{stats['total']})")
+def print_novel_patterns(system: ChessDiscoverySystem):
+    """Print novel patterns that don't match common chess concepts."""
+    novel = system.find_novel_patterns()
+    
+    print("\nNovel Patterns Discovered:")
+    for i, pattern in enumerate(novel, 1):
+        print(f"\nPattern {i}:")
+        print(f"Pieces: {' -> '.join(pattern['pieces'])}")
+        print(f"Relationship: {pattern['relationship']}")
+        print(f"Success rate: {pattern['success_rate']*100:.1f}%")
+        print(f"Average material gain: {pattern['avg_gain']:.1f}")
+        if pattern['examples']:
+            print("\nExample position:")
+            ex = pattern['examples'][0]
+            print(f"FEN: {ex['board'].fen()}")
+            print(f"Moves: {' '.join(m.uci() for m in ex['moves'])}")
+            print(f"Material gain: {ex['material_gain']}")
 
-def save_discovered_patterns(system: ChessDiscoverySystem, output_dir: str):
-    """Save discovered patterns to files."""
+def save_discoveries(system: ChessDiscoverySystem, output_dir: str):
+    """Save discovered concepts and patterns to files."""
     os.makedirs(output_dir, exist_ok=True)
     
-    # Save pattern statistics
-    stats_file = os.path.join(output_dir, "pattern_statistics.json")
-    with open(stats_file, 'w') as f:
-        json.dump(system.get_pattern_statistics(), f, indent=2)
+    # Save concepts
+    concepts_file = os.path.join(output_dir, "discovered_concepts.json")
+    with open(concepts_file, 'w') as f:
+        json.dump(system.discover_concepts(), f, indent=2, default=str)
         
-    # Save example positions for each pattern
-    examples_file = os.path.join(output_dir, "pattern_examples.csv")
-    with open(examples_file, 'w') as f:
-        writer = csv.writer(f)
-        writer.writerow(["Pattern", "FEN", "Move", "Themes", "Material_Change"])
-        for name, motif in system.motifs.items():
-            for example in motif.get_slot("examples").value:
-                writer.writerow([
-                    name,
-                    example.get('position', ''),
-                    example.get('move', ''),
-                    ','.join(example.get('themes', [])),
-                    example.get('material_change', 0)
-                ])
+    # Save novel patterns
+    patterns_file = os.path.join(output_dir, "novel_patterns.json")
+    with open(patterns_file, 'w') as f:
+        # Convert chess objects to strings for JSON
+        novel = []
+        for pattern in system.find_novel_patterns():
+            pattern = pattern.copy()
+            examples = []
+            for ex in pattern['examples']:
+                examples.append({
+                    'fen': ex['board'].fen(),
+                    'moves': [m.uci() for m in ex['moves']],
+                    'material_gain': ex['material_gain']
+                })
+            pattern['examples'] = examples
+            novel.append(pattern)
+        json.dump(novel, f, indent=2)
 
-def run_discovery(puzzle_file: str, output_dir: str = "discovered_patterns",
+def run_discovery(puzzle_file: str, output_dir: str = "chess_discoveries",
                 num_puzzles: Optional[int] = None):
     """Run the discovery system on puzzles."""
     system = ChessDiscoverySystem()
     extractor = PuzzleExtractor()
     
-    # Track statistics
-    stats_by_theme = defaultdict(lambda: {"discovered": 0, "total": 0})
-    
-    logger.info("Starting chess pattern discovery")
+    logger.info("Starting pattern discovery")
     
     # Process puzzles
     with open(puzzle_file) as f:
@@ -105,48 +113,40 @@ def run_discovery(puzzle_file: str, output_dir: str = "discovered_patterns",
             try:
                 puzzle_id, board, solution, themes = extractor.extract_puzzle(line.strip())
                 
-                # Update theme counts
-                for theme in themes:
-                    stats_by_theme[theme]["total"] += 1
-                
-                # Count patterns before
-                patterns_before = len(system.motifs)
-                
                 # Learn from the puzzle
-                system.learn_from_puzzle(board, solution, themes)
-                
-                # Check if new patterns were discovered
-                patterns_after = len(system.motifs)
-                if patterns_after > patterns_before:
-                    for theme in themes:
-                        stats_by_theme[theme]["discovered"] += 1
+                system.learn_from_puzzle(board, solution)
                 
                 puzzles_processed += 1
-                
                 if puzzles_processed % 100 == 0:
                     logger.info(f"Processed {puzzles_processed} puzzles")
-                    print_status(system, stats_by_theme)
+                    # Show intermediate discoveries
+                    print_discovered_concepts(system)
+                    print_novel_patterns(system)
                     
             except Exception as e:
                 logger.error(f"Error processing puzzle: {e}")
                 continue
                 
     logger.info("Discovery complete")
-    print_status(system, stats_by_theme)
     
-    # Save discovered patterns
-    save_discovered_patterns(system, output_dir)
+    # Show final discoveries
+    print_discovered_concepts(system)
+    print_novel_patterns(system)
+    
+    # Save discoveries
+    save_discoveries(system, output_dir)
+    logger.info(f"Saved discoveries to {output_dir}")
     
     return system
 
 def main():
-    parser = argparse.ArgumentParser(description="Run chess pattern discovery system")
+    parser = argparse.ArgumentParser(description="Run chess pattern discovery")
     parser.add_argument("--puzzle-file", default="db/lichess_db_puzzle.csv",
                       help="Path to Lichess puzzle database CSV")
     parser.add_argument("--num-puzzles", type=int,
                       help="Number of puzzles to process (default: all)")
-    parser.add_argument("--output-dir", default="discovered_patterns",
-                      help="Directory to save discovered patterns")
+    parser.add_argument("--output-dir", default="chess_discoveries",
+                      help="Directory to save discoveries")
     parser.add_argument("--debug", action="store_true",
                       help="Enable debug logging")
     
