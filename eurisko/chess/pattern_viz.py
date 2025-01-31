@@ -39,7 +39,7 @@ def board_to_ascii(board: chess.Board, highlight_squares: Optional[Set[chess.Squ
             
             # Add highlighting
             if square in highlight_squares:
-                row += '\033[93m'  # Yellow highlight
+                row += '\033[94m' # Bright Blue
                 
             if piece:
                 symbol = piece_symbols[piece.symbol()]
