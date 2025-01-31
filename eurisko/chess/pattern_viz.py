@@ -150,7 +150,7 @@ def describe_pattern(pattern_summary: PatternSummary) -> str:
         
     # Describe common themes
     if pattern_summary.themes:
-        themes_str = ', '.join(f"{t}({c})" for t, c in pattern_summary.themes.items())
+        themes_str = ', '.join(f"{t}" for t in pattern_summary.themes)
         description.append(f"Common themes: {themes_str}")
         
     return '\n'.join(description)

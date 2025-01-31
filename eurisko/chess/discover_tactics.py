@@ -1,11 +1,12 @@
-"""Discover meaningful chess tactical patterns."""
+"""Discover meaningful chess tactical patterns with visualization."""
 import chess
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, List, Tuple
 import argparse
 import os
 import json
 from .tactical_patterns import PatternFinder
+from .pattern_viz import PatternSummary, find_common_elements, show_pattern, describe_pattern
 
 # Set up logging
 logging.basicConfig(
@@ -32,48 +33,64 @@ class PuzzleExtractor:
         themes = xs[self.header_idx['Themes']].strip('"').split(' ')
         return puzzle_id, board, solution_moves, themes
 
-def describe_pattern(pattern) -> str:
-    """Create a human-readable description of a tactical pattern."""
-    # Get the key pieces involved
-    pieces = [chess.piece_name(p[0]) for p in pattern.key_pieces]
+def create_pattern_summary(examples: List[dict]) -> Tuple[PatternSummary, Tuple[chess.Board, chess.Move]]:
+    """Create a pattern summary from example positions."""
+    positions = []
+    for example in examples:
+        board = chess.Board(example['fen'])
+        move = chess.Move.from_uci(example['move'])
+        positions.append((board, move))
+
+    # Use the first position as the example position
+    example_position = positions[0] if positions else None
     
-    # Analyze relationships
-    descriptions = []
-    if "direct_attack" in pattern.relationships:
-        descriptions.append(f"{pieces[0]} directly attacks {pieces[1]}")
-    if "attack_through_piece" in pattern.relationships:
-        descriptions.append(f"{pieces[0]} attacks {pieces[2]} through {pieces[1]}")
-    if "knight_pattern" in pattern.relationships:
-        descriptions.append(f"{pieces[0]} makes a knight-pattern attack on {pieces[1]}")
-        
-    # Add success metrics
-    description = " and ".join(descriptions)
-    description += f"\nSuccess rate: {pattern.success_rate*100:.1f}%"
-    description += f"\nTypical material gain: {pattern.material_gain:.1f} pawns"
+    # Find common elements across positions
+    pattern_summary = find_common_elements(positions)
     
-    # Add common themes if any
-    if pattern.common_themes:
-        description += f"\nCommon themes: {', '.join(pattern.common_themes)}"
-        
-    return description
+    # Add themes from examples
+    themes = []
+    for example in examples:
+        themes.extend(example.get('themes', []))
+    pattern_summary.themes = list(set(themes))
+    
+    return pattern_summary, example_position
 
 def print_discovered_pattern(pattern, show_examples: bool = False):
-    """Print a discovered tactical pattern in a readable format."""
+    """Print a discovered tactical pattern with visualization."""
     print("\n" + "="*50)
-    print(describe_pattern(pattern))
     
-    if show_examples and pattern.examples:
-        print("\nExample position:")
-        example = pattern.examples[0]
-        print(f"FEN: {example['fen']}")
-        print(f"Key move: {example['move']}")
-        print(f"Material gained: {example['material_gain']}")
-        print(f"Themes: {', '.join(example['themes'])}")
-        print("="*50)
+    if pattern.examples:
+        # Create pattern summary from examples
+        pattern_summary, example_position = create_pattern_summary(pattern.examples)
+        
+        # Show visualization
+        print("Pattern Visualization:")
+        show_pattern(pattern_summary, example_position)
+        
+        # Print additional pattern information
+        print(f"\nSuccess rate: {pattern.success_rate*100:.1f}%")
+        print(f"Typical material gain: {pattern.material_gain:.1f} pawns")
+        if pattern.common_themes:
+            print(f"Common themes: {', '.join(pattern.common_themes)}")
+            
+        if show_examples and pattern.examples:
+            print("\nAdditional examples:")
+            for i, example in enumerate(pattern.examples[1:3], 1):  # Show 2 more examples
+                print(f"\nExample {i}:")
+                print(f"FEN: {example['fen']}")
+                print(f"Key move: {example['move']}")
+                print(f"Material gained: {example['material_gain']}")
+                if example.get('themes'):
+                    print(f"Themes: {', '.join(example['themes'])}")
+    
+    print("="*50)
+
+def square_name(t):
+    return "abcdefgh"[t[0]]+str(t[1])
 
 def run_discovery(puzzle_file: str, num_puzzles: Optional[int] = None,
                 output_dir: str = "discovered_tactics"):
-    """Run tactical pattern discovery on puzzles."""
+    """Run tactical pattern discovery on puzzles with visualization."""
     finder = PatternFinder()
     extractor = PuzzleExtractor()
     
@@ -144,8 +161,24 @@ def run_discovery(puzzle_file: str, num_puzzles: Optional[int] = None,
                 'success_rate': pattern.success_rate,
                 'material_gain': pattern.material_gain,
                 'common_themes': pattern.common_themes,
-                'examples': pattern.examples
+                'examples': pattern.examples,
+                'visualization': {
+                    'board_ascii': None,  # Will be filled in when loaded
+                    'key_squares': [square_name(sq) for sq in pattern.key_pieces],
+                    'arrows': []  # Will be filled in when loaded
+                }
             }
+            
+            # Add visualization data from example
+            if pattern.examples:
+                pattern_summary, example_position = create_pattern_summary(pattern.examples)
+                board, move = example_position
+                data['visualization']['board_ascii'] = board.fen()
+                data['visualization']['arrows'].append(
+                    [chess.square_name(move.from_square),
+                     chess.square_name(move.to_square)]
+                )
+            
             pattern_data.append(data)
             
         with open(patterns_file, 'w') as f:
